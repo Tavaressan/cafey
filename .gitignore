@@ -1,0 +1,14 @@
+# KiCad — arquivos de preferência e cache locais da máquina
+*-backups/
+*.kicad_prl
+fp-info-cache
+~*.lck
+*.bak
+_autosave-*
+*.net
+
+# Histórico local automático do KiCad (snapshots + git interno próprio)
+.history/
+
+# Sistema
+.DS_Store
