@@ -1,0 +1,494 @@
+<title>Caminho da Energia</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg:        #f3f4f6;
+    --surface:   #ffffff;
+    --surface-2: #ecedf1;
+    --ink:       #1b1e24;
+    --muted:     #59606e;
+    --hair:      #d7dae1;
+    --hazard:      #b53d0c;
+    --hazard-soft: #f6e3d9;
+    --elv:         #3a5a80;
+    --elv-soft:    #e7edf4;
+    --sig:         #6b6152;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #101216;
+      --surface:   #191c22;
+      --surface-2: #21252d;
+      --ink:       #e7e9ef;
+      --muted:     #9aa2b1;
+      --hair:      #2f343e;
+      --hazard:      #f4813f;
+      --hazard-soft: #33210f;
+      --elv:         #9cbbdd;
+      --elv-soft:    #1a2634;
+      --sig:         #c9bda8;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:        #101216;
+    --surface:   #191c22;
+    --surface-2: #21252d;
+    --ink:       #e7e9ef;
+    --muted:     #9aa2b1;
+    --hair:      #2f343e;
+    --hazard:      #f4813f;
+    --hazard-soft: #33210f;
+    --elv:         #9cbbdd;
+    --elv-soft:    #1a2634;
+    --sig:         #c9bda8;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height: 1.62;
+    font-size: 16px;
+  }
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 56px 24px 80px;
+  }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-weight: 600;
+    font-size: clamp(1.7rem, 1.2rem + 2vw, 2.4rem);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+    margin: 0 0 16px;
+  }
+  .standfirst {
+    font-size: 1.06rem;
+    color: var(--muted);
+    max-width: 60ch;
+    margin: 0 0 34px;
+  }
+  .rule {
+    height: 1px;
+    background: var(--hair);
+    border: 0;
+    margin: 34px 0;
+  }
+
+  h2 {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 48px 0 20px;
+  }
+
+  figure {
+    margin: 0;
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: 10px;
+    padding: 22px 20px 16px;
+  }
+  .scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  svg.diagram {
+    display: block;
+    width: 100%;
+    min-width: 720px;
+    height: auto;
+    color: var(--ink);
+  }
+  figcaption {
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--hair);
+    max-width: 68ch;
+  }
+
+  /* diagram primitives */
+  .ac    { stroke: var(--hazard); stroke-width: 3;   fill: none; }
+  .ac-n  { stroke: var(--hazard); stroke-width: 1.4; fill: none; }
+  .dc    { stroke: var(--elv);    stroke-width: 2.4; fill: none; }
+  .bus   { stroke: var(--elv);    stroke-width: 4.2; fill: none; }
+  .ctrl  { stroke: var(--sig);    stroke-width: 1.7; fill: none; stroke-dasharray: 6 4; }
+  .divider { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 2 5; opacity: 0.7; }
+  .box    { fill: var(--surface-2); stroke: var(--ink); stroke-width: 1.4; }
+  .box-ac { fill: var(--hazard-soft); stroke: var(--hazard); stroke-width: 1.4; }
+  .box-dc { fill: var(--elv-soft);    stroke: var(--elv);    stroke-width: 1.4; }
+  .dot    { fill: var(--hazard); }
+  .dot-dc { fill: var(--elv); }
+  .fill-ac   { fill: var(--hazard); }
+  .fill-dc   { fill: var(--elv); }
+  .fill-ctrl { fill: var(--sig); }
+
+  .t     { fill: var(--ink);   font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+  .t-b   { fill: var(--ink);   font-family: "IBM Plex Mono", monospace; font-size: 13px; font-weight: 600; }
+  .t-sm  { fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+  .t-wire{ fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; }
+  .t-zone{ fill: var(--muted); font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: 0.08em; }
+
+  /* steps */
+  ol.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; }
+  ol.steps li {
+    counter-increment: s;
+    display: grid;
+    grid-template-columns: 2.4rem 1fr;
+    gap: 4px 16px;
+    padding: 16px 0;
+    border-top: 1px solid var(--hair);
+  }
+  ol.steps li:first-child { border-top: 0; }
+  ol.steps li::before {
+    content: counter(s, decimal-leading-zero);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--hazard);
+    padding-top: 3px;
+  }
+  ol.steps h3 {
+    grid-column: 2;
+    margin: 0 0 2px;
+    font-size: 1rem;
+    font-weight: 600;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  ol.steps p { grid-column: 2; margin: 0; color: var(--muted); font-size: 0.96rem; }
+  ol.steps code {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.86em;
+    background: var(--surface-2);
+    padding: 0.05em 0.35em;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+
+  .tablewrap { overflow-x: auto; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.92rem;
+    min-width: 560px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px 10px 0;
+    border-bottom: 1px solid var(--hair);
+    vertical-align: top;
+  }
+  th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  td:first-child, td:nth-child(3) {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.86rem;
+    white-space: nowrap;
+  }
+  td:nth-child(3) { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .tag {
+    display: inline-block;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.72rem;
+    padding: 0.1em 0.5em;
+    border-radius: 3px;
+    border: 1px solid transparent;
+  }
+  .tag.ac  { background: var(--hazard-soft); color: var(--hazard); border-color: var(--hazard); }
+  .tag.dc  { background: var(--elv-soft);    color: var(--elv);    border-color: var(--elv); }
+  .tag.pe  { background: var(--surface-2);   color: var(--muted);  border-color: var(--hair); }
+
+  aside.safety {
+    margin-top: 40px;
+    padding: 16px 18px;
+    background: var(--hazard-soft);
+    border-left: 3px solid var(--hazard);
+    border-radius: 0 6px 6px 0;
+    font-size: 0.94rem;
+  }
+  aside.safety strong {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--hazard);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 18px;
+    border-top: 1px solid var(--hair);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.76rem;
+    color: var(--muted);
+  }
+
+  a { color: var(--hazard); }
+  :focus-visible { outline: 2px solid var(--hazard); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">Base IoT · Cafey — hardware</p>
+  <h1>Caminho da energia</h1>
+  <p class="standfirst">
+    Da rede elétrica até a cafeteira, e a derivação que passa pelo conversor
+    AC&ndash;CC para alimentar a lógica que comanda o próprio contato.
+  </p>
+
+  <figure>
+    <div class="scroll">
+      <svg class="diagram" viewBox="0 0 940 620" role="img"
+           aria-label="Diagrama do fluxo de energia: a fase da rede entra por J1, passa pelo fusível F1 e chega ao nó L_FONTE. Aí a energia se divide: um ramo vai ao contato do relé K1b1 e daí à tomada J2 e à cafeteira; outro ramo, com o neutro, alimenta o conversor AC-CC PS1 (HLK-PM01), que produz 5 V contínuos filtrados por C1. O barramento de 5 V alimenta o ESP32 e o módulo de relé. O ESP32 envia o sinal RELE_IN ao módulo de relé, cujo acoplamento eletromecânico fecha o contato COM-NO, completando o caminho da rede até a carga.">
+        <defs>
+          <marker id="ah-ac" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" class="fill-ac"/>
+          </marker>
+          <marker id="ah-dc" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" class="fill-dc"/>
+          </marker>
+          <marker id="ah-ctrl" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" class="fill-ctrl"/>
+          </marker>
+        </defs>
+
+        <!-- ===== title ===== -->
+        <text class="t-b" x="24" y="26">CAMINHO DA ENERGIA</text>
+        <text class="t-sm" x="24" y="42">rede → cafeteira  ·  derivação → conversor AC–CC</text>
+
+        <!-- ===== legend ===== -->
+        <g>
+          <line class="ac"   x1="628" y1="22" x2="656" y2="22"/>
+          <text class="t-sm" x="664" y="26">Rede AC  ~230 Vca  (perigo de choque)</text>
+          <line class="dc"   x1="628" y1="40" x2="656" y2="40"/>
+          <text class="t-sm" x="664" y="44">CC extra-baixa tensão  5 / 3,3 Vcc</text>
+          <line class="ctrl" x1="628" y1="58" x2="656" y2="58"/>
+          <text class="t-sm" x="664" y="62">controle / acoplamento do relé</text>
+          <circle class="dot" cx="642" cy="75" r="3.4"/>
+          <text class="t-sm" x="664" y="79">ponto cheio = ligação real</text>
+        </g>
+
+        <!-- ===== AC/DC divider ===== -->
+        <line class="divider" x1="24" y1="238" x2="916" y2="238"/>
+        <text class="t-zone" x="24" y="230">↑  REDE ELÉTRICA  ~230 Vca</text>
+        <text class="t-zone" x="24" y="253">↓  EXTRA-BAIXA TENSÃO  5 / 3,3 Vcc</text>
+
+        <!-- ===== AC load path (y = 120) ===== -->
+        <!-- L conductor -->
+        <line class="ac" x1="146" y1="120" x2="182" y2="120" marker-end="url(#ah-ac)"/>
+        <line class="ac" x1="294" y1="120" x2="324" y2="120" marker-end="url(#ah-ac)"/>
+        <line class="ac" x1="336" y1="120" x2="434" y2="120" marker-end="url(#ah-ac)"/>
+        <line class="ac" x1="592" y1="120" x2="644" y2="120" marker-end="url(#ah-ac)"/>
+        <line class="ac" x1="760" y1="120" x2="798" y2="120" marker-end="url(#ah-ac)"/>
+
+        <text class="t-wire" x="164" y="112" text-anchor="middle">L</text>
+        <text class="t-wire" x="330" y="110" text-anchor="middle">L_FONTE</text>
+        <text class="t-wire" x="385" y="112" text-anchor="middle">COM</text>
+        <text class="t-wire" x="618" y="112" text-anchor="middle">L_SAIDA</text>
+
+        <!-- N conductor -->
+        <polyline class="ac-n" points="120,150 120,174 704,174 704,150"/>
+        <circle class="dot" cx="386" cy="174" r="3.4"/>
+        <text class="t-wire" x="516" y="167" text-anchor="middle">N — neutro (comum a J2 e a PS1)</text>
+
+        <!-- boxes -->
+        <rect class="box-ac" x="24"  y="90" width="122" height="60" rx="4"/>
+        <text class="t-b" x="85"  y="116" text-anchor="middle">J1</text>
+        <text class="t-sm" x="85" y="132" text-anchor="middle">plugue NBR 14136</text>
+
+        <rect class="box-ac" x="182" y="90" width="112" height="60" rx="4"/>
+        <text class="t-b" x="238" y="116" text-anchor="middle">F1</text>
+        <text class="t-sm" x="238" y="132" text-anchor="middle">fusível 10 A</text>
+
+        <circle class="dot" cx="330" cy="120" r="4.5"/>
+
+        <rect class="box-ac" x="434" y="90" width="158" height="60" rx="4"/>
+        <text class="t-b" x="513" y="114" text-anchor="middle">K1b1</text>
+        <text class="t-sm" x="513" y="130" text-anchor="middle">contato do relé  COM→NO</text>
+
+        <rect class="box-ac" x="644" y="90" width="112" height="60" rx="4"/>
+        <text class="t-b" x="700" y="116" text-anchor="middle">J2</text>
+        <text class="t-sm" x="700" y="132" text-anchor="middle">tomada NBR 14136</text>
+
+        <rect class="box-ac" x="798" y="90" width="120" height="60" rx="4"/>
+        <text class="t-b" x="858" y="116" text-anchor="middle">Cafeteira</text>
+        <text class="t-sm" x="858" y="132" text-anchor="middle">carga ~230 Vca</text>
+
+        <!-- ===== branch down to converter ===== -->
+        <line class="ac" x1="330" y1="124" x2="330" y2="272" marker-end="url(#ah-ac)"/>
+        <line class="ac-n" x1="386" y1="174" x2="386" y2="272"/>
+        <text class="t-wire" x="338" y="210" >L pós-fusível</text>
+        <text class="t-wire" x="394" y="255" >N</text>
+
+        <!-- converter -->
+        <rect class="box" x="252" y="272" width="196" height="66" rx="4"/>
+        <text class="t-b" x="350" y="296" text-anchor="middle">PS1 · HLK-PM01</text>
+        <text class="t-sm" x="350" y="312" text-anchor="middle">conversor AC → CC · isolado</text>
+        <text class="t-sm" x="350" y="326" text-anchor="middle">230 Vca  →  5 Vcc</text>
+
+        <!-- DC out to C1 -->
+        <line class="dc" x1="350" y1="338" x2="350" y2="372" marker-end="url(#ah-dc)"/>
+        <rect class="box-dc" x="296" y="372" width="108" height="52" rx="4"/>
+        <text class="t-b" x="350" y="394" text-anchor="middle">C1</text>
+        <text class="t-sm" x="350" y="410" text-anchor="middle">470 µF · filtro</text>
+
+        <!-- bus -->
+        <line class="dc" x1="350" y1="424" x2="350" y2="452" marker-end="url(#ah-dc)"/>
+        <line class="bus" x1="150" y1="452" x2="806" y2="452"/>
+        <text class="t-wire" x="812" y="449">+5 Vcc</text>
+        <text class="t-wire" x="812" y="462">GND</text>
+        <circle class="dot-dc" cx="350" cy="452" r="3.6"/>
+
+        <!-- bus taps -->
+        <line class="dc" x1="255" y1="452" x2="255" y2="496" marker-end="url(#ah-dc)"/>
+        <circle class="dot-dc" cx="255" cy="452" r="3.6"/>
+        <line class="dc" x1="452" y1="452" x2="452" y2="496" marker-end="url(#ah-dc)"/>
+        <circle class="dot-dc" cx="452" cy="452" r="3.6"/>
+        <text class="t-wire" x="460" y="480">VCC 5 V</text>
+
+        <!-- DC boxes -->
+        <rect class="box-dc" x="150" y="496" width="234" height="72" rx="4"/>
+        <text class="t-b" x="267" y="520" text-anchor="middle">U1 · ESP32</text>
+        <text class="t-sm" x="267" y="536" text-anchor="middle">VIN = 5 V  ·  regula +3V3 interno</text>
+        <text class="t-sm" x="267" y="550" text-anchor="middle">+3V3 → pull-up do botão</text>
+
+        <rect class="box-dc" x="430" y="496" width="182" height="72" rx="4"/>
+        <text class="t-b" x="521" y="520" text-anchor="middle">K1 · módulo relé</text>
+        <text class="t-sm" x="521" y="536" text-anchor="middle">opto + bobina 5 V</text>
+        <text class="t-sm" x="521" y="550" text-anchor="middle">entrada IN ← RELE_IN</text>
+
+        <!-- control signal U1 -> K1 (routed under the boxes) -->
+        <polyline class="ctrl" points="300,569 300,590 486,590 486,569" marker-end="url(#ah-ctrl)"/>
+        <text class="t-wire" x="393" y="605" text-anchor="middle">GPIO26 → RELE_IN</text>
+
+        <!-- electromechanical coupling: coil (K1) actuates contact (K1b1) -->
+        <line class="ctrl" x1="521" y1="496" x2="521" y2="152" marker-end="url(#ah-ctrl)"/>
+        <text class="t-wire" x="528" y="340">aciona o contato</text>
+        <text class="t-wire" x="528" y="354">(isolação galvânica)</text>
+      </svg>
+    </div>
+    <figcaption>
+      A energia entra por <strong>J1</strong> e, depois do fusível <strong>F1</strong>, chega ao nó
+      <strong>L_FONTE</strong> — o ponto onde ela se divide. Um ramo segue pelo contato do relé
+      (<strong>K1b1</strong>) até a tomada <strong>J2</strong> e à cafeteira; o outro, junto com o neutro,
+      alimenta o conversor <strong>PS1</strong>. O relé só fecha esse contato quando o ESP32 —
+      alimentado por esse mesmo conversor — envia o sinal <strong>RELE_IN</strong>. Linhas que se cruzam
+      sem um ponto cheio não estão ligadas.
+    </figcaption>
+  </figure>
+
+  <h2>Leitura em 5 passos</h2>
+  <ol class="steps">
+    <li>
+      <h3>Entrada e proteção</h3>
+      <p>A fase <code>L</code> entra por <code>J1</code> e passa pelo fusível <code>F1</code> (10 A).
+      O ponto logo depois do fusível é o nó <code>L_FONTE</code>.</p>
+    </li>
+    <li>
+      <h3>Ramificação</h3>
+      <p>Em <code>L_FONTE</code> a energia se divide em dois caminhos: um vai para a carga (a cafeteira),
+      o outro para o conversor AC&ndash;CC. O neutro <code>N</code> é comum aos dois.</p>
+    </li>
+    <li>
+      <h3>Conversão e filtragem</h3>
+      <p><code>L_FONTE</code> + <code>N</code> chegam a <code>PS1</code> (HLK-PM01), que isola e reduz
+      230&nbsp;Vca para 5&nbsp;Vcc. <code>C1</code> (470&nbsp;µF) filtra o barramento de saída.</p>
+    </li>
+    <li>
+      <h3>Lógica alimentada</h3>
+      <p>O barramento <code>+5&nbsp;V</code> alimenta o <code>ESP32</code> (pino <code>VIN</code>) e o
+      <code>módulo de relé</code> (<code>VCC</code>). O ESP32 gera <code>+3V3</code> internamente.</p>
+    </li>
+    <li>
+      <h3>Fechamento do laço</h3>
+      <p>O ESP32 coloca <code>GPIO26</code> (<code>RELE_IN</code>) em nível alto → o optoacoplador e a
+      bobina do módulo energizam → o contato <code>COM&ndash;NO</code> fecha → a fase alcança
+      <code>J2</code> e a cafeteira liga.</p>
+    </li>
+  </ol>
+
+  <h2>Nós e barramentos</h2>
+  <div class="tablewrap">
+    <table>
+      <thead>
+        <tr><th>Nó</th><th>Domínio</th><th>Tensão</th><th>Papel no caminho da energia</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>L (entrada)</td><td><span class="tag ac">Rede AC</span></td><td>~230 Vca</td>
+          <td>Fase da rede, pelo plugue <code>J1</code>.</td>
+        </tr>
+        <tr>
+          <td>L_FONTE</td><td><span class="tag ac">Rede AC</span></td><td>~230 Vca</td>
+          <td>Fase depois de <code>F1</code>; ponto de ramificação para a carga e para <code>PS1</code>.</td>
+        </tr>
+        <tr>
+          <td>N</td><td><span class="tag ac">Rede AC</span></td><td>0 V (retorno)</td>
+          <td>Neutro; retorno da cafeteira e entrada de <code>PS1</code>.</td>
+        </tr>
+        <tr>
+          <td>PE</td><td><span class="tag pe">Proteção</span></td><td>&mdash;</td>
+          <td>Terra de proteção: <code>J1</code>–<code>J2</code>–chassi. Não conduz em operação normal.</td>
+        </tr>
+        <tr>
+          <td>L_SAIDA</td><td><span class="tag ac">Rede AC</span></td><td>~230 Vca</td>
+          <td>Fase chaveada (contato <code>NO</code>) → <code>J2</code> → cafeteira.</td>
+        </tr>
+        <tr>
+          <td>+5 V / GND</td><td><span class="tag dc">CC</span></td><td>5 Vcc</td>
+          <td>Saída de <code>PS1</code>, filtrada por <code>C1</code>; alimenta ESP32 e módulo de relé.</td>
+        </tr>
+        <tr>
+          <td>+3V3</td><td><span class="tag dc">CC</span></td><td>3,3 Vcc</td>
+          <td>Regulador interno do ESP32; alimenta o pull-up do botão.</td>
+        </tr>
+        <tr>
+          <td>RELE_IN</td><td><span class="tag dc">Sinal</span></td><td>3,3 V lógico</td>
+          <td><code>GPIO26</code> → entrada <code>IN</code> do módulo de relé.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <aside class="safety">
+    <strong>Atenção</strong>
+    Todo o ramo em cor de rede opera em tensão de rede (127/220&nbsp;Vac). O dimensionamento de
+    <code>F1</code> e dos contatos do relé deve corresponder à corrente real da cafeteira, e a montagem
+    exige validação por profissional habilitado em eletrotécnica antes do primeiro uso com carga real.
+  </aside>
+
+  <footer>
+    Base IoT · Cafeteira Conectada (Cafey) — derivado de <code>hardware/pi_dsm_26_2.kicad_sch</code>
+  </footer>
+</div>
