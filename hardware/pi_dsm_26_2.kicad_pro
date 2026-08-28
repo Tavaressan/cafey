@@ -8,7 +8,7 @@
       "internal_id": "",
       "mfg": "",
       "mpn": "",
-      "sch_revision": ""
+      "sch_revision": "A"
     },
     "layer_pairs": [],
     "layer_presets": [],
@@ -429,7 +429,7 @@
         "uuid": "b44094fb-e67c-4704-b1f1-1092cb00b967"
       }
     ],
-    "used_designators": "#FLG1-3,R1-5,P1,K1,C1-3,U1-2,SW1,F1,#PWR1-20,D1-2,K1b1,J1-5",
+    "used_designators": "#FLG1-3,P1,R1-5,K1b1,J1-5,C1-3,K1,U1-2,SW1,F1,#PWR1-20,D1-2",
     "variants": []
   },
   "sheets": [
