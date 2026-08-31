@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "author": "Cafey",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-relay-module", "id": "relay", "top": -115, "left": 210, "attrs": {} },
+    { "type": "wokwi-resistor", "id": "R1", "top": 130, "left": 210, "rotate": 90, "attrs": { "value": "10000" } },
+    { "type": "wokwi-pushbutton", "id": "SW1", "top": 175, "left": -190, "attrs": { "color": "green", "label": "SW1" } },
+    { "type": "wokwi-resistor", "id": "R2", "top": 90, "left": -230, "rotate": 90, "attrs": { "value": "10000" } },
+    { "type": "wokwi-capacitor", "id": "C3", "top": 260, "left": -120, "rotate": 90, "attrs": { "value": "100n" } },
+    { "type": "wokwi-rgb-led", "id": "D1", "top": -90, "left": -180, "attrs": { "common": "cathode" } },
+    { "type": "wokwi-resistor", "id": "R3", "top": -20, "left": -110, "attrs": { "value": "220" } },
+    { "type": "wokwi-resistor", "id": "R4", "top": 20, "left": -110, "attrs": { "value": "100" } },
+    { "type": "wokwi-resistor", "id": "R5", "top": 60, "left": -110, "attrs": { "value": "100" } }
+  ],
+  "connections": [
+    [ "esp:D26", "relay:IN", "green", [] ],
+    [ "esp:D26", "R1:1", "green", [] ],
+    [ "R1:2", "esp:GND.1", "black", [] ],
+    [ "esp:VIN", "relay:VCC", "red", [] ],
+    [ "esp:GND.1", "relay:GND", "black", [] ],
+
+    [ "esp:D27", "SW1:1.l", "blue", [] ],
+    [ "esp:D27", "R2:2", "blue", [] ],
+    [ "R2:1", "esp:3V3", "red", [] ],
+    [ "SW1:2.l", "esp:GND.2", "black", [] ],
+    [ "esp:D27", "C3:1", "blue", [] ],
+    [ "C3:2", "esp:GND.2", "black", [] ],
+
+    [ "esp:D21", "R3:1", "orange", [] ],
+    [ "R3:2", "D1:R", "orange", [] ],
+    [ "esp:D22", "R4:1", "green", [] ],
+    [ "R4:2", "D1:G", "green", [] ],
+    [ "esp:D23", "R5:1", "blue", [] ],
+    [ "R5:2", "D1:B", "blue", [] ],
+    [ "D1:COM", "esp:GND.3", "black", [] ]
+  ]
+}
