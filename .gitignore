@@ -10,5 +10,9 @@ _autosave-*
 # Histórico local automático do KiCad (snapshots + git interno próprio)
 .history/
 
+# Ferramentas do editor / assistente
+.claude/
+.vscode/
+
 # Sistema
 .DS_Store
