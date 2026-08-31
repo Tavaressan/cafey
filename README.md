@@ -1,6 +1,6 @@
 # Cafey — Cafeteira Conectada
 
-Projeto Integrador do 6º semestre (Desenvolvimento de Software Multiplataforma, Fatec Zona Leste).
+Projeto Integrador do 6º semestre (Desenvolvimento de Software Multiplataforma, Fatec Itaquera).
 
 Módulo IoT (Internet of Things — Internet das Coisas) externo, em formato de base de aço, que
 transforma qualquer cafeteira de chave mecânica em aparelho conectado, sem modificação interna.
