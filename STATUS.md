@@ -1,6 +1,10 @@
 # Estado atual
 
-Data: 26/08/2026. Fase 1 do cronograma (24/08 a 04/09).
+Data: 31/08/2026. Fase 1 do cronograma (24/08 a 04/09).
+
+Esquemático revisado: netlist conferida nó a nó com `kicad-cli`, ERC limpo
+(salvo avisos esperados de GPIO livre e duas exclusões documentadas). Início da
+prototipação embarcada no Wokwi — ver `firmware/`.
 
 ## Decisões fechadas
 
@@ -11,7 +15,7 @@ Data: 26/08/2026. Fase 1 do cronograma (24/08 a 04/09).
 | Módulo de relé | 1 canal, bobina 5 V, optoacoplador, ≥10 A, gatilho de nível ALTO |
 | Isolamento | Fonte única, jumper JD-VCC mantido, ruído tratado por desacoplamento |
 | LED | RGB discreto de cátodo comum (símbolo `Device:LED_RGBK`) |
-| Proteção | Fusível 10 A / 250 V na entrada, antes do relé |
+| Proteção | Fusível na entrada, antes do relé. Valor no esquemático: 10 A / 250 V — ver "Compras pendentes" (8 A dá margem entre a cafeteira ~6,3 A e o contato do relé 10 A) |
 | MCU | DOIT ESP32 DevKit V1, 30 pinos |
 | Esquemático | Folha única A4, KiCad 10.0.5 |
 
@@ -35,7 +39,7 @@ atualizado:
 | Terra | GND | 2 | GND |
 | Referência 3,3 V | 3.3v | 16 | +3V3 |
 | Sinal do relé | GPIO26 | 7 | R1 10 kΩ pull-down para GND |
-| Botão | GPIO27 | 6 | R2 10 kΩ pull-up, C4 100 nF |
+| Botão | GPIO27 | 6 | R2 10 kΩ pull-up, C3 100 nF |
 | LED vermelho | GPIO21 | 26 | R3 220 Ω |
 | LED verde | GPIO22 | 29 | R4 100 Ω |
 | LED azul | GPIO23 | 30 | R5 100 Ω |
@@ -47,37 +51,50 @@ quando o GPIO fica em alta impedância.
 GPIO12 foi evitado (nível alto no boot impede a partida); GPIO2, 5 e 15 foram
 evitados (strapping); GPIO34, 35, 36 e 39 são somente entrada.
 
+O símbolo `ESP32_30Pin` declara o pino 16 (3V3) como entrada de energia; na
+placa real o 3V3 é saída do regulador de bordo. Por isso a rede `+3V3` leva um
+`PWR_FLAG` — curativo de ERC, sem efeito físico. Corrigir no símbolo algum dia.
+
+## Esquemático — referências (mudaram após reanotação)
+
+| Ref | Componente |
+|---|---|
+| P1 | Cabo macho NBR 14136 (`Connector:Conn_Plug_3P_Protected`) |
+| J1 | Tomada fêmea NBR 14136 (`Connector:Conn_Receptacle_3P_Protected`) |
+| J3 | Terra da chapa de aço — terminal olhal (`Conn_01x01`), no nó `Earth_Protective` |
+| U1 | ESP32 DevKit V1 |
+| U2 | HLK-PM01 (`Converter_ACDC:HLK-PM01`) |
+| K3 | Módulo relé 1 canal (`relay_module:Relay_Module_1CH`, símbolo único do projeto) |
+| F1 | Fusível | C1/C2/C3 | Capacitores (C3 = antigo C4, buraco fechado) |
+
 ## Esquemático — o que está pronto
 
-- Bloco de potência: J1 (cabo macho NBR 14136) → F1 → COM/NO de K2 → J2
-  (tomada fêmea). Neutro e terra passam diretos.
-- J3 como terminal olhal de aterramento da chapa de aço, no nó PE.
+- Bloco de potência: P1 (cabo macho) → F1 → COM/NO de K3 → J1 (tomada fêmea).
+  Neutro e terra passam diretos.
+- J3 (terminal olhal) e o símbolo `Earth_Protective` no nó de terra da chapa;
+  a rede se chama `Earth_Protective` e liga P1.PE, J1.PE e J3.
 - PE e GND são redes separadas, sem ponto de encontro. A saída do HLK-PM01 é
   isolada e seu negativo não vai ao terra de proteção.
 - Derivação da fase para a fonte entre F1 e o contato do relé, via rótulo
-  `L_FONTE` — necessário para o ESP32 permanecer energizado com o relé aberto.
-- PS1 (HLK-PM01), U1, K1 e K2 (módulo de relé em dois blocos, dentro de
-  retângulo tracejado), SW1, D1, C1, C2, C4, R1 a R4 posicionados.
-- PWR_FLAG em +5V, +3V3 e GND.
-- Ligações por rótulos globais, não por fios longos.
+  `L_FONTE`. `L_REDE` = fase da rede antes do fusível; `L_SAIDA` = fase chaveada
+  para a tomada.
+- Todos os componentes com símbolo dedicado (HLK-PM01, relé, plugue/tomada
+  protegidos) e campos de Valor preenchidos.
+- `PWR_FLAG` em `+3V3`, `L_REDE` e `L_SAIDA` (o `+5V` e o `GND` são dirigidos
+  pelos pinos de saída do HLK-PM01).
+- Anotação feita; ERC rodado.
+- Netlist conferida nó a nó com `kicad-cli export netlist`.
+- Notas de texto no bloco de potência (tensão, corrente, aviso de validação).
 
 ## Esquemático — o que falta
 
-Parei no passo 9 do roteiro (anotação e ERC).
-
-- [ ] R5 (100 Ω, canal azul do LED) não foi colocado
-- [ ] Campos de Valor vazios em todos os R, C, F1, J1 e J2 — aparecem como
-      `R_US`, `C`, `Fuse` e nomes de biblioteca
-- [ ] Referência `K1b1` inválida; renomear para `K2`
-- [ ] Pino NC de K2 sem marca de "sem conexão"
-- [ ] Rodar anotação
-- [ ] Rodar ERC e resolver erros de alimentação
-- [ ] Conferir que não há redes com nomes quase idênticos tratadas como
-      distintas
-- [ ] Nota de texto no bloco de potência (tensão, corrente, aviso de validação
-      elétrica)
-- [ ] Page Settings: data e revisão vazias
-- [ ] Exportar netlist para conferência nó a nó contra a especificação
+- [ ] Atribuir footprints a todos os componentes (nenhum tem footprint ainda) —
+      pré-requisito do PCB
+- [ ] Dois avisos de ERC ficam como exclusão documentada: `power_out ↔ power_out`
+      em `N` e em `Earth_Protective` (passagem direta plugue→tomada, inerente aos
+      símbolos `*_3P_Protected`)
+- [ ] Aviso `pin_to_pin` entre U1.GND (bidirecional) e U2.-Vout — inofensivo
+- [ ] 21 avisos de "pino não conectado" nos GPIOs livres do U1 — esperados
 
 ## Pendências de bancada
 
@@ -93,6 +110,10 @@ Nenhuma delas é decisão — são verificações contra o componente físico.
 ## Compras pendentes
 
 Cafeteira, módulo de relé (gatilho alto ou selecionável), HLK-PM01.
+
+Fusível: considerar 8 A em vez de 10 A — fica acima dos ~6,3 A da cafeteira e
+abaixo do limite do contato do relé (10 A), protegendo também o contato. Se
+comprar 8 A, atualizar o Valor de F1 no esquemático.
 
 ## Marcos
 
