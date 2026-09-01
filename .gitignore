@@ -16,3 +16,8 @@ _autosave-*
 
 # Sistema
 .DS_Store
+
+# Firmware (ESP-IDF)
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
