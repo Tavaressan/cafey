@@ -31,6 +31,7 @@ class MqttClientService(
 
     private val estadoPattern = Pattern.compile("^dispositivos/([a-fA-F0-9-]+)/estado$")
     private val saudePattern = Pattern.compile("^dispositivos/([a-fA-F0-9-]+)/saude$")
+    private val eventoPattern = Pattern.compile("^dispositivos/([a-fA-F0-9-]+)/eventos$")
 
     @PostConstruct
     fun start() {
@@ -100,6 +101,14 @@ class MqttClientService(
                 val dispositivoId = UUID.fromString(saudeMatcher.group(1))
                 val payload = objectMapper.readValue(payloadStr, SaudePayload::class.java)
                 ingestionService.processarSaude(dispositivoId, payload)
+                return
+            }
+
+            val eventoMatcher = eventoPattern.matcher(topic)
+            if (eventoMatcher.matches()) {
+                val dispositivoId = UUID.fromString(eventoMatcher.group(1))
+                val payload = objectMapper.readValue(payloadStr, EventoPayload::class.java)
+                ingestionService.processarEvento(dispositivoId, payload)
                 return
             }
         } catch (e: Exception) {
