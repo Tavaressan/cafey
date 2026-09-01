@@ -106,6 +106,11 @@ Segue a ordem de execução do §10 da especificação do backend.
 | BE-19 | Compartilhamento de dispositivo com convidado (UC-05) | 3 | BE-10 | corte 3 |
 | BE-20 | `POST /dispositivos/{id}/eventos` para o proxy BLE, rejeitando `inicio` no futuro ou antigo demais | 4 | BE-15 | corte 1 |
 | BE-21 | Recuperação de senha (UC-03) e migração `V6` para o token de redefinição | 4 | BE-04 | corte 5 |
+| BE-22 | Gerenciamento e injeção segura de chaves RSA (RS256) via variáveis de ambiente / Secrets Manager | 2 | BE-03 | |
+| BE-23 | Provedor de envio de e-mail (AWS SES / SMTP) para recuperação de senha com perfis dev/prod | 4 | BE-21 | |
+| BE-24 | Rate Limiting e proteção contra força bruta nos endpoints de autenticação (Bucket4j) | 2 | BE-04 | |
+| BE-25 | Documentação interativa de API via OpenAPI 3 e Swagger UI (SpringDoc) | 2 | BE-04 | |
+| BE-26 | Desativar Open Session In View (`spring.jpa.open-in-view: false`) e validar queries JPA | 2 | BE-01 | |
 
 ---
 
@@ -166,6 +171,9 @@ Segue a ordem de execução do §10 da especificação do backend.
 | ID | Item | Fase | Depende | Prio |
 |---|---|---|---|---|
 | INFRA-01 | Pipeline de CI (GitHub Actions) para Backend Spring Boot e Apps Kotlin Multiplataforma (Web, Mobile, Desktop) | 1 | — | crítico |
+| INFRA-02 | Otimização de build: Configuration Cache e cache avançado do Gradle no CI | 1 | INFRA-01 | |
+| INFRA-03 | Testes de integração com banco PostgreSQL no CI (Testcontainers ou GitHub Actions Service) | 1 | INFRA-01 | |
+| INFRA-04 | Pipeline de CI para compilação do Firmware ESP-IDF (ESP32) | 1 | FW-01, INFRA-01 | |
 
 ---
 
