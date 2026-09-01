@@ -16,3 +16,9 @@ _autosave-*
 
 # Sistema
 .DS_Store
+.claude/vetor/status/
+
+# Firmware ESP-IDF
+firmware/build/
+firmware/sdkconfig
+firmware/sdkconfig.old
