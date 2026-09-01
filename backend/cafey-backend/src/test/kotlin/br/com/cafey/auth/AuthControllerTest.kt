@@ -34,6 +34,9 @@ class AuthControllerTest {
     @Mock
     private lateinit var refreshTokenRepository: RefreshTokenRepository
 
+    @Mock
+    private lateinit var passwordResetTokenRepository: br.com.cafey.security.PasswordResetTokenRepository
+
     private lateinit var passwordEncoder: BCryptPasswordEncoder
     private lateinit var jwtTokenService: JwtTokenService
     private lateinit var authService: AuthService
@@ -43,7 +46,13 @@ class AuthControllerTest {
     fun setUp() {
         passwordEncoder = BCryptPasswordEncoder(12)
         jwtTokenService = JwtTokenService()
-        authService = AuthService(usuarioRepository, refreshTokenRepository, passwordEncoder, jwtTokenService)
+        authService = AuthService(
+            usuarioRepository,
+            refreshTokenRepository,
+            passwordResetTokenRepository,
+            passwordEncoder,
+            jwtTokenService
+        )
         val authController = AuthController(authService)
 
         mockMvc = MockMvcBuilders.standaloneSetup(authController)
