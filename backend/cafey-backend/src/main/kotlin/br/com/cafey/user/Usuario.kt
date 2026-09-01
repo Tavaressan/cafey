@@ -14,7 +14,7 @@ class Usuario(
     @Column(nullable = false)
     var nome: String,
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, columnDefinition = "citext")
     var email: String,
 
     @Column(name = "senha_hash", nullable = false)
