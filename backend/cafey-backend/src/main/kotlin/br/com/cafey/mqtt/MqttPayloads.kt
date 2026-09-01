@@ -20,3 +20,17 @@ data class ComandoPayload(
     val duracaoS: Int,
     val emitidoEm: Instant = Instant.now()
 )
+
+data class AgendamentoItemPayload(
+    val id: String,
+    val hora: String,
+    val diasSemana: Int,
+    val ativo: Boolean
+)
+
+data class AgendamentosPayload(
+    val versao: Int,
+    val timezone: String,
+    val duracaoS: Int,
+    val agendamentos: List<AgendamentoItemPayload>
+)
