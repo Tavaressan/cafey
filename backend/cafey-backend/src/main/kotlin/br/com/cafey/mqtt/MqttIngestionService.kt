@@ -1,6 +1,8 @@
 package br.com.cafey.mqtt
 
 import br.com.cafey.device.DispositivoRepository
+import br.com.cafey.event.EventoService
+import br.com.cafey.event.IngestaoEventoRequest
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
@@ -13,7 +15,8 @@ data class DispositivoOnlineEvent(val dispositivoId: UUID)
 @Service
 class MqttIngestionService(
     private val dispositivoRepository: DispositivoRepository,
-    private val eventPublisher: ApplicationEventPublisher
+    private val eventPublisher: ApplicationEventPublisher,
+    private val eventoService: EventoService
 ) {
     private val logger = LoggerFactory.getLogger(MqttIngestionService::class.java)
 
@@ -50,5 +53,19 @@ class MqttIngestionService(
         if (wasOffline && payload.online) {
             eventPublisher.publishEvent(DispositivoOnlineEvent(dispositivoId))
         }
+    }
+
+    @Transactional
+    fun processarEvento(dispositivoId: UUID, payload: EventoPayload) {
+        val req = IngestaoEventoRequest(
+            eventoId = payload.eventoId,
+            tipo = payload.tipo,
+            resultado = payload.resultado,
+            origem = payload.origem,
+            duracaoS = payload.duracaoS,
+            timestamp = payload.timestamp,
+            detalheErro = payload.detalheErro
+        )
+        eventoService.ingestar(dispositivoId, req)
     }
 }

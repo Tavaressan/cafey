@@ -12,6 +12,8 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.ArgumentCaptor
 import org.mockito.Mock
 import org.mockito.Mockito.*
+import br.com.cafey.event.EventoService
+import br.com.cafey.event.IngestaoEventoRequest
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Instant
@@ -27,6 +29,9 @@ class MqttIngestionServiceTest {
     @Mock
     private lateinit var eventPublisher: ApplicationEventPublisher
 
+    @Mock
+    private lateinit var eventoService: EventoService
+
     private lateinit var ingestionService: MqttIngestionService
     private lateinit var clientService: MqttClientService
     private lateinit var objectMapper: ObjectMapper
@@ -34,7 +39,7 @@ class MqttIngestionServiceTest {
 
     @BeforeEach
     fun setUp() {
-        ingestionService = MqttIngestionService(dispositivoRepository, eventPublisher)
+        ingestionService = MqttIngestionService(dispositivoRepository, eventPublisher, eventoService)
         objectMapper = jacksonObjectMapper()
         val properties = AwsIotProperties()
         clientService = MqttClientService(properties, ingestionService, objectMapper, null)
@@ -91,5 +96,14 @@ class MqttIngestionServiceTest {
         clientService.handleIncomingMessage("dispositivos/$dispositivoId/saude", json)
 
         assertTrue(disp.online)
+    }
+
+    @Test
+    fun `should parse incoming topic and route to event ingestion`() {
+        val json = """{"eventoId":"evt-99","tipo":"PREPARO","resultado":"CONCLUIDO","origem":"APP","duracaoS":300,"timestamp":"2026-09-01T15:00:00Z"}"""
+        clientService.handleIncomingMessage("dispositivos/$dispositivoId/eventos", json)
+
+        val dummy = IngestaoEventoRequest("e", "PREPARO", "CONCLUIDO", "APP", 0, Instant.now())
+        verify(eventoService).ingestar(any() ?: dispositivoId, any() ?: dummy)
     }
 }

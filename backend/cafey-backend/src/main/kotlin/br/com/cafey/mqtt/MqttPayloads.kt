@@ -34,3 +34,13 @@ data class AgendamentosPayload(
     val duracaoS: Int,
     val agendamentos: List<AgendamentoItemPayload>
 )
+
+data class EventoPayload(
+    val eventoId: String,
+    val tipo: String = "PREPARO",
+    val resultado: String,
+    val origem: String,
+    val duracaoS: Int,
+    val timestamp: Instant,
+    val detalheErro: String? = null
+)
