@@ -1,0 +1,49 @@
+name: CI Backend
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci-backend.yml'
+  pull_request:
+    branches: [main, master, develop]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ci-backend.yml'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check if backend exists
+        id: check-backend
+        run: |
+          if [ -f "backend/cafey-backend/gradlew" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up JDK 21
+        if: steps.check-backend.outputs.exists == 'true'
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        if: steps.check-backend.outputs.exists == 'true'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: backend/cafey-backend
+
+      - name: Build and test backend
+        if: steps.check-backend.outputs.exists == 'true'
+        working-directory: backend/cafey-backend
+        run: |
+          chmod +x gradlew
+          ./gradlew test
