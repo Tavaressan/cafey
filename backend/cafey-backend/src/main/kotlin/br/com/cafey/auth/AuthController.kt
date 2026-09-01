@@ -31,4 +31,16 @@ class AuthController(
         val response = authService.refresh(request)
         return ResponseEntity.ok(response)
     }
+
+    @PostMapping("/recuperar-senha")
+    fun recuperarSenha(@Valid @RequestBody request: SolicitarRecuperacaoSenhaRequest): ResponseEntity<RecuperacaoSenhaResponse> {
+        val response = authService.solicitarRecuperacaoSenha(request)
+        return ResponseEntity.ok(response)
+    }
+
+    @PostMapping("/redefinir-senha")
+    fun redefinirSenha(@Valid @RequestBody request: RedefinirSenhaRequest): ResponseEntity<Map<String, String>> {
+        authService.redefinirSenha(request)
+        return ResponseEntity.ok(mapOf("mensagem" to "Senha redefinida com sucesso"))
+    }
 }

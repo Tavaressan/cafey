@@ -2,6 +2,8 @@ package br.com.cafey.auth
 
 import br.com.cafey.exception.BadCredentialsException
 import br.com.cafey.security.JwtTokenService
+import br.com.cafey.security.PasswordResetToken
+import br.com.cafey.security.PasswordResetTokenRepository
 import br.com.cafey.security.RefreshToken
 import br.com.cafey.security.RefreshTokenRepository
 import br.com.cafey.user.Usuario
@@ -17,6 +19,7 @@ import java.util.UUID
 class AuthService(
     private val usuarioRepository: UsuarioRepository,
     private val refreshTokenRepository: RefreshTokenRepository,
+    private val passwordResetTokenRepository: PasswordResetTokenRepository,
     private val passwordEncoder: PasswordEncoder,
     private val jwtTokenService: JwtTokenService
 ) {
@@ -95,5 +98,46 @@ class AuthService(
             accessToken = accessToken,
             refreshToken = rawRefreshToken
         )
+    }
+
+    @Transactional
+    fun solicitarRecuperacaoSenha(request: SolicitarRecuperacaoSenhaRequest): RecuperacaoSenhaResponse {
+        val normalizedEmail = request.email.trim().lowercase()
+        val usuario = usuarioRepository.findByEmail(normalizedEmail)
+            ?: return RecuperacaoSenhaResponse("Se o email estiver cadastrado, as instruções foram enviadas.")
+
+        val rawToken = UUID.randomUUID().toString().replace("-", "")
+        val tokenHash = jwtTokenService.hashToken(rawToken)
+
+        val resetToken = PasswordResetToken(
+            usuario = usuario,
+            tokenHash = tokenHash,
+            expiraEm = Instant.now().plus(1, ChronoUnit.HOURS)
+        )
+        passwordResetTokenRepository.save(resetToken)
+
+        return RecuperacaoSenhaResponse(
+            mensagem = "Se o email estiver cadastrado, as instruções foram enviadas.",
+            token = rawToken
+        )
+    }
+
+    @Transactional
+    fun redefinirSenha(request: RedefinirSenhaRequest) {
+        val tokenHash = jwtTokenService.hashToken(request.token.trim())
+        val resetToken = passwordResetTokenRepository.findByTokenHash(tokenHash)
+            ?: throw BadCredentialsException("Token de recuperação inválido ou expirado")
+
+        if (resetToken.utilizado || resetToken.expiraEm.isBefore(Instant.now())) {
+            throw BadCredentialsException("Token de recuperação inválido ou expirado")
+        }
+
+        val usuario = resetToken.usuario
+        usuario.senhaHash = passwordEncoder.encode(request.novaSenha)!!
+        usuario.atualizadoEm = Instant.now()
+        usuarioRepository.save(usuario)
+
+        resetToken.utilizado = true
+        passwordResetTokenRepository.save(resetToken)
     }
 }
