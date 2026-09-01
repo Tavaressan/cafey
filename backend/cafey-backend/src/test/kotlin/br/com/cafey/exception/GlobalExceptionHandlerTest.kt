@@ -1,21 +1,26 @@
 package br.com.cafey.exception
 
 import br.com.cafey.controller.TestController
+import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
+import org.springframework.test.web.servlet.setup.MockMvcBuilders
 
-@WebMvcTest(TestController::class)
 class GlobalExceptionHandlerTest {
 
-    @Autowired
     private lateinit var mockMvc: MockMvc
+
+    @BeforeEach
+    fun setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(TestController())
+            .setControllerAdvice(GlobalExceptionHandler())
+            .build()
+    }
 
     @Test
     fun `should handle ResourceNotFoundException`() {
