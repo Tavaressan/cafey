@@ -2,12 +2,12 @@ name: CI Apps
 
 on:
   push:
-    branches: [ "main", "master", "develop" ]
+    branches: [main, master, develop]
     paths:
       - 'apps/**'
       - '.github/workflows/ci-apps.yml'
   pull_request:
-    branches: [ "main", "master", "develop" ]
+    branches: [main, master, develop]
     paths:
       - 'apps/**'
       - '.github/workflows/ci-apps.yml'
@@ -16,12 +16,13 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Validate Apps exist
-      run: |
-        if [ -d "apps" ]; then
-          echo "Apps directory exists."
-        else
-          echo "Apps directory not found yet, skipping validation."
-        fi
+      - name: Validate Apps exist
+        run: |
+          if [ -d "apps" ]; then
+            echo "Apps directory exists."
+          else
+            echo "Apps directory not found yet, skipping validation."
+          fi
