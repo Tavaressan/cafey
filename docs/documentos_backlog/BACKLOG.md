@@ -54,28 +54,30 @@ isolamento elétrico.
 
 ---
 
-## Firmware
+## Firmware (C++ / ESP-IDF)
+
+O firmware é desenvolvido em **C++** sobre o framework oficial **ESP-IDF** (com FreeRTOS), adotando orientação a objetos, RAII e classes para estruturar os Active Objects e drivers de periféricos — **não em C puro**.
 
 | ID | Item | Fase | Depende | Prio |
 |---|---|---|---|---|
-| FW-01 | Esqueleto ESP-IDF: CMake, `idf.py`, menuconfig, particionamento de flash, build no DevKit | 1 | — | |
-| FW-02 | Estrutura de Active Objects sobre FreeRTOS: Cafeteira, Conectividade, Agendador, cada um com fila própria | 2 | FW-01 | |
-| FW-03 | Driver do relé em GPIO26 com gatilho alto e pull-down; verificar ausência de acionamento espúrio no boot | 1 | FW-01, HW-03 | crítico |
-| FW-04 | Botão em GPIO27: toque curto liga/desliga, toque durante preparo cancela; evento com origem `BOTAO` | 2 | FW-02 | crítico |
-| FW-05 | LED RGB conforme §5.3: cor indica estado da cafeteira, piscar indica problema de rede | 2 | FW-02, HW-04 | |
-| FW-06 | Persistência em NVS: agendamentos e fila circular de eventos, com mutex no acesso | 2 | FW-02 | crítico |
-| FW-07 | Temporizador local de preparo aplicando `duracaoS`; corte de energia gera resultado `CONCLUIDO` | 2 | FW-03, HW-06 | crítico |
+| FW-01 | Esqueleto ESP-IDF em C++: CMake configurado para C++, `idf.py`, menuconfig, particionamento de flash, ponto de entrada `app_main` (`extern "C"`) e estrutura com `.cpp`/`.hpp`, build no DevKit | 1 | — | |
+| FW-02 | Estrutura de Active Objects em classes C++ sobre FreeRTOS: Cafeteira, Conectividade, Agendador, cada um com fila própria e encapsulamento orientado a objetos | 2 | FW-01 | |
+| FW-03 | Driver do relé em C++ em GPIO26 com gatilho alto e pull-down; verificar ausência de acionamento espúrio no boot | 1 | FW-01, HW-03 | crítico |
+| FW-04 | Driver do botão em C++ em GPIO27: toque curto liga/desliga, toque durante preparo cancela; evento com origem `BOTAO` | 2 | FW-02 | crítico |
+| FW-05 | Driver do LED RGB em C++ conforme §5.3: cor indica estado da cafeteira, piscar indica problema de rede | 2 | FW-02, HW-04 | |
+| FW-06 | Persistência em NVS em C++: agendamentos e fila circular de eventos, com mutex / RAII lock no acesso | 2 | FW-02 | crítico |
+| FW-07 | Temporizador local de preparo em C++ aplicando `duracaoS`; corte de energia gera resultado `CONCLUIDO` | 2 | FW-03, HW-06 | crítico |
 | FW-08 | Geração de `evento_id` no formato `bootId:seq`, com `seq` persistido em NVS | 2 | FW-06 | |
-| FW-09 | Wi-Fi: conexão, reconexão e provisionamento de credenciais (UC-04) | 2 | FW-02 | |
-| FW-10 | MQTT sobre TLS com certificado X.509; conexão ao AWS IoT Core em QoS 1 — **marco 25/09** | 2 | FW-09 | |
+| FW-09 | Módulo Wi-Fi em C++: conexão, reconexão e provisionamento de credenciais (UC-04) | 2 | FW-02 | |
+| FW-10 | Cliente MQTT em C++ sobre TLS com certificado X.509; conexão ao AWS IoT Core em QoS 1 — **marco 25/09** | 2 | FW-09 | |
 | FW-11 | Assinar os tópicos descendentes `comando` e `agendamentos` pelo nome exato (retain não é entregue a filtro com wildcard) | 2 | FW-10 | crítico |
 | FW-12 | Publicar `estado` com retain, `eventos` sem retain, e `saude` com Last Will retido | 2 | FW-10 | |
 | FW-13 | Regra de versão monotônica: ignorar lista de agendamentos com `versao` menor ou igual à gravada em NVS | 2 | FW-06, FW-11 | crítico |
-| FW-14 | NTP e agendador local disparando por relógio interno, sem depender da nuvem — **marco 09/10** | 3 | FW-06 | crítico |
+| FW-14 | Agendador local em C++ com NTP disparando por relógio interno, sem depender da nuvem — **marco 09/10** | 3 | FW-06 | crítico |
 | FW-15 | Definir comportamento quando o preparo termina antes da sincronização NTP; fecha o restante da pendência 2 do backend | 3 | FW-08, FW-14 | |
-| FW-16 | Fila de eventos pendentes: enfileirar offline, drenar ao reconectar | 3 | FW-06, FW-10 | crítico |
-| FW-17 | Serviço BLE com características de comando, estado e agendamentos | 4 | FW-02 | corte 1 |
-| FW-18 | Proxy BLE: expor a fila de eventos pendentes e limpá-la após confirmação | 4 | FW-16, FW-17 | corte 1 |
+| FW-16 | Fila de eventos pendentes em C++: enfileirar offline, drenar ao reconectar | 3 | FW-06, FW-10 | crítico |
+| FW-17 | Serviço BLE em C++ com características de comando, estado e agendamentos | 4 | FW-02 | corte 1 |
+| FW-18 | Proxy BLE em C++: expor a fila de eventos pendentes e limpá-la após confirmação | 4 | FW-16, FW-17 | corte 1 |
 
 ---
 
@@ -173,7 +175,7 @@ Segue a ordem de execução do §10 da especificação do backend.
 | INFRA-01 | Pipeline de CI (GitHub Actions) para Backend Spring Boot e Apps Kotlin Multiplataforma (Web, Mobile, Desktop) | 1 | — | crítico |
 | INFRA-02 | Otimização de build: Configuration Cache e cache avançado do Gradle no CI | 1 | INFRA-01 | |
 | INFRA-03 | Testes de integração com banco PostgreSQL no CI (Testcontainers ou GitHub Actions Service) | 1 | INFRA-01 | |
-| INFRA-04 | Pipeline de CI para compilação do Firmware ESP-IDF (ESP32) | 1 | FW-01, INFRA-01 | |
+| INFRA-04 | Pipeline de CI para compilação do Firmware ESP-IDF em C++ (ESP32) | 1 | FW-01, INFRA-01 | |
 
 ---
 
