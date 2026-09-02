@@ -5,7 +5,6 @@ idf_component_register(
     INCLUDE_DIRS
         "."
         "drivers"
-        "core"
     REQUIRES
         driver
         esp_common
