@@ -16,67 +16,9 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import _env
+from _build import build_spreadsheet, box, cyl
 
 import FreeCAD as App
-import Part  # noqa: F401  (registra Part::* no documento)
-
-
-def build_spreadsheet(doc):
-    sheet = doc.addObject("Spreadsheet::Sheet", "params")
-    sheet.Label = "params"
-    rows = _env.load_params()
-    row = 1
-    # material como texto
-    sheet.set("A%d" % row, "material")
-    sheet.set("B%d" % row, _env.MATERIAL_TXT)
-    sheet.setAlias("B%d" % row, "material_txt")
-    row += 1
-    for alias, value, unit, origin in rows:
-        a, b, c = "A%d" % row, "B%d" % row, "C%d" % row
-        sheet.set(a, alias)
-        if alias in _env.DERIVED:
-            sheet.set(b, "=" + _env.DERIVED[alias])
-        else:
-            sheet.set(b, repr(value))
-        sheet.setAlias(b, alias)
-        if origin:
-            sheet.set(c, origin)
-        row += 1
-    doc.recompute()
-    return sheet
-
-
-def _apply(obj, exprs):
-    for prop, formula in exprs.items():
-        obj.setExpression(prop, formula)
-
-
-def box(doc, name, length, width, height, x, y, z):
-    """Part::Box com dimensoes e canto minimo dados por expressao (strings)."""
-    b = doc.addObject("Part::Box", name)
-    _apply(b, {
-        "Length": length, "Width": width, "Height": height,
-        "Placement.Base.x": x, "Placement.Base.y": y, "Placement.Base.z": z,
-    })
-    return b
-
-
-def cyl(doc, name, radius, height, base, axis):
-    """Part::Cylinder. base=(x,y,z) expr strings; axis in {'X','Y','Z'}."""
-    c = doc.addObject("Part::Cylinder", name)
-    c.Radius = 1.0
-    c.Height = 1.0
-    if axis == "Y":
-        c.Placement.Rotation = App.Rotation(App.Vector(1, 0, 0), -90)
-    elif axis == "X":
-        c.Placement.Rotation = App.Rotation(App.Vector(0, 1, 0), 90)
-    _apply(c, {
-        "Radius": radius, "Height": height,
-        "Placement.Base.x": base[0],
-        "Placement.Base.y": base[1],
-        "Placement.Base.z": base[2],
-    })
-    return c
 
 
 def build(doc):

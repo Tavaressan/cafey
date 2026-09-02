@@ -1,7 +1,7 @@
-"""Helpers compartilhados pelos scripts de modelagem da Peca 1.
+"""Helpers compartilhados pelos scripts de modelagem do modulo fisico.
 
-Sem dependencia do addon SheetMetal: a Peca 1 e' um solido Part parametrico e a
-planificacao e' analitica (ver unfold_peca1.py).
+Sem dependencia do addon SheetMetal: as pecas sao solidos Part parametricos e a
+planificacao e' analitica (ver unfold_peca1.py / flatten_peca1.py).
 """
 
 import csv
@@ -13,6 +13,13 @@ PARAMS_CSV = os.path.join(ROOT, "params", "parametros.csv")
 BUILD_DIR = os.path.join(ROOT, "build")
 FCSTD = os.path.join(BUILD_DIR, "peca1.FCStd")
 STEP = os.path.join(BUILD_DIR, "peca1.step")
+FCSTD2 = os.path.join(BUILD_DIR, "peca2.FCStd")
+STEP2 = os.path.join(BUILD_DIR, "peca2.step")
+MONTAGEM_FCSTD = os.path.join(BUILD_DIR, "montagem.FCStd")
+MONTAGEM_STEP = os.path.join(BUILD_DIR, "montagem.step")
+PLANO1_FCSTD = os.path.join(BUILD_DIR, "peca1_plano.FCStd")
+DXF1 = os.path.join(BUILD_DIR, "peca1_plano.dxf")
+DXF2 = os.path.join(BUILD_DIR, "peca2_plano.dxf")
 
 # Expressoes das celulas derivadas (alias -> formula em termos de outros alias).
 DERIVED = {
@@ -94,6 +101,23 @@ DESCRIPTIONS = {
              "parametrica. Posicao a 1/3 e 2/3 da altura da saia - provisoria."),
     "pr_": ("Furo de porca-rebite M3 - aba do fundo",
             "8 no total. Furo nominal ~4,5 mm para chapa de 1,2 mm - confirmar item 17."),
+    # --- Peca 2 (fundo) e montagem ---
+    "fundo": ("Peca 2 - fundo plano removivel",
+              "Chapa plana, sem nenhuma dobra. Apoia sobre as quatro abas de "
+              "retorno da Peca 1. Troca da so' abrindo o fundo - razao a mais "
+              "para acertar o valor do fusivel."),
+    "notch_": ("Recorte de canto do fundo",
+               "Alivio para a aba de canto da Peca 1, que desce pelo interior."),
+    "fundo_furo_": ("Furo M3 do fundo",
+                    "8 no total, coincidentes com as porcas-rebite das abas da Peca 1."),
+    "cant_furo_": ("Furo de cantoneira da divisoria",
+                   "Fixa a cantoneira que segura a divisoria (policarbonato/acrilico, "
+                   "altura plena) entre a faixa de rede e a de baixa tensao."),
+    "peca2": ("Peca 2 - fundo plano",
+              "Fundo removivel + 8 furos M3 + recortes de canto + furos das "
+              "cantoneiras da divisoria."),
+    "asm_peca1": ("Peca 1 (montagem)", "Peca dobrada na posicao de projeto."),
+    "asm_peca2": ("Peca 2 (montagem)", "Fundo apoiado sobre as abas de retorno."),
     "corpo": ("Corpo (uniao antes dos recortes)",
               "Fusao de tampo + saias + abas + cantos."),
     "recortes": ("Recortes reunidos", "Fusao de todos os cortes para um unico Part::Cut."),
@@ -155,3 +179,58 @@ def bend_allowance(raio_dobra, fator_k, espessura, angulo_deg=90.0):
 def setback(raio_dobra, espessura, angulo_deg=90.0):
     """Setback (OSSB) para calcular comprimento plano a partir de cotas externas."""
     return math.tan(math.radians(angulo_deg) / 2.0) * (raio_dobra + espessura)
+
+
+def params_dict():
+    """Alias -> valor numerico, incluindo as celulas derivadas (DERIVED)."""
+    g = {a: v for a, v, _, _ in load_params() if v is not None}
+    for alias, formula in DERIVED.items():
+        g[alias] = eval(formula, {"__builtins__": {}}, g)  # formulas fixas do modulo
+    return g
+
+
+def porca_rebite_holes(g):
+    """8 centros (x, y) dos furos de porca-rebite nas abas do fundo da Peca 1.
+
+    Espelha as formulas de build_peca1.py (passo 10). A Peca 2 e a validacao
+    consomem esta mesma funcao para garantir coincidencia.
+    """
+    t, af = g["espessura"], g["aba_fundo"]
+    xs = [g["pegada_x"] / 3.0, 2.0 * g["pegada_x"] / 3.0]
+    ys = [g["pegada_y"] / 3.0, 2.0 * g["pegada_y"] / 3.0]
+    pts = []
+    for x in xs:  # abas frontal e traseira (furos distribuidos em X)
+        pts.append((x, t + af / 2.0))
+        pts.append((x, g["pegada_y"] - t - af / 2.0))
+    for y in ys:  # abas esquerda e direita (furos distribuidos em Y)
+        pts.append((t + af / 2.0, y))
+        pts.append((g["pegada_x"] - t - af / 2.0, y))
+    return pts
+
+
+def flat_segments(g):
+    """Segmentos do blank plano da Peca 1 nas direcoes X e Y (cotas nominais).
+
+    Ordem por direcao: aba - sb | BA | saia - 2sb | BA | tampo - 2sb | BA |
+    saia - 2sb | BA | aba - sb. Devolve dict com cumX, cumY (limites
+    acumulados) e os indices notaveis.
+    """
+    ba = bend_allowance(g["raio_dobra"], g["fator_k"], g["espessura"])
+    sb = setback(g["raio_dobra"], g["espessura"])
+    saia, aba = g["altura_externa"], g["aba_fundo"]
+
+    def cum(centro):
+        segs = [aba - sb, ba, saia - 2 * sb, ba, centro - 2 * sb,
+                ba, saia - 2 * sb, ba, aba - sb]
+        out, acc = [0.0], 0.0
+        for s in segs:
+            acc += s
+            out.append(acc)
+        return out
+
+    return {
+        "ba": ba, "sb": sb,
+        "cumX": cum(g["pegada_x"]),
+        "cumY": cum(g["pegada_y"]),
+        # bandas: tampo = [4,5]; saia frontal/esq = [2,3]; saia traseira/dir = [6,7]
+    }
