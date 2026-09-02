@@ -34,13 +34,14 @@ freecadcmd mechanical/scripts/check_peca1.py     # validação Peça 1
 freecadcmd mechanical/scripts/export_step.py     # build/peca1.step
 freecadcmd mechanical/scripts/build_peca2.py     # build/peca2.FCStd + peca2.step
 freecadcmd mechanical/scripts/check_peca2.py     # validação Peça 2 + coincidência de furos
-freecadcmd mechanical/scripts/build_montagem.py  # build/montagem.FCStd + montagem.step (checa interferência)
+freecadcmd mechanical/scripts/build_montagem.py  # build/montagem.FCStd + montagem.step
+freecadcmd mechanical/scripts/check_montagem.py  # validação de conjunto (pilha de parafuso, cobertura, elevação)
 freecadcmd mechanical/scripts/flatten_peca1.py   # build/peca1_plano.FCStd (contorno planificado)
 freecadcmd mechanical/scripts/export_dxf.py      # build/peca1_plano.dxf + peca2_plano.dxf
 ```
 
-Ordem: `build_peca1` → `build_peca2` → `build_montagem`; `flatten_peca1` →
-`export_dxf`. `freecadcmd` = `/Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd`
+Ordem: `build_peca1` → `build_peca2` → `build_montagem` → `check_montagem`;
+`flatten_peca1` → `export_dxf`. `freecadcmd` = `/Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd`
 (FreeCAD 1.1.3).
 
 `_build.py` reúne o Spreadsheet e as primitivas; `_env.py` reúne paths, fórmulas
@@ -56,7 +57,7 @@ abertura, espelhado no `notas_furos` de cada FCStd.
 |---|---|
 | `peca1.FCStd` / `peca1.step` | Peça 1, sólido paramétrico |
 | `peca2.FCStd` / `peca2.step` | Peça 2, fundo plano |
-| `montagem.FCStd` / `montagem.step` | Conjunto (snapshot; interferência Peça1×Peça2 = 0) |
+| `montagem.FCStd` / `montagem.step` | Conjunto (snapshot; `check_montagem.py` valida interferência = 0, pilha de parafuso, cobertura das abas, elevação) |
 | `peca1_plano.FCStd` | Contorno planificado da Peça 1 |
 | `peca1_plano.dxf` | **Contorno externo** da Peça 1 (365,4 × 315,4 mm) — sem aberturas |
 | `peca2_plano.dxf` | Peça 2 **completa** (contorno 260 × 210 + 8 furos M3 + 2 furos de cantoneira) |

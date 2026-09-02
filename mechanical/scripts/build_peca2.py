@@ -20,6 +20,7 @@ import _env
 from _build import build_spreadsheet, box, cyl
 
 import FreeCAD as App
+import Part
 
 P = "params."
 # fundo encostado por baixo: face superior em Z = -altura_externa (coplanar com a
@@ -92,7 +93,9 @@ def main():
 
     os.makedirs(_env.BUILD_DIR, exist_ok=True)
     doc.saveAs(_env.FCSTD2)
+    Part.export([peca2], _env.STEP2)
     print("salvo  :", _env.FCSTD2)
+    print("step   :", _env.STEP2)
     if not shp.isValid() or len(shp.Solids) != 1:
         raise SystemExit("geometria invalida ou fragmentada")
 
