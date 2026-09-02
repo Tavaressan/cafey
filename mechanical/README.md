@@ -3,8 +3,10 @@
 Modelo paramétrico do pedestal de `docs/status-modulo-fisico.md`.
 
 - **Peça 1** — peça dobrada (tampo + 4 saias + 4 abas de fundo + 4 abas de canto).
-- **Peça 2** — fundo plano removível, apoiado sobre as abas de retorno.
+- **Peça 2** — fundo plano removível (tampa por baixo).
 - **Montagem** — as duas peças na posição de projeto.
+- **Arranjo** — montagem + divisória + volumes de referência dos componentes
+  (caixas envolventes **estimadas**, em `params/componentes.csv`).
 
 ## Abordagem
 
@@ -36,12 +38,14 @@ freecadcmd mechanical/scripts/build_peca2.py     # build/peca2.FCStd + peca2.ste
 freecadcmd mechanical/scripts/check_peca2.py     # validação Peça 2 + coincidência de furos
 freecadcmd mechanical/scripts/build_montagem.py  # build/montagem.FCStd + montagem.step
 freecadcmd mechanical/scripts/check_montagem.py  # validação de conjunto (pilha de parafuso, cobertura, elevação)
+freecadcmd mechanical/scripts/build_arranjo.py   # build/arranjo.FCStd + arranjo.step (divisória + volumes de referência)
+freecadcmd mechanical/scripts/check_arranjo.py   # valida faixas, altura livre, separação rede/baixa
 freecadcmd mechanical/scripts/flatten_peca1.py   # build/peca1_plano.FCStd (contorno planificado)
 freecadcmd mechanical/scripts/export_dxf.py      # build/peca1_plano.dxf + peca2_plano.dxf
 ```
 
-Ordem: `build_peca1` → `build_peca2` → `build_montagem` → `check_montagem`;
-`flatten_peca1` → `export_dxf`. `freecadcmd` = `/Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd`
+Ordem: `build_peca1` → `build_peca2` → `build_montagem` → `check_montagem` →
+`build_arranjo` → `check_arranjo`;  `flatten_peca1` → `export_dxf`. `freecadcmd` = `/Applications/FreeCAD.app/Contents/Resources/bin/freecadcmd`
 (FreeCAD 1.1.3).
 
 `_build.py` reúne o Spreadsheet e as primitivas; `_env.py` reúne paths, fórmulas
@@ -58,6 +62,7 @@ abertura, espelhado no `notas_furos` de cada FCStd.
 | `peca1.FCStd` / `peca1.step` | Peça 1, sólido paramétrico |
 | `peca2.FCStd` / `peca2.step` | Peça 2, fundo plano |
 | `montagem.FCStd` / `montagem.step` | Conjunto (snapshot; `check_montagem.py` valida interferência = 0, pilha de parafuso, cobertura das abas, elevação) |
+| `arranjo.FCStd` / `arranjo.step` | Montagem + divisória + 13 volumes de referência; `check_arranjo.py` valida faixas, altura livre, separação rede/baixa |
 | `peca1_plano.FCStd` | Contorno planificado da Peça 1 |
 | `peca1_plano.dxf` | **Contorno externo** da Peça 1 (365,4 × 315,4 mm) — sem aberturas |
 | `peca2_plano.dxf` | Peça 2 **completa** (contorno 260 × 210 + 8 furos M3 + 2 furos de cantoneira) |
@@ -75,6 +80,30 @@ abertura, espelhado no `notas_furos` de cada FCStd.
   porca-rebite da aba. `check_peca2.py` confirma a coincidência.
 - 2 furos para as cantoneiras da divisória, na linha `y = espessura + faixa_baixa`
   (policarbonato/acrílico, altura plena, entre a faixa de rede e a de baixa tensão).
+
+## Arranjo interno (`arranjo.FCStd`)
+
+`build_arranjo.py` monta Peça 1 + Peça 2 + a divisória + um volume de referência
+por componente, lido de **`params/componentes.csv`**. Cada volume é uma **caixa
+envolvente estimada** — o usuário confirma os tamanhos editando o CSV e rodando
+de novo. Cada objeto carrega `Label2` com a origem da estimativa (datasheet do
+HLK-PM01, dimensão de mercado, dado do documento…).
+
+Layout: faixa da rede (127 V) na traseira, divisória de 3 mm, faixa de baixa
+tensão (5 V) na frente. HLK-PM01 e módulo de relé do lado da rede com os
+terminais de baixa tensão voltados para a divisória; travessia única de 5 fios
+(`travessia_fios`) por um rasgo de passa-fio na divisória. ESP32 com o eixo longo
+frente-fundo, antena atrás da `janela_rf`.
+
+`check_arranjo.py` valida: envelope vertical, componente dentro das paredes, sem
+penetrar a chapa, separação de faixa (rede ≥ 10 mm da divisória), só a travessia
+cruza o plano da divisória, ESP32 alinhado com a janela de RF, e reporta
+interferências entre volumes.
+
+**Achado do 1º passe (tamanhos estimados):** a divisória a "altura plena" e os
+componentes altos (`borne_rede` ~34 mm) deixam pouca folga sob o tampo — a
+divisória (40 mm) fica a **2,6 mm** do tampo. Altura interna útil ~43,8 mm.
+Confirmar as alturas reais e decidir a folga da divisória.
 
 ## Planificação e DXF — limites
 

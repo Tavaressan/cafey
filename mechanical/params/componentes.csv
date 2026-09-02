@@ -1,0 +1,21 @@
+nome,faixa,apoio,dx,dy,dz,x,y,z,fonte
+# Volumes de referencia (caixas envolventes). Sistema de coordenadas das pecas:
+# tampo em Z=0; Y=0 saia frontal (baixa tensao); Y=pegada_y saia traseira (rede);
+# X=0 lateral esquerda. (x,y,z) = canto minimo. TAMANHOS ESTIMADOS - confirmar.
+# --- baixa tensao (frontal, Y < divisoria) ---
+esp32,baixa,fundo,29,52,13,60,3,-43.8,estimado DevKit V1 30 pinos (~51.5 x 28.5 x 13); eixo longo frente-fundo; antena em Y=min atras da janela_rf
+placa_aux,baixa,fundo,45,32,26,105,40,-43.8,estimado; C1 470uF radial define a altura; R e C2 tambem
+led_rgb,baixa,parede,6,18,6,147,1.2,-25,estimado LED 5mm + terminais; atras de furo_led (x=150)
+botao,baixa,parede,16,20,16,187,1.2,-30,estimado botao de painel 12mm; atras de furo_botao (x=195)
+usb_painel,baixa,parede,16,18,15,1.2,29,-30,estimado conector USB de painel + flange + cabo p/ o ESP32
+# --- rede 127 V (traseira, Y > divisoria + 10 mm) ---
+borne_rede,rede,fundo,55,25,34,10,100,-43.8,estimado bornes L/N/PE com tampa (obrigatorios: rasgos de 3 mm nao barram arame)
+terra_j3,rede,fundo,20,18,25,72,100,-43.8,estimado borne de terra J3
+porta_fusivel,rede,abracadeira,14,66,14,114,128,-38,estimado porta-fusivel em linha 5x20 corpo fechado; preso por abracadeira; troca abrindo o fundo
+hlk_pm01,rede,fundo,34,20,15,100,98.2,-43.8,datasheet Hi-Link HLK-PM01 (34 x 20.2 x 15); terminais de baixa tensao voltados p/ a divisoria (Y=min)
+modulo_rele,rede,fundo,50,27,19,150,98.2,-43.8,estimado modulo rele 1 canal (~50 x 26 x 19); IN/VCC/GND voltados p/ a divisoria
+prensa_cabo_corpo,rede,parede,20,22,20,60,187,-32,estimado corpo interno do PG9 + porca; atras de prensa_cabo (x=70)
+tomada_j1_corpo,rede,parede,45,41,23,162,168,-33.5,doc: modulo 2P+T ~45 x 22.5 x 41; atras de tomada_j1 (x=185)
+# --- divisoria e fios ---
+divisoria,divisoria,divisoria,257.6,3,40,1.2,85.2,-43.8,policarbonato ou acrilico 3 mm; altura plena; em cantoneiras (cant_furo_*); rasgo de passa-fio p/ a travessia
+travessia_fios,fios,livre,14,32,9,148,68,-33,5 fios (+5V e GND do HLK-PM01; VCC GND IN do rele) perpendiculares a divisoria; travessia unica

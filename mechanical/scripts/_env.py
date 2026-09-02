@@ -10,6 +10,7 @@ import os
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PARAMS_CSV = os.path.join(ROOT, "params", "parametros.csv")
+COMPONENTES_CSV = os.path.join(ROOT, "params", "componentes.csv")
 BUILD_DIR = os.path.join(ROOT, "build")
 FCSTD = os.path.join(BUILD_DIR, "peca1.FCStd")
 STEP = os.path.join(BUILD_DIR, "peca1.step")
@@ -20,6 +21,8 @@ MONTAGEM_STEP = os.path.join(BUILD_DIR, "montagem.step")
 PLANO1_FCSTD = os.path.join(BUILD_DIR, "peca1_plano.FCStd")
 DXF1 = os.path.join(BUILD_DIR, "peca1_plano.dxf")
 DXF2 = os.path.join(BUILD_DIR, "peca2_plano.dxf")
+ARRANJO_FCSTD = os.path.join(BUILD_DIR, "arranjo.FCStd")
+ARRANJO_STEP = os.path.join(BUILD_DIR, "arranjo.step")
 
 # Expressoes das celulas derivadas (alias -> formula em termos de outros alias).
 DERIVED = {
@@ -283,6 +286,26 @@ def bend_allowance(raio_dobra, fator_k, espessura, angulo_deg=90.0):
 def setback(raio_dobra, espessura, angulo_deg=90.0):
     """Setback (OSSB) para calcular comprimento plano a partir de cotas externas."""
     return math.tan(math.radians(angulo_deg) / 2.0) * (raio_dobra + espessura)
+
+
+def load_componentes():
+    """Le componentes.csv -> lista de dicts.
+
+    Colunas: nome, faixa, apoio, dx, dy, dz, x, y, z, fonte.
+    (x, y, z) e' o canto minimo; (dx, dy, dz) o tamanho. Todos os volumes sao
+    caixas envolventes ESTIMADAS - o usuario confirma depois editando o CSV.
+    """
+    out = []
+    with open(COMPONENTES_CSV, newline="") as fh:
+        reader = csv.DictReader(fh)
+        for r in reader:
+            if not r.get("nome") or r["nome"].strip().startswith("#"):
+                continue
+            for k in ("dx", "dy", "dz", "x", "y", "z"):
+                r[k] = float(r[k])
+            r["nome"] = r["nome"].strip()
+            out.append(r)
+    return out
 
 
 def params_dict():
