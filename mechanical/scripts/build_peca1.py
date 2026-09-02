@@ -185,6 +185,9 @@ def build(doc):
     notas = doc.addObject("App::TextDocument", "notas_fabricacao")
     notas.Label = "notas de fabricacao"
     notas.Text = _env.NOTAS_FABRICACAO
+    furos = doc.addObject("App::TextDocument", "notas_furos")
+    furos.Label = "catalogo de furos"
+    furos.Text = _env.NOTAS_FUROS_P1
     doc.recompute()
     return peca1
 

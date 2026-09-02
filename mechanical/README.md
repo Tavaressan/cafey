@@ -46,7 +46,9 @@ Ordem: `build_peca1` → `build_peca2` → `build_montagem`; `flatten_peca1` →
 `_build.py` reúne o Spreadsheet e as primitivas; `_env.py` reúne paths, fórmulas
 (BA, setback, segmentos do blank, furos de porca-rebite) e as descrições
 (`DESCRIPTIONS`). Cada objeto do FCStd carrega `Label` + `Label2` (campo
-"Descrição"); o objeto `notas_fabricacao` reúne o que não é geometria.
+"Descrição"); os objetos `notas_fabricacao` e `notas_furos` reúnem o que não é
+geometria. **[`FUROS.md`](FUROS.md)** — catálogo do propósito de cada furo e
+abertura, espelhado no `notas_furos` de cada FCStd.
 
 ## Entregáveis (`build/`, fora do versionamento)
 

@@ -41,9 +41,11 @@ def build(doc):
         grupos += [(xe, tf), (xe, tt)]
     for ye in ("%spegada_y / 3" % P, "2 * %spegada_y / 3" % P):
         grupos += [(tf, ye), (td, ye)]
+    # furo de PASSAGEM do parafuso M3 (a porca-rebite fica na aba da Peca 1, nao
+    # aqui): folga M3 = furo_fixacao, nao o furo grande da porca-rebite.
     for i, (xe, ye) in enumerate(grupos, 1):
         cuts.append(cyl(doc, "fundo_furo_%d" % i,
-                        P + "furo_porca_rebite / 2", H_THRU,
+                        P + "furo_fixacao / 2", H_THRU,
                         (xe, ye, Z_FUNDO_BASE), "Z"))
 
     # --- 4 recortes de canto (alivio para as abas de canto da Peca 1) ---
@@ -71,6 +73,9 @@ def build(doc):
     peca2.Tool = tool
     doc.recompute()
     _env.apply_descriptions(doc)
+    furos = doc.addObject("App::TextDocument", "notas_furos")
+    furos.Label = "catalogo de furos"
+    furos.Text = _env.NOTAS_FUROS_P2
     doc.recompute()
     return peca2
 
