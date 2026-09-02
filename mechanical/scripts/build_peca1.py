@@ -131,11 +131,13 @@ def build(doc):
                     "%sespessura + 2" % P, P + "usb_w", P + "usb_h",
                     "-1", "%f - %susb_w / 2" % (grid[drop], P),
                     "%s - %susb_h / 2" % (zc, P)))
-    # direita (X=pegada_x), 5 rasgos
+    # direita (X=pegada_x), 5 rasgos. Base X antes da face interna da saia
+    # (pegada_x - espessura) para o corte atravessar toda a chapa.
     for i, yc in enumerate(grid):
         cuts.append(box(doc, "rasgo_d_%d" % i,
                         "%sespessura + 2" % P, P + "rasgo_l", P + "rasgo_w",
-                        "%spegada_x - 1" % P, "%f - %srasgo_l / 2" % (yc, P), z_rasgo))
+                        "%spegada_x - %sespessura - 1" % (P, P),
+                        "%f - %srasgo_l / 2" % (yc, P), z_rasgo))
 
     # --- 9. furacao dos cantos (2 por canto, eixo +X atravessando lateral+aba) ---
     z_lo = "-%saltura_externa + (%saltura_externa - %sespessura) / 3" % (P, P, P)

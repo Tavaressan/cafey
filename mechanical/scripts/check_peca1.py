@@ -89,6 +89,8 @@ def main():
     # material a abertura esta "tapada".
     aberturas = ["janela_rf", "furo_led", "furo_botao", "prensa_cabo",
                  "tomada_j1", "recorte_usb"]
+    aberturas += sorted(o.Name for o in doc.Objects
+                        if o.Name.startswith(("rasgo_e", "rasgo_d")))
     for nome in aberturas:
         o = doc.getObject(nome)
         c = o.Shape.BoundBox.Center
