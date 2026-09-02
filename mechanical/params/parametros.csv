@@ -1,0 +1,54 @@
+alias,value,unit,origin
+# --- processo (placeholders arbitrados; o revisor da empresa corrige) ---
+espessura,1.2,mm,arbitrado
+raio_dobra,1.2,mm,arbitrado
+fator_k,0.40,,arbitrado (ANSI)
+# material e' texto: ver celula material_txt no Spreadsheet
+# --- pegada e altura ---
+pegada_x,260,mm,catalogo cafeteira 257x198 com folga
+pegada_y,210,mm,catalogo cafeteira 257x198 com folga
+altura_externa,45,mm,empilhamento dos modulos
+altura_livre,41.4,mm,descontados tampo aba e fundo
+aba_fundo,12,mm,aba de retorno que enrijece as saias
+aba_canto,20,mm,sobrepoe face interna das laterais
+recuo_aba,,mm,expr: espessura + 0.3
+alivio_canto,,mm,expr: raio_dobra + espessura
+# --- pes e elevacao ---
+pe_altura,10,mm,EPDM ou silicone antiderrapante
+apoio_altura,0,mm,0..5 conforme apoio da cafeteira
+elevacao_total,,mm,expr: altura_externa + pe_altura + apoio_altura
+# --- faixas internas ---
+faixa_rede,120,mm,traseira 127 V
+divisoria,3,mm,policarbonato 2 a 3 mm
+faixa_baixa,84,mm,frontal 5 V
+# --- rasgos de ventilacao ---
+rasgo_l,25,mm,comprimento (ao longo de Y)
+rasgo_w,3,mm,largura vertical: bloqueia dedo nao bloqueia arame
+rasgo_altura,15,mm,centro acima da borda inferior da saia
+rasgo_qtd_esq,4,,4 rasgos + recorte USB ocupa a 5a posicao
+rasgo_qtd_dir,5,,
+# --- aberturas frontais ---
+abertura_centro_z,22,mm,centro abaixo da face inferior do tampo
+janela_rf_w,40,mm,
+janela_rf_h,28,mm,
+janela_rf_x,75,mm,do lado X=0
+furo_led,5,mm,Ø LED RGB
+furo_led_x,150,mm,
+furo_botao,12,mm,Ø botao de painel
+furo_botao_x,195,mm,
+# --- aberturas traseiras ---
+prensa_cabo_d,15,mm,PG9
+prensa_cabo_x,70,mm,
+tomada_j1_w,45.5,mm,recorte girado 90 -> 23 de altura
+tomada_j1_h,23,mm,
+tomada_j1_x,185,mm,
+# --- recorte USB lateral esquerda (placeholder; medir item 16) ---
+usb_w,16,mm,placeholder - flange do conector de painel micro-USB varia
+usb_h,9,mm,placeholder
+usb_y,165,mm,da traseira (Y = pegada_y - usb_y)
+# --- furacao ---
+furo_fixacao,3.2,mm,M3 nos cantos - 2 por canto 8 no total
+furo_porca_rebite,4.5,mm,porca-rebite M3 chapa 1.2 - a confirmar item 17
+# --- margens de projeto (viram validacao) ---
+margem_dobra,6,mm,minimo da linha de dobra
+margem_extremidade,25,mm,minimo das extremidades (zona das abas de canto)

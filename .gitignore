@@ -21,3 +21,12 @@ _autosave-*
 firmware/build/
 firmware/sdkconfig
 firmware/sdkconfig.old
+
+# Mecânica (FreeCAD) — saídas geradas e backups
+mechanical/build/
+*.FCStd1
+*.FCBak
+
+# Python
+__pycache__/
+*.pyc
