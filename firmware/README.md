@@ -1,31 +1,69 @@
-# Firmware — ESP32 (ESP-IDF)
+# Firmware — ESP32 (ESP-IDF C++17)
 
-Fatia atual: **I/O local, sem rede**. Botão alterna o relé; LED RGB indica o estado.
+Firmware do módulo IoT da cafeteira Cafey desenvolvido em **C++17** sobre o framework oficial **ESP-IDF** (com FreeRTOS).
 
-| Sinal | GPIO | Observação |
-|---|---|---|
-| Relé (IN) | 26 | gatilho de nível ALTO; R1 10 kΩ pull-down |
-| Botão | 27 | R2 10 kΩ pull-up + C3 100 nF; solto = 1, pressionado = 0 |
-| LED vermelho | 21 | R3 220 Ω — aceso = cafeteira desligada |
-| LED verde | 22 | R4 100 Ω — aceso = cafeteira ligada |
-| LED azul | 23 | R5 100 Ω — aceso durante o boot |
+Fatia atual: **I/O local e Driver do Relé (com proteção anti-glitch no boot)**. Botão alterna o relé; LED RGB indica o estado.
 
-LED RGB é de cátodo comum: nível ALTO no GPIO acende.
+## Pinagem Definida
 
-## Simular no Wokwi (wokwi.com)
+| Sinal | GPIO | Configuração Elétrica | Observação |
+|---|---|---|---|
+| Relé (IN) | 26 | Gatilho de nível ALTO (HIGH = ligado); R1 10 kΩ pull-down externo | O driver força nível BAIXO antes de inicializar para impedir pulso espúrio no boot |
+| Botão | 27 | R2 10 kΩ pull-up externo + C3 100 nF debounce RC | Solto = 1, pressionado = 0 (borda de descida = clique) |
+| LED vermelho | 21 | R3 220 Ω (Cátodo comum) | Aceso = cafeteira desligada |
+| LED verde | 22 | R4 100 Ω (Cátodo comum) | Aceso = cafeteira ligada |
+| LED azul | 23 | R5 100 Ω (Cátodo comum) | Aceso durante o boot |
 
-1. Abra <https://wokwi.com/projects/new/esp-idf-esp32> (template ESP-IDF + ESP32, compila no navegador).
-2. Substitua o conteúdo de `main/main.c` pelo deste repositório.
-3. Abra a aba `diagram.json` e cole o `diagram.json` daqui.
-4. Confirme que o `wokwi.toml` do template aponta para o build do ESP-IDF
-   (`firmware = 'build/flasher_args.json'`); se não, use o `wokwi.toml` daqui.
-5. Clique em **Run**. O log do `ESP_LOGI` aparece no monitor serial; clicar em
-   `SW1` alterna o relé e a cor do LED.
+## Estrutura do Projeto
 
-Se algum pino de GND do DevKit não existir com o nome `GND.1/2/3` no editor
-visual, refaça essas ligações arrastando — a lógica não muda.
+```
+firmware/
+├── CMakeLists.txt         # Configuração raiz CMake (C++17, IDF project)
+├── partitions.csv         # Tabela de partições customizada (nvs, phy_init, factory, storage)
+├── sdkconfig.defaults     # Configurações do ESP-IDF (C++, partições, FreeRTOS 1000Hz)
+├── wokwi.toml             # Configuração do simulador Wokwi
+├── diagram.json           # Esquemático de simulação Wokwi
+├── main/
+│   ├── CMakeLists.txt     # Registro do componente main e fontes C++
+│   ├── main.cpp           # Ponto de entrada app_main (extern "C") e namespace cafey
+│   ├── drivers/
+│   │   ├── relay.hpp      # Header do driver de relé C++ com RAII e anti-glitch
+│   │   └── relay.cpp      # Implementação do driver cafey::drivers::Relay
+│   └── core/              # Estruturas e active objects centrais
+└── test/
+    ├── CMakeLists.txt     # Suíte de testes unitários nativos para host (C++17 / CTest)
+    ├── mock_esp_gpio.hpp  # Mock da camada GPIO do ESP-IDF para testes sem hardware
+    └── test_relay.cpp     # Testes unitários do driver do relé (TDD)
+```
 
-## Compilar localmente (ESP-IDF ≥ 5.x)
+## Driver do Relé (`cafey::drivers::Relay`)
+
+- **Classe Orientada a Objetos**: RAII garantindo desligamento seguro no destrutor.
+- **Proteção Anti-Glitch**: Força o pino em nível lógico `LOW` antes e imediatamente após a configuração de saída do GPIO, atuando em conjunto com o resistor `R1` (10k pull-down) externo.
+- **Métodos**: `init()`, `set(bool on)`, `turn_on()`, `turn_off()`, `toggle()`, `is_on()`, `is_initialized()`, `get_pin()`.
+- **Semântica Move**: Proteção contra duplicação de posse do hardware físico via exclusão de cópia e suporte a movimentação (`move`).
+
+## Executar Testes Unitários Nativos (Host)
+
+Os testes unitários do driver podem ser compilados e executados em qualquer máquina de desenvolvimento (macOS / Linux) sem necessidade da toolchain física do ESP-IDF instalada:
+
+```sh
+cd firmware/test
+mkdir -p build && cd build
+cmake ..
+make
+ctest --output-on-failure
+./test_relay
+```
+
+## Simulação no Wokwi (wokwi.com)
+
+1. Abra o Wokwi para ESP32 ESP-IDF (<https://wokwi.com/projects/new/esp-idf-esp32>).
+2. Adicione os fontes de `firmware/` (`main.cpp`, `drivers/relay.hpp`, `drivers/relay.cpp`).
+3. Cole o conteúdo de `diagram.json` e `wokwi.toml`.
+4. Clique em **Run**. O log serial reportará o boot com LED azul e ao clicar no botão `SW1`, o relé e o LED alternam o estado.
+
+## Compilação Local com ESP-IDF (≥ 5.x)
 
 ```sh
 . $IDF_PATH/export.sh
@@ -33,5 +71,3 @@ idf.py set-target esp32
 idf.py build
 idf.py -p <porta> flash monitor
 ```
-
-Ainda não compilado nesta máquina (sem toolchain ESP-IDF instalada).

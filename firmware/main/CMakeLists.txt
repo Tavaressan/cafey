@@ -1,1 +1,14 @@
-idf_component_register(SRCS "main.c" INCLUDE_DIRS ".")
+idf_component_register(
+    SRCS
+        "main.cpp"
+        "drivers/relay.cpp"
+    INCLUDE_DIRS
+        "."
+        "drivers"
+    REQUIRES
+        driver
+        esp_common
+        esp_hw_support
+        freertos
+        log
+)

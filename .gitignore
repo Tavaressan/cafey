@@ -19,6 +19,7 @@ _autosave-*
 
 # Firmware (ESP-IDF)
 firmware/build/
+firmware/test/build/
 firmware/sdkconfig
 firmware/sdkconfig.old
 

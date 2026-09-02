@@ -1,0 +1,100 @@
+name: CI Firmware
+
+on:
+  push:
+    branches: [main, master, develop]
+    paths:
+      - 'firmware/**'
+      - '.github/workflows/ci-firmware.yml'
+  pull_request:
+    branches: [main, master, develop]
+    paths:
+      - 'firmware/**'
+      - '.github/workflows/ci-firmware.yml'
+
+jobs:
+  build-firmware:
+    name: Build ESP-IDF Firmware (ESP32)
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v5.3
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure Git safe directory
+        run: git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+
+      - name: Check firmware directory
+        id: check-firmware
+        run: |
+          if [ -d "firmware" ] && [ -f "firmware/CMakeLists.txt" ]; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Firmware directory and CMakeLists.txt found."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Firmware directory not found."
+            exit 1
+          fi
+
+      - name: Show ESP-IDF environment info
+        if: steps.check-firmware.outputs.exists == 'true'
+        run: |
+          . /opt/esp/idf/export.sh
+          echo "=== ESP-IDF Environment ==="
+          idf.py --version
+          cmake --version
+          ninja --version
+          xtensa-esp32-elf-gcc --version
+
+      - name: Build ESP32 firmware
+        if: steps.check-firmware.outputs.exists == 'true'
+        working-directory: firmware
+        run: |
+          . /opt/esp/idf/export.sh
+          idf.py set-target esp32
+          idf.py build
+
+      - name: Validate build binaries and partition table
+        if: steps.check-firmware.outputs.exists == 'true'
+        working-directory: firmware
+        shell: bash
+        run: |
+          echo "=== Validating ESP-IDF Build Outputs ==="
+          ls -la build/
+
+          for file in \
+            "build/bootloader/bootloader.bin" \
+            "build/partition_table/partition-table.bin" \
+            "build/cafey_firmware.bin" \
+            "build/flasher_args.json"
+          do
+            if [ -f "$file" ]; then
+              echo "✅ Artifact found: $file ($(wc -c < "$file") bytes)"
+            else
+              echo "❌ Error: Required artifact missing: $file"
+              exit 1
+            fi
+          done
+
+          echo "=== Memory Usage Summary ==="
+          . /opt/esp/idf/export.sh
+          idf.py size
+          idf.py size-components
+
+      - name: Upload firmware artifacts
+        if: steps.check-firmware.outputs.exists == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: esp32-firmware-binaries
+          path: |
+            firmware/build/bootloader/bootloader.bin
+            firmware/build/partition_table/partition-table.bin
+            firmware/build/cafey_firmware.bin
+            firmware/build/cafey_firmware.elf
+            firmware/build/cafey_firmware.map
+            firmware/build/flasher_args.json
+            firmware/build/project_description.json
+          retention-days: 14
