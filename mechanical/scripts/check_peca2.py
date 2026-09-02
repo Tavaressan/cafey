@@ -30,16 +30,17 @@ def main():
     check(shp.isValid(), "Shape.isValid()")
     check(len(shp.Solids) == 1, "solido unico (achou %d)" % len(shp.Solids))
 
-    esperado_x = g["pegada_x"] - 2 * g["espessura"] - 2 * g["folga_fundo"]
-    esperado_y = g["pegada_y"] - 2 * g["espessura"] - 2 * g["folga_fundo"]
-    check(abs(bb.XLength - esperado_x) < 0.01, "largura %.2f = interno - folga" % bb.XLength)
-    check(abs(bb.YLength - esperado_y) < 0.01, "profundidade %.2f" % bb.YLength)
+    # tampa por baixo: rente a' face externa das saias
+    check(abs(bb.XLength - g["pegada_x"]) < 0.01, "largura %.2f = pegada_x" % bb.XLength)
+    check(abs(bb.YLength - g["pegada_y"]) < 0.01, "profundidade %.2f = pegada_y" % bb.YLength)
     check(abs(bb.ZLength - g["espessura_fundo"]) < 0.01, "espessura %.2f" % bb.ZLength)
 
-    # folga para cair entre as saias: pelo menos folga_fundo por lado
-    check(g["folga_fundo"] > 0, "folga_fundo > 0")
-    check(esperado_x < g["pegada_x"] - 2 * g["espessura"],
-          "fundo cabe entre as saias")
+    # face superior do fundo coplanar com a face inferior das abas (Z=-altura_externa);
+    # o fundo protrai espessura_fundo abaixo da borda das saias.
+    check(abs(bb.ZMax - (-g["altura_externa"])) < 0.01,
+          "topo do fundo em Z=%.2f (face inferior das abas)" % bb.ZMax)
+    check(abs(bb.ZMin - (-g["altura_externa"] - g["espessura_fundo"])) < 0.01,
+          "fundo protrai %.1f mm abaixo da saia" % g["espessura_fundo"])
 
     # coincidencia dos 8 furos com as porcas-rebite das abas da Peca 1
     alvo = _env.porca_rebite_holes(g)

@@ -59,14 +59,19 @@ abertura, espelhado no `notas_furos` de cada FCStd.
 | `montagem.FCStd` / `montagem.step` | Conjunto (snapshot; interferência Peça1×Peça2 = 0) |
 | `peca1_plano.FCStd` | Contorno planificado da Peça 1 |
 | `peca1_plano.dxf` | **Contorno externo** da Peça 1 (365,4 × 315,4 mm) — sem aberturas |
-| `peca2_plano.dxf` | Peça 2 **completa** (contorno + 8 furos M3 + 2 furos de cantoneira + recortes de canto) |
+| `peca2_plano.dxf` | Peça 2 **completa** (contorno 260 × 210 + 8 furos M3 + 2 furos de cantoneira) |
 
-## Peça 2 — fundo
+## Peça 2 — fundo (tampa por baixo)
 
-- Recua `espessura + folga_fundo` de cada saia; recortes de canto liberam as 4
-  abas de canto da Peça 1 que descem pelo interior.
-- 8 furos M3 gerados pelas **mesmas fórmulas** das porcas-rebite da Peça 1
-  (`_env.porca_rebite_holes`); `check_peca2.py` confirma a coincidência.
+- Chapa plana rente à face externa das saias (260 × 210), **parafusada na face
+  inferior das abas de retorno da Peça 1**. Sai por baixo para manutenção — um
+  fundo apoiado por dentro sobre as abas viradas para dentro ficaria preso
+  (vão livre entre as abas 233,6 × 183,6 < fundo). Face superior coplanar com a
+  face inferior das abas; protrai `espessura_fundo` abaixo da borda das saias.
+  Os pés montam nela.
+- 8 furos de passagem M3 gerados pelas **mesmas fórmulas** das porcas-rebite da
+  Peça 1 (`_env.porca_rebite_holes`); o parafuso entra por baixo e rosqueia na
+  porca-rebite da aba. `check_peca2.py` confirma a coincidência.
 - 2 furos para as cantoneiras da divisória, na linha `y = espessura + faixa_baixa`
   (policarbonato/acrílico, altura plena, entre a faixa de rede e a de baixa tensão).
 
@@ -94,8 +99,10 @@ Aberturas, na referência da peça dobrada (do documento), para o desenho cotado
 - **Sem raios de dobra** nos sólidos (arestas vivas). Cosméticos para o STEP; a
   linha neutra real está na planificação analítica.
 - `usb_w`, `usb_h`: placeholders — medir o flange do conector (item 16).
-- `espessura_fundo`, `folga_fundo`: arbitrados; confirmar chapa e folga de dobra.
+- `espessura_fundo`: arbitrado; confirmar a chapa.
 - Furos de canto e das cantoneiras em posições provisórias.
+- Parafusos do fundo: cabeça panela (saliente ~2 mm no vão de ar). Sem escareado
+  — chapa de 1,2 mm é fina para escarear M3; confirmar com a empresa se quiser flush.
 - `montagem.FCStd` é snapshot (cópia de forma), não assembly vivo.
 
 ## Notas de fabricação

@@ -135,18 +135,21 @@ DESCRIPTIONS = {
             "pr_<aba f|t|e|d><coluna a|b>. Ø de furo da porca-rebite para chapa "
             "1,2 mm: ~4,5 mm nominal, confirmar item 17."),
     # --- Peca 2 (fundo) e montagem ---
-    "fundo": ("Peca 2 - fundo plano removivel",
-              "Chapa plana, sem nenhuma dobra. Apoia sobre as quatro abas de "
-              "retorno da Peca 1. Troca da so' abrindo o fundo - razao a mais "
-              "para acertar o valor do fusivel."),
-    "notch_": ("Recorte de canto do fundo",
-               "NAO E' FURO. Alivio para a aba de canto da Peca 1, que desce pelo "
-               "interior e ocuparia a quina do fundo. Nome: notch_<f|t><l|r>."),
-    "fundo_furo_": ("Furo M3 do fundo (Ø3,2, eixo Z)",
+    "fundo": ("Peca 2 - fundo plano removivel (tampa por baixo)",
+              "Chapa plana, sem nenhuma dobra, rente a' face externa das saias "
+              "(pegada_x x pegada_y). Parafusada na FACE INFERIOR das abas de "
+              "retorno da Peca 1 - assim sai por baixo para manutencao, sem ficar "
+              "presa pelas abas viradas para dentro (um fundo maior que o vao "
+              "entre as abas nao passaria). Protrai espessura_fundo abaixo da "
+              "borda das saias; os pes montam nela. Abrir o fundo = trocar o "
+              "fusivel e acessar todo o interior."),
+    "fundo_furo_": ("Furo de passagem M3 do fundo (Ø3,2, eixo Z)",
                     "FIXACAO DO FUNDO (lado Peca 2). 8 no total, coincidentes com "
                     "as porcas-rebite pr_* das abas da Peca 1 (mesmas formulas em "
-                    "_env.porca_rebite_holes; check_peca2.py confirma). Abrir o "
-                    "fundo = trocar o fusivel e acessar o interior."),
+                    "_env.porca_rebite_holes; check_peca2.py confirma). O parafuso "
+                    "entra POR BAIXO e rosqueia na porca-rebite da aba; por isso "
+                    "aqui e' folga M3, nao o furo da porca-rebite. Cabeca panela "
+                    "no vao de ar entre os pes."),
     "cant_furo_": ("Furo de cantoneira da divisoria (Ø3,2, eixo Z)",
                    "SEPARACAO ELETRICA. 2 furos na linha y = espessura + faixa_baixa. "
                    "Fixam as cantoneiras que seguram a divisoria (policarbonato ou "
@@ -239,17 +242,20 @@ SEM FURO
 """
 
 NOTAS_FUROS_P2 = """\
-CATALOGO DE FUROS E RECORTES - PECA 2 (fundo). Ver tambem mechanical/FUROS.md.
+CATALOGO DE FUROS - PECA 2 (fundo, tampa por baixo). Ver tambem mechanical/FUROS.md.
 
-  fundo_furo_1..8   Ø3,2 (M3) eixo Z   FIXACAO DO FUNDO. Coincidem com as porcas-
-                    rebite pr_* das abas da Peca 1 (_env.porca_rebite_holes;
-                    check_peca2.py confirma). Abrir o fundo = trocar o fusivel.
+O fundo e' parafusado na FACE INFERIOR das abas de retorno da Peca 1 e sai por
+baixo. Rente a' face externa das saias (pegada_x x pegada_y); protrai
+espessura_fundo abaixo da borda das saias.
+
+  fundo_furo_1..8   Ø3,2 (M3) eixo Z   FIXACAO DO FUNDO. Furo de passagem: o
+                    parafuso entra por baixo e rosqueia na porca-rebite pr_* da
+                    aba da Peca 1 (_env.porca_rebite_holes; check_peca2.py
+                    confirma a coincidencia). Cabeca panela no vao entre os pes.
   cant_furo_1..2    Ø3,2 (M3) eixo Z   Fixam as cantoneiras da divisoria
                     (policarbonato/acrilico, altura plena) na linha
                     y = espessura + faixa_baixa, entre a faixa de rede e a de
                     baixa tensao.
-  notch_fl/fr/tl/tr NAO SAO FUROS       Recortes de canto: alivio para as abas de
-                    canto da Peca 1 que descem pelo interior.
 """
 
 

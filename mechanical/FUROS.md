@@ -67,13 +67,19 @@ Centros `pr_*`: gerados por `_env.porca_rebite_holes` — x ∈ {7,2 · 86,7 · 
 
 ---
 
-## Peça 2 — fundo plano
+## Peça 2 — fundo plano (tampa por baixo)
+
+Chapa plana rente à face externa das saias (260 × 210), **parafusada na face
+inferior das abas de retorno da Peça 1**. Sai por baixo para manutenção — um
+fundo apoiado por dentro sobre as abas viradas para dentro ficaria preso (o vão
+livre entre as bordas internas das abas é 233,6 × 183,6, menor que o fundo).
+Face superior coplanar com a face inferior das abas (`Z = −altura_externa`);
+protrai `espessura_fundo` (1,2 mm) abaixo da borda das saias. Os pés montam nela.
 
 | Objeto (padrão) | Ø / eixo | Qtd | Propósito |
 |---|---|---|---|
-| `fundo_furo_1..8` | Ø3,2 (M3) / eixo Z | 8 | **Fixação do fundo, lado Peça 2.** Furo de **passagem** do parafuso M3 (a porca-rebite fica na aba da Peça 1). Coincidem com os `pr_*` — mesmas fórmulas em `_env.porca_rebite_holes`, `check_peca2.py` confirma. Abrir o fundo = trocar o fusível e acessar o interior. |
+| `fundo_furo_1..8` | Ø3,2 (M3) / eixo Z | 8 | **Fixação do fundo, lado Peça 2.** Furo de **passagem**: o parafuso entra por baixo e rosqueia na porca-rebite `pr_*` da aba da Peça 1. Coincidem com os `pr_*` — mesmas fórmulas em `_env.porca_rebite_holes`, `check_peca2.py` confirma. Cabeça panela no vão de ar entre os pés. Abrir o fundo = trocar o fusível e acessar todo o interior. |
 | `cant_furo_1..2` | Ø3,2 (M3) / eixo Z | 2 | **Separação elétrica.** Fixam as cantoneiras que seguram a divisória (policarbonato ou acrílico, altura plena) na linha `y = espessura + faixa_baixa` ≈ 85, entre a faixa de rede (127 V, traseira) e a de baixa tensão (5 V, frontal). Nenhum condutor de rede a menos de 10 mm da divisória — valida com o eletricista (marco 02/10). |
-| `notch_<f\|t><l\|r>` | recorte, não furo | 4 | Alívio para as abas de canto da Peça 1, que descem pelo interior e ocupariam a quina do fundo. |
 
 Centros `fundo_furo_*` = mesmos (x, y) dos `pr_*`. Centros `cant_furo_*`:
 (65, 85,2) e (195, 85,2).

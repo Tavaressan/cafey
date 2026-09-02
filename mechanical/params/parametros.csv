@@ -46,9 +46,8 @@ tomada_j1_x,185,mm,
 usb_w,16,mm,placeholder - flange do conector de painel micro-USB varia
 usb_h,9,mm,placeholder
 usb_y,165,mm,da traseira (Y = pegada_y - usb_y)
-# --- Peca 2: fundo plano removivel ---
+# --- Peca 2: fundo plano removivel (tampa por baixo) ---
 espessura_fundo,1.2,mm,mesma chapa da Peca 1 (a confirmar)
-folga_fundo,0.4,mm,folga por lado do fundo entre as saias
 # --- furacao ---
 furo_fixacao,3.2,mm,M3 nos cantos - 2 por canto 8 no total
 furo_porca_rebite,4.5,mm,porca-rebite M3 chapa 1.2 - a confirmar item 17

@@ -1,8 +1,13 @@
 """Constroi mechanical/build/peca2.FCStd do zero.
 
-Peca 2 do pedestal: fundo plano removivel, sem nenhuma dobra. Apoia sobre as
-quatro abas de retorno da Peca 1. Mesmo sistema de coordenadas da Peca 1 (face
-superior do tampo em Z=0). Dirigido pelo Spreadsheet `params` via expressao.
+Peca 2 do pedestal: fundo plano removivel, sem nenhuma dobra. Parafusado na FACE
+INFERIOR das abas de retorno da Peca 1 (tampa por baixo) - assim o fundo sai por
+baixo para manutencao / troca do fusivel, sem ficar preso pelas abas viradas
+para dentro. Rente a' face externa das saias (pegada_x x pegada_y). Protrai
+espessura_fundo abaixo da borda das saias.
+
+Mesmo sistema de coordenadas da Peca 1 (face superior do tampo em Z=0).
+Dirigido pelo Spreadsheet `params` via expressao.
 
 Uso: freecadcmd mechanical/scripts/build_peca2.py
 """
@@ -17,22 +22,24 @@ from _build import build_spreadsheet, box, cyl
 import FreeCAD as App
 
 P = "params."
-Z_FUNDO_BASE = "-%saltura_externa + %sespessura - 1" % (P, P)
+# fundo encostado por baixo: face superior em Z = -altura_externa (coplanar com a
+# face inferior das abas e a borda das saias), face inferior em -altura_externa
+# - espessura_fundo.
+Z_FUNDO_BASE = "-%saltura_externa - %sespessura_fundo - 1" % (P, P)
 H_THRU = "%sespessura_fundo + 2" % P
 
 
 def build(doc):
     plate = box(doc, "fundo",
-                "%spegada_x - 2 * %sespessura - 2 * %sfolga_fundo" % (P, P, P),
-                "%spegada_y - 2 * %sespessura - 2 * %sfolga_fundo" % (P, P, P),
-                P + "espessura_fundo",
-                "%sespessura + %sfolga_fundo" % (P, P),
-                "%sespessura + %sfolga_fundo" % (P, P),
-                "-%saltura_externa + %sespessura" % (P, P))
+                P + "pegada_x", P + "pegada_y", P + "espessura_fundo",
+                "0", "0",
+                "-%saltura_externa - %sespessura_fundo" % (P, P))
 
     cuts = []
 
-    # --- 8 furos M3, coincidentes com as porcas-rebite das abas da Peca 1 ---
+    # --- 8 furos de PASSAGEM M3, coincidentes com as porcas-rebite das abas da
+    #     Peca 1. O parafuso entra por baixo e rosqueia na porca-rebite da aba;
+    #     por isso aqui e' folga M3 (furo_fixacao), nao o furo da porca-rebite.
     tf = "%sespessura + %saba_fundo / 2" % (P, P)
     tt = "%spegada_y - %sespessura - %saba_fundo / 2" % (P, P, P)
     td = "%spegada_x - %sespessura - %saba_fundo / 2" % (P, P, P)
@@ -41,23 +48,13 @@ def build(doc):
         grupos += [(xe, tf), (xe, tt)]
     for ye in ("%spegada_y / 3" % P, "2 * %spegada_y / 3" % P):
         grupos += [(tf, ye), (td, ye)]
-    # furo de PASSAGEM do parafuso M3 (a porca-rebite fica na aba da Peca 1, nao
-    # aqui): folga M3 = furo_fixacao, nao o furo grande da porca-rebite.
     for i, (xe, ye) in enumerate(grupos, 1):
         cuts.append(cyl(doc, "fundo_furo_%d" % i,
                         P + "furo_fixacao / 2", H_THRU,
                         (xe, ye, Z_FUNDO_BASE), "Z"))
 
-    # --- 4 recortes de canto (alivio para as abas de canto da Peca 1) ---
-    lx = "%sespessura + %sfolga_fundo - 1" % (P, P)          # x junto a' lateral esq
-    rx = "%spegada_x - 2 * %sespessura - %sfolga_fundo" % (P, P, P)  # x junto a' direita
-    fy = "%sespessura + %sfolga_fundo - 1" % (P, P)          # y junto a' saia frontal
-    ty = "%spegada_y - %sespessura - %saba_canto - %sfolga_fundo" % (P, P, P, P)
-    wx = "%sespessura + 1" % P
-    wy = "%saba_canto + 1" % P
-    for nm, xx, yy in [("notch_fl", lx, fy), ("notch_fr", rx, fy),
-                       ("notch_tl", lx, ty), ("notch_tr", rx, ty)]:
-        cuts.append(box(doc, nm, wx, wy, H_THRU, xx, yy, Z_FUNDO_BASE))
+    # Sem recortes de canto: por baixo das abas nao ha' nada a aliviar (as abas
+    # de canto da Peca 1 ficam acima do plano do fundo).
 
     # --- 2 furos das cantoneiras da divisoria (linha faixa_baixa) ---
     for i, xe in enumerate(("%spegada_x / 4" % P, "3 * %spegada_x / 4" % P), 1):
