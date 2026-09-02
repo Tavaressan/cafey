@@ -68,6 +68,21 @@ def main():
     check(g["rasgo_altura"] - g["rasgo_w"] / 2 >= 0,
           "rasgo nao ultrapassa a borda inferior")
 
+    # rasgos laterais: nenhuma peca de corte a menos de me das extremidades em Y,
+    # e nenhuma sobreposicao com os furos de canto fix_* (inspecao 3D real).
+    rasgos = [o for o in doc.Objects if o.Name.startswith(("rasgo_e", "rasgo_d"))]
+    for o in rasgos:
+        b = o.Shape.BoundBox
+        check(b.YMin >= me - 0.01 and b.YMax <= g["pegada_y"] - me + 0.01,
+              "%s: Y [%.1f, %.1f] dentro de [%.0f, %.0f]"
+              % (o.Name, b.YMin, b.YMax, me, g["pegada_y"] - me))
+    furos_canto = [o for o in doc.Objects if o.Name.startswith("fix_")]
+    pior = 0.0
+    for a in rasgos:
+        for f in furos_canto:
+            pior = max(pior, a.Shape.common(f.Shape).Volume)
+    check(pior < 1e-6, "rasgos x furos de canto sem sobreposicao (max %.3f mm3)" % pior)
+
     print()
     if falhas:
         raise SystemExit("%d criterio(s) falharam" % len(falhas))

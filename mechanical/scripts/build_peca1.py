@@ -104,9 +104,14 @@ def build(doc):
                     "%s - %stomada_j1_h / 2" % (zc, P)))
 
     # --- 8. rasgos laterais + recorte USB ---
-    # grade de 5 posicoes em Y entre as margens de extremidade.
-    params = {a: v for a, v, _, _ in _env.load_params()}
-    ymin, ymax = params["margem_extremidade"], params["pegada_y"] - params["margem_extremidade"]
+    # grade de 5 posicoes em Y. O centro e' recuado de metade do comprimento do
+    # rasgo alem da margem de extremidade, para que a BORDA do rasgo (nao o
+    # centro) respeite os >= 25 mm das extremidades e nao invada os furos de
+    # canto (fix_*t_lo / fix_*f_lo).
+    params = _env.params_dict()
+    meia = params["rasgo_l"] / 2.0
+    ymin = params["margem_extremidade"] + meia
+    ymax = params["pegada_y"] - params["margem_extremidade"] - meia
     grid = [ymin + i * (ymax - ymin) / 4.0 for i in range(5)]
     usb_y = params["pegada_y"] - params["usb_y"]
     drop = min(range(5), key=lambda i: abs(grid[i] - usb_y))  # USB ocupa esta
