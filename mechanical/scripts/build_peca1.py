@@ -94,7 +94,9 @@ def build(doc):
                     (P + "furo_botao_x", "-1", zc), "Y"))
 
     # --- 7. aberturas traseiras (Y=pegada_y) ---
-    y_back_base = "%spegada_y - 1" % P
+    # base antes da face interna da saia traseira (pegada_y - espessura), com
+    # +2 de altura para atravessar toda a chapa.
+    y_back_base = "%spegada_y - %sespessura - 1" % (P, P)
     cuts.append(cyl(doc, "prensa_cabo", P + "prensa_cabo_d / 2",
                     "%sespessura + 2" % P,
                     (P + "prensa_cabo_x", y_back_base, zc), "Y"))

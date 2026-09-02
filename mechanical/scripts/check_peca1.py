@@ -10,6 +10,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import _env
 
 import FreeCAD as App
+import Part
 
 falhas = []
 
@@ -82,6 +83,23 @@ def main():
         for f in furos_canto:
             pior = max(pior, a.Shape.common(f.Shape).Volume)
     check(pior < 1e-6, "rasgos x furos de canto sem sobreposicao (max %.3f mm3)" % pior)
+
+    # --- toda abertura de face atravessa a chapa (nao ficou pele) ---
+    # sonda fina no centro de cada corte, ao longo da normal da face; se sobrar
+    # material a abertura esta "tapada".
+    aberturas = ["janela_rf", "furo_led", "furo_botao", "prensa_cabo",
+                 "tomada_j1", "recorte_usb"]
+    for nome in aberturas:
+        o = doc.getObject(nome)
+        c = o.Shape.BoundBox.Center
+        if o.Shape.BoundBox.YLength < 5:            # face frontal/traseira: normal Y
+            probe = Part.makeBox(2, 4 * g["espessura"], 2,
+                                 App.Vector(c.x - 1, c.y - 2 * g["espessura"], c.z - 1))
+        else:                                       # lateral: normal X
+            probe = Part.makeBox(4 * g["espessura"], 2, 2,
+                                 App.Vector(c.x - 2 * g["espessura"], c.y - 1, c.z - 1))
+        resto = shp.common(probe).Volume
+        check(resto < 1e-6, "%s atravessa a chapa (resto %.2f mm3)" % (nome, resto))
 
     print()
     if falhas:
