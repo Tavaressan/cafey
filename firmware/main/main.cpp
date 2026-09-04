@@ -15,6 +15,8 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "drivers/relay.hpp"
+#include "storage/schedule_store.hpp"
+#include "storage/event_queue_store.hpp"
 
 namespace cafey {
 
@@ -69,6 +71,25 @@ extern "C" void app_main(void) {
     esp_err_t err = relay.init();
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Falha critica ao inicializar driver do rele: %d", err);
+    }
+
+    // Carrega agendamentos e fila de eventos persistidos em NVS (spec §5.4):
+    // sobrevivem a reboot e queda de energia. Consumidos futuramente pelos
+    // Active Objects Agendador e Conectividade.
+    static storage::ScheduleStore schedule_store;
+    err = schedule_store.init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Falha ao carregar agendamentos de NVS: %d", err);
+    } else {
+        ESP_LOGI(TAG, "agendamentos carregados de NVS: %d", static_cast<int>(schedule_store.count()));
+    }
+
+    static storage::EventQueueStore event_queue_store;
+    err = event_queue_store.init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Falha ao carregar fila de eventos de NVS: %d", err);
+    } else {
+        ESP_LOGI(TAG, "eventos pendentes carregados de NVS: %d", static_cast<int>(event_queue_store.size()));
     }
 
     // Inicializa pinos de LED e botao

@@ -2,13 +2,20 @@ idf_component_register(
     SRCS
         "main.cpp"
         "drivers/relay.cpp"
+        "core/mutex_lock.cpp"
+        "storage/nvs_store.cpp"
+        "storage/schedule_store.cpp"
+        "storage/event_queue_store.cpp"
     INCLUDE_DIRS
         "."
         "drivers"
+        "core"
+        "storage"
     REQUIRES
         driver
         esp_common
         esp_hw_support
         freertos
         log
+        nvs_flash
 )
