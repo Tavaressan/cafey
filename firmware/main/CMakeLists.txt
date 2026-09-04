@@ -3,6 +3,10 @@ idf_component_register(
         "main.cpp"
         "drivers/relay.cpp"
         "core/active_object.cpp"
+        "core/mutex_lock.cpp"
+        "storage/nvs_store.cpp"
+        "storage/schedule_store.cpp"
+        "storage/event_queue_store.cpp"
         "app/cafeteira.cpp"
         "app/conectividade.cpp"
         "app/agendador.cpp"
@@ -10,6 +14,7 @@ idf_component_register(
         "."
         "drivers"
         "core"
+        "storage"
         "app"
     REQUIRES
         driver
@@ -17,4 +22,5 @@ idf_component_register(
         esp_hw_support
         freertos
         log
+        nvs_flash
 )

@@ -12,6 +12,8 @@
  */
 
 #include "esp_log.h"
+#include "storage/schedule_store.hpp"
+#include "storage/event_queue_store.hpp"
 
 #include "app/agendador.hpp"
 #include "app/cafeteira.hpp"
@@ -28,6 +30,25 @@ cafey::app::Agendador g_agendador;
 
 extern "C" void app_main(void) {
     ESP_LOGI(TAG, "boot - Cafey IoT (Active Objects)");
+
+    // Carrega agendamentos e fila de eventos persistidos em NVS (spec §5.4):
+    // sobrevivem a reboot e queda de energia. Consumidos futuramente pelos
+    // Active Objects Agendador e Conectividade.
+    static cafey::storage::ScheduleStore schedule_store;
+    esp_err_t err = schedule_store.init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Falha ao carregar agendamentos de NVS: %d", err);
+    } else {
+        ESP_LOGI(TAG, "agendamentos carregados de NVS: %d", static_cast<int>(schedule_store.count()));
+    }
+
+    static cafey::storage::EventQueueStore event_queue_store;
+    err = event_queue_store.init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Falha ao carregar fila de eventos de NVS: %d", err);
+    } else {
+        ESP_LOGI(TAG, "eventos pendentes carregados de NVS: %d", static_cast<int>(event_queue_store.size()));
+    }
 
     g_cafeteira.start();
     g_conectividade.start();
