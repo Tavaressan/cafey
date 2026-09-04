@@ -2,9 +2,15 @@ idf_component_register(
     SRCS
         "main.cpp"
         "drivers/relay.cpp"
+        "core/active_object.cpp"
+        "app/cafeteira.cpp"
+        "app/conectividade.cpp"
+        "app/agendador.cpp"
     INCLUDE_DIRS
         "."
         "drivers"
+        "core"
+        "app"
     REQUIRES
         driver
         esp_common
