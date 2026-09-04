@@ -83,3 +83,29 @@ idf.py set-target esp32
 idf.py build
 idf.py -p <porta> flash monitor
 ```
+
+### Evitando "idf.py: command not found"
+
+- **`. export.sh` não persiste entre comandos de shell separados.** Cada terminal/execução novos
+  precisa dar `source` de novo — não é algo que se "instala" uma vez. Se for automatizar (script,
+  CI local, agente), o `source` e o `idf.py` têm que estar na **mesma** invocação de shell:
+  ```sh
+  . "$HOME/.espressif/v6.1/esp-idf/export.sh" && idf.py build
+  ```
+- **Instalação incompleta é a causa mais comum.** O toolchain (compiladores, cmake, ninja) pode já
+  estar baixado em `~/.espressif/<versão>/` sem o venv Python ter sido criado — nesse caso
+  `export.sh` falha com `ESP-IDF Python virtual environment ... not found`. Reinstale com:
+  ```sh
+  bash ~/.espressif/<versão>/esp-idf/install.sh esp32
+  ```
+- **A build real (`idf.py build`) é a única que valida o firmware de verdade.** A suíte de host
+  (seção acima) cobre lógica pura via mocks, mas não pega problemas específicos do ESP-IDF (headers
+  ausentes, `REQUIRES` de componente faltando, mudança de struct entre versões) — só o CI (Docker
+  `espressif/idf:v5.3`) ou uma instalação local do ESP-IDF pegam isso. Se o Docker também estiver
+  indisponível localmente (`docker info` falhando), a build real via `idf.py` é o único jeito de
+  validar antes do CI.
+- **Divergência de versão local vs. CI é uma fonte real de falso-negativo/falso-positivo.** O CI
+  fixa `espressif/idf:v5.3`; uma instalação local em outra versão (ex. v6.1) pode expor mudanças de
+  API/struct que não existem no v5.3 (e vice-versa). Ao investigar um erro de build que só aparece
+  local ou só no CI, confira a versão primeiro (`idf.py --version`) antes de assumir que é bug de
+  código.
