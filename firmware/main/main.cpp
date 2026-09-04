@@ -12,6 +12,7 @@
  */
 
 #include "esp_log.h"
+#include "core/wifi_manager.hpp"
 #include "storage/schedule_store.hpp"
 #include "storage/event_queue_store.hpp"
 
@@ -48,6 +49,15 @@ extern "C" void app_main(void) {
         ESP_LOGE(TAG, "Falha ao carregar fila de eventos de NVS: %d", err);
     } else {
         ESP_LOGI(TAG, "eventos pendentes carregados de NVS: %d", static_cast<int>(event_queue_store.size()));
+    }
+
+    // Inicializa Wi-Fi (STA) com reconexao automatica em backoff e credenciais
+    // de provisionamento persistidas em NVS (UC-04). Sem credenciais gravadas,
+    // fica aguardando o app/BLE provisionar via WifiManager::provision().
+    static cafey::core::WifiManager wifi_manager;
+    esp_err_t wifi_err = wifi_manager.init();
+    if (wifi_err != ESP_OK) {
+        ESP_LOGE(TAG, "Falha ao inicializar Wi-Fi: %d", wifi_err);
     }
 
     g_cafeteira.start();

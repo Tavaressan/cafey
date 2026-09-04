@@ -4,6 +4,11 @@
 // mirroring mock_esp_gpio.hpp, so storage classes can be unit tested without
 // the ESP-IDF toolchain. Storage is an in-memory map keyed by
 // "namespace/key", simulating flash persistence within a single process.
+//
+// Exposes both the blob API (used by ScheduleStore/EventQueueStore, FW-06)
+// and the string API (used by WifiCredentialsStore, FW-09) over the same
+// backing store: string values are kept as their null-terminated byte
+// representation.
 
 #include <cstdint>
 #include <cstring>
@@ -130,6 +135,57 @@ inline esp_err_t nvs_set_blob(nvs_handle_t handle, const char* key, const void* 
     const auto* bytes = static_cast<const uint8_t*>(value);
     MockNvs::storage[MockNvs::make_key(ns_it->second.c_str(), key)] =
         std::vector<uint8_t>(bytes, bytes + length);
+    return ESP_OK;
+}
+
+// Strings sao persistidas como blob incluindo o terminador nulo, para que
+// nvs_get_str possa reportar o tamanho necessario (com \0) como faz o NVS
+// real e a mesma tabela de armazenamento sirva ScheduleStore/EventQueueStore
+// (blob) e WifiCredentialsStore (string).
+
+inline esp_err_t nvs_set_str(nvs_handle_t handle, const char* key, const char* value) {
+    if (MockNvs::set_blob_ret_code != ESP_OK) return MockNvs::set_blob_ret_code;
+    if (!value) return ESP_ERR_INVALID_ARG;
+
+    auto ns_it = MockNvs::namespaces.find(handle);
+    if (ns_it == MockNvs::namespaces.end()) return ESP_ERR_INVALID_STATE;
+
+    size_t len = std::strlen(value) + 1; // inclui o terminador nulo
+    MockNvs::storage[MockNvs::make_key(ns_it->second.c_str(), key)] =
+        std::vector<uint8_t>(value, value + len);
+    return ESP_OK;
+}
+
+inline esp_err_t nvs_get_str(nvs_handle_t handle, const char* key, char* out_value, size_t* length) {
+    if (MockNvs::get_blob_ret_code != ESP_OK) return MockNvs::get_blob_ret_code;
+    if (!length) return ESP_ERR_INVALID_ARG;
+
+    auto ns_it = MockNvs::namespaces.find(handle);
+    if (ns_it == MockNvs::namespaces.end()) return ESP_ERR_INVALID_STATE;
+
+    auto it = MockNvs::storage.find(MockNvs::make_key(ns_it->second.c_str(), key));
+    if (it == MockNvs::storage.end()) {
+        return ESP_ERR_NVS_NOT_FOUND;
+    }
+
+    size_t needed = it->second.size(); // ja inclui o terminador nulo
+    if (out_value == nullptr) {
+        *length = needed;
+        return ESP_OK;
+    }
+    if (*length < needed) {
+        return ESP_ERR_INVALID_SIZE;
+    }
+    std::memcpy(out_value, it->second.data(), needed);
+    *length = needed;
+    return ESP_OK;
+}
+
+inline esp_err_t nvs_erase_key(nvs_handle_t handle, const char* key) {
+    auto ns_it = MockNvs::namespaces.find(handle);
+    if (ns_it == MockNvs::namespaces.end()) return ESP_ERR_INVALID_STATE;
+
+    MockNvs::storage.erase(MockNvs::make_key(ns_it->second.c_str(), key));
     return ESP_OK;
 }
 
