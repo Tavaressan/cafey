@@ -2,13 +2,22 @@ idf_component_register(
     SRCS
         "main.cpp"
         "drivers/relay.cpp"
+        "core/reconnect_policy.cpp"
+        "core/wifi_credentials.cpp"
+        "core/wifi_manager.cpp"
     INCLUDE_DIRS
         "."
         "drivers"
+        "core"
     REQUIRES
         driver
         esp_common
+        esp_event
         esp_hw_support
+        esp_netif
+        esp_timer
+        esp_wifi
         freertos
         log
+        nvs_flash
 )
