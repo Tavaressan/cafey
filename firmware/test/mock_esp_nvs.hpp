@@ -1,26 +1,43 @@
 #pragma once
 
+// Minimal host-side mock of the ESP-IDF NVS (Non-Volatile Storage) API,
+// mirroring mock_esp_gpio.hpp, so storage classes can be unit tested without
+// the ESP-IDF toolchain. Storage is an in-memory map keyed by
+// "namespace/key", simulating flash persistence within a single process.
+//
+// Exposes both the blob API (used by ScheduleStore/EventQueueStore, FW-06)
+// and the string API (used by WifiCredentialsStore, FW-09) over the same
+// backing store: string values are kept as their null-terminated byte
+// representation.
+
 #include <cstdint>
 #include <cstring>
 #include <string>
 #include <unordered_map>
-
-// Mock minimo do subconjunto de NVS (Non-Volatile Storage) do ESP-IDF usado por
-// cafey::core::WifiCredentialsStore, permitindo testes unitarios em host sem a
-// toolchain/flash real do ESP32.
+#include <vector>
 
 #ifndef ESP_OK
-#define ESP_OK                    0
-#define ESP_FAIL                 -1
-#define ESP_ERR_INVALID_ARG       0x102
-#define ESP_ERR_INVALID_STATE     0x103
-#define ESP_ERR_INVALID_SIZE      0x104
-typedef int esp_err_t;
+#define ESP_OK 0
+#endif
+#ifndef ESP_FAIL
+#define ESP_FAIL -1
+#endif
+#ifndef ESP_ERR_INVALID_ARG
+#define ESP_ERR_INVALID_ARG 0x102
+#endif
+#ifndef ESP_ERR_INVALID_STATE
+#define ESP_ERR_INVALID_STATE 0x103
+#endif
+#ifndef ESP_ERR_INVALID_SIZE
+#define ESP_ERR_INVALID_SIZE 0x104
 #endif
 
-#define ESP_ERR_NVS_BASE          0x1100
-#define ESP_ERR_NVS_NOT_FOUND     (ESP_ERR_NVS_BASE + 1)
+#define ESP_ERR_NVS_BASE 0x1100
+#define ESP_ERR_NVS_NOT_FOUND (ESP_ERR_NVS_BASE + 0x01)
+#define ESP_ERR_NVS_NO_FREE_PAGES (ESP_ERR_NVS_BASE + 0x0d)
+#define ESP_ERR_NVS_NEW_VERSION_FOUND (ESP_ERR_NVS_BASE + 0x11)
 
+typedef int esp_err_t;
 typedef uint32_t nvs_handle_t;
 
 typedef enum {
@@ -31,60 +48,127 @@ typedef enum {
 class MockNvs {
 public:
     static void reset() {
-        store.clear();
+        storage.clear();
+        namespaces.clear();
+        flash_init_ret_code = ESP_OK;
         open_ret_code = ESP_OK;
+        set_blob_ret_code = ESP_OK;
+        get_blob_ret_code = ESP_OK;
         commit_ret_code = ESP_OK;
+        commit_call_count = 0;
     }
 
-    static std::unordered_map<std::string, std::string>& store_for(const std::string& ns) {
-        return store[ns];
+    static std::string make_key(const char* ns, const char* key) {
+        return std::string(ns) + "/" + std::string(key);
     }
 
+    static std::unordered_map<std::string, std::vector<uint8_t>> storage;
+    static std::unordered_map<nvs_handle_t, std::string> namespaces;
+    static nvs_handle_t next_handle;
+
+    static esp_err_t flash_init_ret_code;
     static esp_err_t open_ret_code;
+    static esp_err_t set_blob_ret_code;
+    static esp_err_t get_blob_ret_code;
     static esp_err_t commit_ret_code;
-
-private:
-    static std::unordered_map<std::string, std::unordered_map<std::string, std::string>> store;
+    static int commit_call_count;
 };
 
-inline std::unordered_map<std::string, std::unordered_map<std::string, std::string>> MockNvs::store;
+inline std::unordered_map<std::string, std::vector<uint8_t>> MockNvs::storage;
+inline std::unordered_map<nvs_handle_t, std::string> MockNvs::namespaces;
+inline nvs_handle_t MockNvs::next_handle = 1;
+inline esp_err_t MockNvs::flash_init_ret_code = ESP_OK;
 inline esp_err_t MockNvs::open_ret_code = ESP_OK;
+inline esp_err_t MockNvs::set_blob_ret_code = ESP_OK;
+inline esp_err_t MockNvs::get_blob_ret_code = ESP_OK;
 inline esp_err_t MockNvs::commit_ret_code = ESP_OK;
+inline int MockNvs::commit_call_count = 0;
 
 inline esp_err_t nvs_flash_init() {
+    return MockNvs::flash_init_ret_code;
+}
+
+inline esp_err_t nvs_flash_erase() {
+    MockNvs::storage.clear();
     return ESP_OK;
 }
 
-// Mapa auxiliar handle -> namespace, para as chamadas nvs_get_str/nvs_set_str localizarem o
-// armazenamento correto sem precisar repassar o nome do namespace a cada chamada.
-inline std::unordered_map<nvs_handle_t, std::string>& mock_nvs_handle_namespaces() {
-    static std::unordered_map<nvs_handle_t, std::string> handles;
-    return handles;
-}
-
-inline esp_err_t nvs_open(const char *name, nvs_open_mode_t /*open_mode*/, nvs_handle_t *out_handle) {
+inline esp_err_t nvs_open(const char* name, nvs_open_mode_t /*mode*/, nvs_handle_t* out_handle) {
     if (MockNvs::open_ret_code != ESP_OK) return MockNvs::open_ret_code;
-    // Codifica o namespace como um "handle" simulado usando o hash da string.
-    *out_handle = static_cast<nvs_handle_t>(std::hash<std::string>{}(name));
-    mock_nvs_handle_namespaces()[*out_handle] = name;
+    if (!name || !out_handle) return ESP_ERR_INVALID_ARG;
+    nvs_handle_t handle = MockNvs::next_handle++;
+    MockNvs::namespaces[handle] = name;
+    *out_handle = handle;
     return ESP_OK;
 }
 
-inline esp_err_t nvs_set_str(nvs_handle_t handle, const char *key, const char *value) {
-    auto it = mock_nvs_handle_namespaces().find(handle);
-    if (it == mock_nvs_handle_namespaces().end()) return ESP_ERR_INVALID_STATE;
-    MockNvs::store_for(it->second)[key] = value;
+inline esp_err_t nvs_get_blob(nvs_handle_t handle, const char* key, void* out_value, size_t* length) {
+    if (MockNvs::get_blob_ret_code != ESP_OK) return MockNvs::get_blob_ret_code;
+    if (!length) return ESP_ERR_INVALID_ARG;
+
+    auto ns_it = MockNvs::namespaces.find(handle);
+    if (ns_it == MockNvs::namespaces.end()) return ESP_ERR_INVALID_STATE;
+
+    auto it = MockNvs::storage.find(MockNvs::make_key(ns_it->second.c_str(), key));
+    if (it == MockNvs::storage.end()) {
+        return ESP_ERR_NVS_NOT_FOUND;
+    }
+
+    if (out_value == nullptr) {
+        // Caller is querying the required size only.
+        *length = it->second.size();
+        return ESP_OK;
+    }
+
+    size_t to_copy = it->second.size();
+    *length = to_copy;
+    std::memcpy(out_value, it->second.data(), to_copy);
     return ESP_OK;
 }
 
-inline esp_err_t nvs_get_str(nvs_handle_t handle, const char *key, char *out_value, size_t *length) {
-    auto it = mock_nvs_handle_namespaces().find(handle);
-    if (it == mock_nvs_handle_namespaces().end()) return ESP_ERR_INVALID_STATE;
-    auto &ns_store = MockNvs::store_for(it->second);
-    auto value_it = ns_store.find(key);
-    if (value_it == ns_store.end()) return ESP_ERR_NVS_NOT_FOUND;
+inline esp_err_t nvs_set_blob(nvs_handle_t handle, const char* key, const void* value, size_t length) {
+    if (MockNvs::set_blob_ret_code != ESP_OK) return MockNvs::set_blob_ret_code;
 
-    size_t needed = value_it->second.size() + 1;
+    auto ns_it = MockNvs::namespaces.find(handle);
+    if (ns_it == MockNvs::namespaces.end()) return ESP_ERR_INVALID_STATE;
+
+    const auto* bytes = static_cast<const uint8_t*>(value);
+    MockNvs::storage[MockNvs::make_key(ns_it->second.c_str(), key)] =
+        std::vector<uint8_t>(bytes, bytes + length);
+    return ESP_OK;
+}
+
+// Strings sao persistidas como blob incluindo o terminador nulo, para que
+// nvs_get_str possa reportar o tamanho necessario (com \0) como faz o NVS
+// real e a mesma tabela de armazenamento sirva ScheduleStore/EventQueueStore
+// (blob) e WifiCredentialsStore (string).
+
+inline esp_err_t nvs_set_str(nvs_handle_t handle, const char* key, const char* value) {
+    if (MockNvs::set_blob_ret_code != ESP_OK) return MockNvs::set_blob_ret_code;
+    if (!value) return ESP_ERR_INVALID_ARG;
+
+    auto ns_it = MockNvs::namespaces.find(handle);
+    if (ns_it == MockNvs::namespaces.end()) return ESP_ERR_INVALID_STATE;
+
+    size_t len = std::strlen(value) + 1; // inclui o terminador nulo
+    MockNvs::storage[MockNvs::make_key(ns_it->second.c_str(), key)] =
+        std::vector<uint8_t>(value, value + len);
+    return ESP_OK;
+}
+
+inline esp_err_t nvs_get_str(nvs_handle_t handle, const char* key, char* out_value, size_t* length) {
+    if (MockNvs::get_blob_ret_code != ESP_OK) return MockNvs::get_blob_ret_code;
+    if (!length) return ESP_ERR_INVALID_ARG;
+
+    auto ns_it = MockNvs::namespaces.find(handle);
+    if (ns_it == MockNvs::namespaces.end()) return ESP_ERR_INVALID_STATE;
+
+    auto it = MockNvs::storage.find(MockNvs::make_key(ns_it->second.c_str(), key));
+    if (it == MockNvs::storage.end()) {
+        return ESP_ERR_NVS_NOT_FOUND;
+    }
+
+    size_t needed = it->second.size(); // ja inclui o terminador nulo
     if (out_value == nullptr) {
         *length = needed;
         return ESP_OK;
@@ -92,21 +176,24 @@ inline esp_err_t nvs_get_str(nvs_handle_t handle, const char *key, char *out_val
     if (*length < needed) {
         return ESP_ERR_INVALID_SIZE;
     }
-    std::memcpy(out_value, value_it->second.c_str(), needed);
+    std::memcpy(out_value, it->second.data(), needed);
     *length = needed;
     return ESP_OK;
 }
 
-inline esp_err_t nvs_erase_key(nvs_handle_t handle, const char *key) {
-    auto it = mock_nvs_handle_namespaces().find(handle);
-    if (it == mock_nvs_handle_namespaces().end()) return ESP_ERR_INVALID_STATE;
-    MockNvs::store_for(it->second).erase(key);
+inline esp_err_t nvs_erase_key(nvs_handle_t handle, const char* key) {
+    auto ns_it = MockNvs::namespaces.find(handle);
+    if (ns_it == MockNvs::namespaces.end()) return ESP_ERR_INVALID_STATE;
+
+    MockNvs::storage.erase(MockNvs::make_key(ns_it->second.c_str(), key));
     return ESP_OK;
 }
 
 inline esp_err_t nvs_commit(nvs_handle_t /*handle*/) {
+    MockNvs::commit_call_count++;
     return MockNvs::commit_ret_code;
 }
 
-inline void nvs_close(nvs_handle_t /*handle*/) {
+inline void nvs_close(nvs_handle_t handle) {
+    MockNvs::namespaces.erase(handle);
 }

@@ -2,13 +2,23 @@ idf_component_register(
     SRCS
         "main.cpp"
         "drivers/relay.cpp"
+        "core/active_object.cpp"
+        "core/mutex_lock.cpp"
         "core/reconnect_policy.cpp"
         "core/wifi_credentials.cpp"
         "core/wifi_manager.cpp"
+        "storage/nvs_store.cpp"
+        "storage/schedule_store.cpp"
+        "storage/event_queue_store.cpp"
+        "app/cafeteira.cpp"
+        "app/conectividade.cpp"
+        "app/agendador.cpp"
     INCLUDE_DIRS
         "."
         "drivers"
         "core"
+        "storage"
+        "app"
     REQUIRES
         driver
         esp_common
