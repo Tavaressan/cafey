@@ -21,6 +21,7 @@ idf_component_register(
         "app"
     REQUIRES
         driver
+        esp_driver_gpio
         esp_common
         esp_event
         esp_hw_support

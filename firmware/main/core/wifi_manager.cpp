@@ -149,12 +149,14 @@ void WifiManager::schedule_reconnect() {
              static_cast<unsigned>(delay_ms), static_cast<unsigned>(policy_.attempts()));
 
     if (reconnect_timer_ == nullptr) {
-        const esp_timer_create_args_t timer_args = {
-            .callback = &on_reconnect_timer,
-            .arg = nullptr,
-            .dispatch_method = ESP_TIMER_TASK,
-            .name = "wifi_reconnect",
-        };
+        // Zero-init explicito (em vez de designated initializer parcial) para
+        // continuar compilando sob -Werror=missing-field-initializers quando o
+        // ESP-IDF adiciona campos a esp_timer_create_args_t entre versoes.
+        esp_timer_create_args_t timer_args = {};
+        timer_args.callback = &on_reconnect_timer;
+        timer_args.arg = nullptr;
+        timer_args.dispatch_method = ESP_TIMER_TASK;
+        timer_args.name = "wifi_reconnect";
         if (esp_timer_create(&timer_args, &reconnect_timer_) != ESP_OK) {
             // Fallback defensivo: se a criacao do timer falhar (ex.: sem memoria),
             // tenta reconectar imediatamente em vez de nunca mais tentar.
