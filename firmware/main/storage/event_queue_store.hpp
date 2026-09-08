@@ -76,10 +76,31 @@ public:
     [[nodiscard]] bool full() const noexcept { return count_ == kCapacity; }
 
 private:
+    // Prefixo de schema gravado no início do blob (FW-19).
+    static constexpr uint32_t kEventQueueMagic = 0x51464143;  // 'CAFQ' LE
+    static constexpr uint16_t kEventQueueSchemaVersion = 1;
+
     struct PersistedLayout {
+        uint32_t magic;
+        uint16_t schema_version;
+        uint16_t reserved;
         uint32_t head; // index of the oldest event
         uint32_t count;
         Event events[kCapacity];
+    };
+
+    // Layout gravado pelo firmware anterior à PR #124: sem prefixo de schema e
+    // com `Event` sem o campo `horario_provisorio`. Usado só para migrar blobs
+    // legados na primeira inicialização após a atualização (FW-19).
+    struct LegacyEventV0 {
+        uint32_t timestamp_inicio;
+        uint32_t timestamp_fim;
+        EventOrigin origem;
+    };
+    struct LegacyPersistedLayoutV0 {
+        uint32_t head;
+        uint32_t count;
+        LegacyEventV0 events[kCapacity];
     };
 
     esp_err_t persist();

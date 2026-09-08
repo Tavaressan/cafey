@@ -181,6 +181,82 @@ int test_pop_fails_if_nvs_persist_fails() {
     return 0;
 }
 
+namespace {
+// Réplica exata do layout gravado pelo firmware pré-#124 (sem prefixo de schema,
+// Event sem `horario_provisorio`), para montar um blob legado sintético.
+struct LegacyEventV0 {
+    uint32_t timestamp_inicio;
+    uint32_t timestamp_fim;
+    EventOrigin origem;
+};
+struct LegacyPersistedLayoutV0 {
+    uint32_t head;
+    uint32_t count;
+    LegacyEventV0 events[EventQueueStore::kCapacity];
+};
+
+void write_blob(const char* key, const void* data, size_t size) {
+    nvs_handle_t handle = 0;
+    nvs_open("cafey_evtq", NVS_READWRITE, &handle);
+    nvs_set_blob(handle, key, data, size);
+    nvs_commit(handle);
+}
+} // namespace
+
+// FW-19: blob no layout legado conhecido deve ser migrado, nao descartado.
+int test_legacy_blob_is_migrated() {
+    MockNvs::reset();
+
+    LegacyPersistedLayoutV0 legacy{};
+    legacy.head = 0;
+    legacy.count = 3;
+    legacy.events[0] = {10, 20, EventOrigin::APP};
+    legacy.events[1] = {30, 40, EventOrigin::AGENDAMENTO};
+    legacy.events[2] = {50, 60, EventOrigin::BOTAO};
+    write_blob("queue", &legacy, sizeof(legacy));
+
+    {
+        EventQueueStore store;
+        TEST_ASSERT(store.init() == ESP_OK, "init() must migrate the legacy blob");
+        TEST_ASSERT(store.size() == 3, "all 3 legacy events must survive migration");
+        for (size_t i = 0; i < 3; ++i) {
+            Event out{};
+            TEST_ASSERT(store.at(i, &out) == ESP_OK, "at() should succeed");
+            TEST_ASSERT(!out.horario_provisorio, "migrated events default horario_provisorio=false");
+        }
+        TEST_ASSERT(store.at(0, nullptr) == ESP_OK, "first event present");
+    }
+
+    // Segundo init() deve ler direto do layout novo regravado pela migração.
+    {
+        EventQueueStore store;
+        TEST_ASSERT(store.init() == ESP_OK, "second init() reads the rewritten new layout");
+        TEST_ASSERT(store.size() == 3, "rewritten blob keeps the 3 events");
+        Event out{};
+        TEST_ASSERT(store.pop(&out) == ESP_OK, "pop() should succeed");
+        TEST_ASSERT(out.timestamp_inicio == 10, "FIFO order preserved after migration");
+        TEST_ASSERT(out.origem == EventOrigin::APP, "origin preserved after migration");
+    }
+
+    std::cout << "[PASS] test_legacy_blob_is_migrated" << std::endl;
+    return 0;
+}
+
+// FW-19: blob de tamanho totalmente desconhecido -> fila vazia, sem travar.
+int test_unknown_blob_is_treated_as_empty() {
+    MockNvs::reset();
+
+    std::vector<uint8_t> garbage(123, 0x5A);
+    write_blob("queue", garbage.data(), garbage.size());
+
+    EventQueueStore store;
+    TEST_ASSERT(store.init() == ESP_OK, "init() must recover from unknown blob");
+    TEST_ASSERT(store.size() == 0, "queue must be empty after discarding unknown blob");
+
+    std::cout << "[PASS] test_unknown_blob_is_treated_as_empty" << std::endl;
+    return 0;
+}
+
 int main() {
     std::cout << "Running Cafey EventQueueStore Unit Tests..." << std::endl;
 
@@ -191,7 +267,9 @@ int main() {
     if (test_queue_survives_reboot()) return 1;
     if (test_push_fails_if_nvs_persist_fails()) return 1;
     if (test_pop_fails_if_nvs_persist_fails()) return 1;
+    if (test_legacy_blob_is_migrated()) return 1;
+    if (test_unknown_blob_is_treated_as_empty()) return 1;
 
-    std::cout << "All 7 EventQueueStore tests PASSED!" << std::endl;
+    std::cout << "All EventQueueStore tests PASSED!" << std::endl;
     return 0;
 }

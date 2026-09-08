@@ -57,6 +57,25 @@ esp_err_t NvsStore::load_blob(const char* key, void* out_value, size_t value_siz
     return ESP_OK;
 }
 
+esp_err_t NvsStore::blob_size(const char* key, size_t* out_size) {
+    core::LockGuard lock(mutex_);
+
+    if (!is_initialized_) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (out_size == nullptr) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    size_t actual_size = 0;
+    esp_err_t err = nvs_get_blob(handle_, key, nullptr, &actual_size);
+    if (err != ESP_OK) {
+        return err;
+    }
+    *out_size = actual_size;
+    return ESP_OK;
+}
+
 esp_err_t NvsStore::save_blob(const char* key, const void* value, size_t value_size) {
     core::LockGuard lock(mutex_);
 

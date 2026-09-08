@@ -20,8 +20,8 @@ esp_err_t EventQueueStore::init() {
         return err;
     }
 
-    PersistedLayout layout{};
-    err = nvs_.load_blob(kKey, &layout, sizeof(layout));
+    size_t stored_size = 0;
+    err = nvs_.blob_size(kKey, &stored_size);
     if (err == ESP_ERR_NVS_NOT_FOUND) {
         head_ = 0;
         count_ = 0;
@@ -31,14 +31,60 @@ esp_err_t EventQueueStore::init() {
         return err;
     }
 
-    head_ = layout.head % kCapacity;
-    count_ = layout.count > kCapacity ? kCapacity : layout.count;
-    std::memcpy(events_, layout.events, sizeof(events_));
+    if (stored_size == sizeof(PersistedLayout)) {
+        PersistedLayout layout{};
+        err = nvs_.load_blob(kKey, &layout, sizeof(layout));
+        if (err != ESP_OK) {
+            return err;
+        }
+        if (layout.magic != kEventQueueMagic ||
+            layout.schema_version != kEventQueueSchemaVersion) {
+            ESP_LOGW("EventQueueStore", "magic/schema desconhecido, fila zerada");
+            head_ = 0;
+            count_ = 0;
+            return ESP_OK;
+        }
+        head_ = layout.head % kCapacity;
+        count_ = layout.count > kCapacity ? kCapacity : layout.count;
+        std::memcpy(events_, layout.events, sizeof(events_));
+        return ESP_OK;
+    }
+
+    if (stored_size == sizeof(LegacyPersistedLayoutV0)) {
+        // Migra o layout pré-#124: converte cada evento (horario_provisorio =
+        // false) e regrava no layout novo. Sem isso, eventos de preparo ainda
+        // não publicados seriam descartados silenciosamente (FW-19).
+        LegacyPersistedLayoutV0 legacy{};
+        err = nvs_.load_blob(kKey, &legacy, sizeof(legacy));
+        if (err != ESP_OK) {
+            return err;
+        }
+        head_ = legacy.head % kCapacity;
+        count_ = legacy.count > kCapacity ? kCapacity : legacy.count;
+        for (size_t i = 0; i < kCapacity; ++i) {
+            events_[i] = Event{};
+            events_[i].timestamp_inicio = legacy.events[i].timestamp_inicio;
+            events_[i].timestamp_fim = legacy.events[i].timestamp_fim;
+            events_[i].origem = legacy.events[i].origem;
+            events_[i].horario_provisorio = false;
+        }
+        ESP_LOGW("EventQueueStore", "migrando fila legada (%u eventos)",
+                 static_cast<unsigned>(count_));
+        return persist();
+    }
+
+    // Tamanho totalmente desconhecido: descarta e segue com fila vazia.
+    ESP_LOGW("EventQueueStore", "blob de %u bytes incompativel, fila zerada",
+             static_cast<unsigned>(stored_size));
+    head_ = 0;
+    count_ = 0;
     return ESP_OK;
 }
 
 esp_err_t EventQueueStore::persist() {
     PersistedLayout layout{};
+    layout.magic = kEventQueueMagic;
+    layout.schema_version = kEventQueueSchemaVersion;
     layout.head = static_cast<uint32_t>(head_);
     layout.count = static_cast<uint32_t>(count_);
     std::memcpy(layout.events, events_, sizeof(events_));
@@ -61,6 +107,8 @@ esp_err_t EventQueueStore::push(const Event& event) {
 
     // Constrói PersistedLayout com novo estado.
     PersistedLayout layout{};
+    layout.magic = kEventQueueMagic;
+    layout.schema_version = kEventQueueSchemaVersion;
     layout.head = static_cast<uint32_t>(new_head);
     layout.count = static_cast<uint32_t>(new_count);
     std::memcpy(layout.events, events_, sizeof(events_));
@@ -130,6 +178,8 @@ size_t EventQueueStore::remove_confirmed(const uint32_t* confirmed_inicios, size
     }
 
     PersistedLayout layout{};
+    layout.magic = kEventQueueMagic;
+    layout.schema_version = kEventQueueSchemaVersion;
     layout.head = 0;
     layout.count = static_cast<uint32_t>(kept_count);
     for (size_t i = 0; i < kept_count; ++i) {
@@ -163,6 +213,8 @@ esp_err_t EventQueueStore::pop(Event* out_event) {
 
     // Constrói PersistedLayout com novo estado.
     PersistedLayout layout{};
+    layout.magic = kEventQueueMagic;
+    layout.schema_version = kEventQueueSchemaVersion;
     layout.head = static_cast<uint32_t>(new_head);
     layout.count = static_cast<uint32_t>(new_count);
     std::memcpy(layout.events, events_, sizeof(events_));

@@ -32,6 +32,13 @@
 #define ESP_ERR_INVALID_SIZE 0x104
 #endif
 
+#ifndef ESP_LOGW
+#define ESP_LOGI(tag, fmt, ...) do {} while(0)
+#define ESP_LOGW(tag, fmt, ...) do {} while(0)
+#define ESP_LOGE(tag, fmt, ...) do {} while(0)
+#define ESP_LOGD(tag, fmt, ...) do {} while(0)
+#endif
+
 #define ESP_ERR_NVS_BASE 0x1100
 #define ESP_ERR_NVS_NOT_FOUND (ESP_ERR_NVS_BASE + 0x01)
 #define ESP_ERR_NVS_NO_FREE_PAGES (ESP_ERR_NVS_BASE + 0x0d)

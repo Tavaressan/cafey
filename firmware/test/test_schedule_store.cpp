@@ -201,6 +201,27 @@ int test_versioned_rejects_overflow() {
     return 0;
 }
 
+// FW-19: um blob gravado por firmware antigo (layout sem prefixo de schema,
+// tamanho diferente) nao pode travar o init() nem propagar ESP_ERR_INVALID_SIZE;
+// deve ser tratado como store vazio para o backend republicar a lista retida.
+int test_incompatible_blob_is_treated_as_empty() {
+    MockNvs::reset();
+
+    nvs_handle_t handle = 0;
+    TEST_ASSERT(nvs_open("cafey_sched", NVS_READWRITE, &handle) == ESP_OK, "open mock ns");
+    std::vector<uint8_t> legacy_blob(644, 0xAB); // tamanho do layout pre-#124
+    TEST_ASSERT(nvs_set_blob(handle, "list", legacy_blob.data(), legacy_blob.size()) == ESP_OK,
+                "write synthetic legacy blob");
+    nvs_commit(handle);
+
+    ScheduleStore store;
+    TEST_ASSERT(store.init() == ESP_OK, "init() must recover from incompatible blob");
+    TEST_ASSERT(store.count() == 0, "store must be empty after discarding legacy blob");
+
+    std::cout << "[PASS] test_incompatible_blob_is_treated_as_empty" << std::endl;
+    return 0;
+}
+
 int main() {
     std::cout << "Running Cafey ScheduleStore Unit Tests..." << std::endl;
 
@@ -213,6 +234,7 @@ int main() {
     if (test_equal_version_is_ignored()) return 1;
     if (test_lower_version_is_ignored()) return 1;
     if (test_versioned_rejects_overflow()) return 1;
+    if (test_incompatible_blob_is_treated_as_empty()) return 1;
 
     std::cout << "All ScheduleStore tests PASSED!" << std::endl;
     return 0;
