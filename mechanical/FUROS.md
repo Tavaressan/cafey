@@ -32,7 +32,7 @@ Centro a 22 mm abaixo do tampo (`abertura_centro_z`).
 |---|---|---|---|---|
 | `janela_rf` | retângulo 40 × 28 | frontal | (75, 0, −22) | **Saída de rádio.** Deixa a antena Wi-Fi do ESP32 (encostada por dentro, ~5 mm, sem metal na frente) enxergar para fora. Não é acesso a componente. Dimensão cobre a antena PCB do DevKit V1 com margem. Valida no ensaio 11 (atenuação de Wi-Fi). |
 | `furo_led` | Ø5 | frontal | (150, 0, −22) | **Sinalização.** Passagem do LED RGB de status, montado na placa auxiliar da faixa de baixa tensão. Ø nominal — conferir contra o LED/porta-LED real (item 5). |
-| `furo_botao` | Ø12 | frontal | (195, 0, −22) | **Comando.** Passagem do botão de painel. Ø nominal — conferir contra o botão real (item 5). |
+| `furo_botao` | Ø16 | frontal | (195, 0, −22) | **Comando.** Passagem do botão de painel metálico momentâneo NA de 16 mm (revisão 08/09/2026; era Ø12). Ø nominal — conferir contra o botão real (M1 da lista de compras). |
 | `prensa_cabo` | Ø15 | traseira | (70, 210, −22) | **Entrada de energia do módulo** (rede 127 V vinda da parede). Recebe o prensa-cabo PG9 — alívio de tração normalizado que a inspeção elétrica procura. Escolhido em vez de passa-fio ou C14: menor recorte numa saia que já perdeu a tomada J1. Faixa de aperto 4–8 mm nominal vs cabo real (item 14). |
 | `tomada_j1` | retângulo 45,5 × 23 | traseira | (185, 210, −22) | **Saída de energia.** Recorte do módulo de tomada 2P+T (NBR 14136) onde a **cafeteira** é plugada; o módulo comuta essa tomada pelo relé. Girado 90°: 45 mm de recorte numa saia de 45 mm não deixaria material; girado sobram ~10 mm acima e abaixo. Travamento das garras em chapa 1,2 mm a verificar (item 1). |
 | `recorte_usb` | retângulo ~16 × 9 | lateral esq. | (0, 37,5, −22) | **Gravação / debug.** Passagem do conector USB de painel, ligado ao micro-USB do ESP32 por cabo de painel. Esse cabo desacopla a posição do conector da da placa — no DevKit V1 antena e micro-USB ficam em extremidades opostas, então sem ele "USB acessível" e "Wi-Fi decente" seriam exclusivos. Dimensão **placeholder** — medir o flange real (item 16). |
@@ -71,8 +71,10 @@ Centros `pr_*`: gerados por `_env.porca_rebite_holes` — x ∈ {7,2 · 86,7 · 
 ## Peça 1 — o que **não** tem furo
 
 - **Tampo:** nenhuma abertura (regra de derrame).
-- **Fusível:** porta-fusível em linha, corpo fechado, preso por abraçadeira.
-  Nenhum furo em chapa — troca abrindo o fundo.
+- **Fusível:** porta-fusível 5×20 mm **em linha** (com rabicho), corpo fechado,
+  preso por abraçadeira. Nenhum furo na parede — troca abrindo o fundo.
+  Confirmado na revisão de 08/09/2026 (item E12 da lista de compras): **não**
+  usar porta-fusível de painel. F1 = 10 A T, protege a carga.
 - **Travessia de 5 fios** (+5 V/GND do HLK-PM01 + VCC/GND/IN do relé): rasgo com
   passa-fio na **divisória** de policarbonato, perpendicular a ela — não na
   chapa. A divisória não está modelada.

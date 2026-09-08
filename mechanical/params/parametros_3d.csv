@@ -44,7 +44,7 @@ janela_rf_h,28,mm,
 janela_rf_x,75,mm,do lado X=0
 furo_led,5,mm,Ø LED RGB
 furo_led_x,150,mm,
-furo_botao,12,mm,Ø botao de painel
+furo_botao,16,mm,Ø botao de painel metalico momentaneo NA 16mm (revisao 08/09/2026; era 12mm); conferir contra o botao real (M1 da lista de compras)
 furo_botao_x,195,mm,
 # --- aberturas traseiras (mantidas da versao em chapa) ---
 prensa_cabo_d,15,mm,PG9
