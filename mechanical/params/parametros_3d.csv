@@ -1,0 +1,53 @@
+alias,value,unit,origin
+# --- processo (impressao 3D FDM; substitui a chapa dobrada) ---
+parede,2.4,mm,minimo recomendado p/ parede estrutural FDM (3 perimetros de bico 0.4mm); chapa dobrada era 1.2 mm
+# material e' texto: ver celula material_txt no Spreadsheet
+# --- pegada e altura (mantidas da versao em chapa) ---
+pegada_x,260,mm,catalogo cafeteira 257x198 com folga
+pegada_y,210,mm,catalogo cafeteira 257x198 com folga
+altura_externa,45,mm,empilhamento dos modulos
+altura_livre,40.2,mm,descontados tampo (parede) e fundo (parede_fundo); parede 2.4 mm > espessura de chapa 1.2 mm
+aba_fundo,14,mm,flange interna continua na base; aloja os bosses de insert M3 e apoia o fundo removivel
+# --- pes e elevacao ---
+pe_altura,10,mm,EPDM ou silicone antiderrapante
+apoio_altura,0,mm,0..5 conforme apoio da cafeteira
+elevacao_total,,mm,expr: altura_externa + pe_altura + apoio_altura
+# --- faixas internas (mantidas da versao em chapa) ---
+faixa_rede,120,mm,traseira 127 V
+divisoria,3,mm,policarbonato 2 a 3 mm
+faixa_baixa,84,mm,frontal 5 V
+# --- rasgos de ventilacao (mantidos da versao em chapa) ---
+rasgo_l,25,mm,comprimento (ao longo de Y)
+rasgo_w,3,mm,largura vertical: bloqueia dedo nao bloqueia arame
+rasgo_altura,15,mm,centro acima da borda inferior da parede
+rasgo_qtd_esq,4,,4 rasgos + recorte USB ocupa a 5a posicao
+rasgo_qtd_dir,5,,
+# --- aberturas frontais (mantidas da versao em chapa) ---
+abertura_centro_z,22,mm,centro abaixo da face inferior do tampo
+janela_rf_w,40,mm,
+janela_rf_h,28,mm,
+janela_rf_x,75,mm,do lado X=0
+furo_led,5,mm,Ø LED RGB
+furo_led_x,150,mm,
+furo_botao,12,mm,Ø botao de painel
+furo_botao_x,195,mm,
+# --- aberturas traseiras (mantidas da versao em chapa) ---
+prensa_cabo_d,15,mm,PG9
+prensa_cabo_x,70,mm,
+tomada_j1_w,45.5,mm,recorte girado 90 -> 23 de altura
+tomada_j1_h,23,mm,
+tomada_j1_x,185,mm,
+# --- recorte USB lateral esquerda (placeholder; medir item 16 do doc) ---
+usb_w,16,mm,placeholder - flange do conector de painel micro-USB varia
+usb_h,9,mm,placeholder
+usb_y,165,mm,da traseira (Y = pegada_y - usb_y)
+# --- Peca 2: fundo plano removivel (tampa por baixo) ---
+parede_fundo,3,mm,mais espessa que o topo: apoia toda a massa em operacao sobre os pes
+# --- fixacao Peca1/Peca2: insert termico rosqueado M3 (substitui porca-rebite de chapa) ---
+insert_furo,4.0,mm,diametro do furo p/ insert termico M3x5.7 tipico (ex. Ruthex/Boyard) - fundido a quente no boss
+insert_prof,6,mm,profundidade do furo do insert (corpo 5.7 mm + folga de entrada)
+boss_d,9,mm,diametro externo do boss que aloja o insert (>= 2x insert_furo, evita rachadura ao fundir)
+furo_passagem,3.4,mm,folga do parafuso M3 na Peca 2 (passagem, sem rosca)
+# --- margens de projeto (viram validacao) ---
+margem_parede,6,mm,minimo entre abertura e canto vertical (equivalente a margem_dobra da chapa)
+margem_extremidade,25,mm,minimo das extremidades (zona de rigidez do canto e dos bosses)

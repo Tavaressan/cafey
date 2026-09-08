@@ -1,6 +1,15 @@
-# mechanical — módulo físico (pedestal em aço inox)
+# mechanical — módulo físico (pedestal)
 
 Modelo paramétrico do pedestal de `docs/status-modulo-fisico.md`.
+
+**Impressão 3D (atual, issue #116):** ver a seção
+[Variante para impressão 3D (FDM)](#variante-para-impressão-3d-fdm-issue-116)
+abaixo — `build_peca1_3d.py` / `build_peca2_3d.py` e os scripts `*_3d.py`. A
+seção seguinte, sobre chapa dobrada, fica preservada como histórico de decisão
+(o modelo em chapa não é mais o alvo de fabricação, mas os scripts continuam
+funcionando e não foram removidos).
+
+## Chapa dobrada (histórico — substituída pela variante 3D acima)
 
 - **Peça 1** — peça dobrada (tampo + 4 saias + 4 abas de fundo + 4 abas de canto).
 - **Peça 2** — fundo plano removível (tampa por baixo).
@@ -135,10 +144,117 @@ Aberturas, na referência da peça dobrada (do documento), para o desenho cotado
   — chapa de 1,2 mm é fina para escarear M3; confirmar com a empresa se quiser flush.
 - `montagem.FCStd` é snapshot (cópia de forma), não assembly vivo.
 
-## Notas de fabricação
+## Notas de fabricação (chapa)
 
 - **Ordem de dobra:** abas do fundo primeiro, com a chapa plana; saias depois. A
   viradeira não alcança o interior de uma caixa de 45 × 260 mm.
 - Alívio de canto de `raio_dobra + espessura` (~2,4 mm) no encontro das dobras.
 - Porta-fusível em linha preso por abraçadeira — nenhum furo em chapa.
 - Alumínio em inox forma par galvânico; parafuso/rebite de inox (consulta 9).
+
+---
+
+## Variante para impressão 3D (FDM) — issue #116
+
+Reformulação da mecânica para impressão 3D no lugar de chapa dobrada. Mesma
+pegada (260 × 210 mm), mesma altura externa (45 mm) e mesmo arranjo interno
+(`params/componentes_3d.csv`, cópia de `componentes.csv` com os ajustes de
+z/x descritos no próprio arquivo). O que muda:
+
+- **Peça 1 vira um sólido único** (tampo + 4 paredes + flange de fixação
+  contínua) em vez de 8 dobras + 4 abas de canto — os 4 cantos já nascem
+  fechados, sem fator K, sem linha neutra, sem planificação.
+- **Parede 2,4 mm** (3 perímetros de bico 0,4 mm), contra 1,2 mm da chapa —
+  mínimo prático para uma parede que é estrutura primária em FDM.
+- **Fixação Peça 1 / Peça 2 por insert térmico rosqueado M3** (fundido a
+  quente em 8 bosses da flange, `boss_d` = 9 mm, furo do insert `insert_furo`
+  = 4,0 mm, profundidade `insert_prof` = 6 mm), no lugar da porca-rebite de
+  chapa. O parafuso da Peça 2 continua entrando por baixo.
+- **STL exportável** (`export_stl.py`), novo requisito da issue.
+- Todas as aberturas do catálogo (`FUROS.md`) recriadas 1:1 na nova geometria.
+
+### Scripts
+
+```
+freecadcmd mechanical/scripts/build_peca1_3d.py     # build/peca1_3d.FCStd
+freecadcmd mechanical/scripts/check_peca1_3d.py     # validação Peça 1 (geometria, margens, flecha do tampo)
+freecadcmd mechanical/scripts/export_step_3d.py     # build/peca1_3d.step
+freecadcmd mechanical/scripts/build_peca2_3d.py     # build/peca2_3d.FCStd + peca2_3d.step
+freecadcmd mechanical/scripts/check_peca2_3d.py     # validação Peça 2 + coincidência dos furos com os inserts
+freecadcmd mechanical/scripts/check_montagem_3d.py  # validação de conjunto (sem build_montagem_3d.py: confere as duas Shapes direto)
+freecadcmd mechanical/scripts/build_arranjo_3d.py   # build/arranjo_3d.FCStd + arranjo_3d.step
+freecadcmd mechanical/scripts/check_arranjo_3d.py   # valida faixas, altura livre, separação rede/baixa, sem colisão com os bosses
+freecadcmd mechanical/scripts/export_stl.py         # build/peca1_3d.stl + peca2_3d.stl (Peça 1 e Peça 2)
+```
+
+Ordem: `build_peca1_3d` → `build_peca2_3d` → `check_peca1_3d` → `check_peca2_3d`
+→ `check_montagem_3d` → `build_arranjo_3d` → `check_arranjo_3d` →
+`export_step_3d` / `export_stl`.
+
+`_env3d.py` é o equivalente de `_env.py` para esta variante: paths de saída
+(`peca1_3d.*`, `peca2_3d.*`, `arranjo_3d.*`), `DESCRIPTIONS`/notas de
+fabricação, `insert_holes()` (posição dos 8 bosses/insertes, mesmo layout dos
+antigos `porca_rebite_holes()`) e `deflexao_tampo_mm()` — estimativa
+analítica de flecha do tampo sob a carga de operação (~2,9 kg), formula de
+placa retangular simplesmente apoiada (Roark's Formulas for Stress and
+Strain). `_build.py` (helpers `box`/`cyl`) é reaproveitado sem mudança.
+
+### Parâmetros (`params/parametros_3d.csv`)
+
+Cópia de `parametros.csv` sem os campos de dobra (`raio_dobra`, `fator_k`,
+`recuo_aba`, `alivio_canto`), com `espessura` renomeado para `parede` (2,4 mm)
+e os novos parâmetros de fixação: `boss_d`, `insert_furo`, `insert_prof`,
+`furo_passagem`. `aba_fundo` sobe de 12 para 14 mm (a flange agora também
+aloja o boss do insert, Ø 9 mm).
+
+### Massa e resistência mecânica — decisões e premissas
+
+- **Material assumido: PETG** (`_env3d.MATERIAL_TXT`), não validado por
+  ensaio — ver `docs/status-modulo-fisico.md` para a justificativa e a
+  ressalva. Densidade usada apenas para uma estimativa de massa em **sólido
+  cheio** (limite superior; o infill parcial do fatiador reduz a massa real).
+- **Flecha do tampo sob carga de operação:** estimada analiticamente
+  (`_env3d.deflexao_tampo_mm`, placa simplesmente apoiada — pior caso; o
+  encaixe real com as paredes tende a se comportar mais como engastado, então
+  a flecha real tende a ser menor). `check_peca1_3d.py` valida contra
+  `L/300` do menor vão (referência de rigidez usual de prateleira/painel, não
+  uma norma específica de pedestal de eletrodoméstico). **Isto é uma
+  inferência de engenharia, não um ensaio** — o item equivalente ao 8/10 da
+  lista de verificação de `docs/status-modulo-fisico.md` (ensaio de bancada
+  com a peça impressa real) é o que confirma.
+- **Sem fillet nos cantos verticais** nesta primeira versão — decisão
+  consciente (YAGNI): nenhum requisito de resistência levantado pela issue
+  exige isso agora; fica como melhoria futura se o ensaio de bancada indicar
+  necessidade.
+
+### Arranjo interno (`arranjo_3d.FCStd`)
+
+Mesmos 14 componentes de `componentes.csv`, mesma separação rede/baixa
+tensão. Ajuste necessário registrado em `componentes_3d.csv`: os componentes
+com `apoio=fundo` (ESP32, placa auxiliar, bornes de rede, terra, HLK-PM01,
+módulo de relé) sobem para `z=-39` (de `z=-43,8` na chapa) — em standoffs,
+para não colidir com o topo dos bosses de insert (que, para caber o furo de
+6 mm de profundidade, ficam mais altos que a flange de 2,4 mm). A divisória
+fica 2,4 mm mais estreita de cada lado (255,2 × 3 × 40, x=2,4) porque a
+parede é mais grossa que a chapa. `check_arranjo_3d.py` confirma: zero
+interferência entre os 14 volumes, zero penetração na peça impressa, e
+0,2 mm de folga sob o tampo (mesma ordem de grandeza apertada que já existia
+na versão em chapa — ver achado do 1º passe na seção anterior).
+
+### Entregáveis (`build/`, fora do versionamento)
+
+| Arquivo | Conteúdo |
+|---|---|
+| `peca1_3d.FCStd` / `.step` / `.stl` | Peça 1 impressa (sólido único) |
+| `peca2_3d.FCStd` / `.step` / `.stl` | Peça 2, fundo plano impresso |
+| `arranjo_3d.FCStd` / `.step` | Peça 1 + Peça 2 + divisória + 13 volumes de referência |
+
+### Estado / limitações
+
+- `usb_w`, `usb_h`: placeholders — medir o flange do conector (item 16, doc).
+- `boss_d`/`insert_furo`/`insert_prof`: valores nominais de insert térmico
+  M3x5,7 comum no mercado (ex. Ruthex/Boyard) — confirmar contra o insert
+  realmente comprado antes de imprimir o protótipo.
+- Sem fillet nos cantos verticais (ver acima).
+- `arranjo_3d.FCStd` é snapshot, não assembly vivo (mesma limitação da
+  versão em chapa).

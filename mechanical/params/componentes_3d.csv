@@ -1,0 +1,34 @@
+nome,faixa,apoio,dx,dy,dz,x,y,z,fonte
+# Volumes de referencia (caixas envolventes). MESMO arranjo interno da versao
+# em chapa (mechanical/params/componentes.csv) - preservado pela issue #116.
+# Duas mudancas de z/x/dx, ambas por causa da geometria de fixacao nova:
+# 1) componentes com apoio="fundo"/"divisoria" tem z ajustado porque os
+#    bosses de insert M3 (Ø boss_d, altura insert_prof=6 mm) protuberam acima
+#    da flange (altura parede=2.4 mm) - as placas/bornes com apoio="fundo"
+#    ficam em standoffs que os erguem ate o topo do boss (z=-39, contra -43.8
+#    da chapa) para nao colidir com o boss mais alto que a antiga aba de
+#    1,2 mm. E' pratica comum (standoff plastico) e nao consome a altura
+#    interna livre (ainda sobra folga sob o tampo - ver check_arranjo_3d.py).
+# 2) a divisoria fica 2.4 mm mais estreita de cada lado (255.2 x 40, x=2.4)
+#    porque a parede (2.4 mm) e' mais grossa que a espessura da chapa
+#    (1.2 mm) e a divisoria nao pode embutir nela.
+# Sistema de coordenadas: tampo em Z=0; Y=0 parede frontal (baixa tensao);
+# Y=pegada_y parede traseira (rede); X=0 parede esquerda. (x,y,z) = canto
+# minimo. TAMANHOS ESTIMADOS.
+# --- baixa tensao (frontal, Y < divisoria) ---
+esp32,baixa,fundo,29,52,13,60,3,-39,estimado DevKit V1 30 pinos (~51.5 x 28.5 x 13); eixo longo frente-fundo; antena em Y=min atras da janela_rf; em standoff acima do boss de insert
+placa_aux,baixa,fundo,45,32,26,105,40,-39,estimado; C1 470uF radial define a altura; R e C2 tambem; em standoff acima do boss de insert
+led_rgb,baixa,parede,6,18,6,147,1.2,-25,estimado LED 5mm + terminais; atras de furo_led (x=150)
+botao,baixa,parede,16,20,16,187,1.2,-30,estimado botao de painel 12mm; atras de furo_botao (x=195)
+usb_painel,baixa,parede,16,18,15,1.2,29,-30,estimado conector USB de painel + flange + cabo p/ o ESP32
+# --- rede 127 V (traseira, Y > divisoria + 10 mm) ---
+borne_rede,rede,fundo,55,25,34,10,100,-39,estimado bornes L/N/PE com tampa (obrigatorios: rasgos de 3 mm nao barram arame); em standoff acima do boss de insert
+terra_j3,rede,fundo,20,18,25,72,100,-39,estimado borne de terra J3; em standoff acima do boss de insert
+porta_fusivel,rede,abracadeira,14,66,14,114,128,-38,estimado porta-fusivel em linha 5x20 corpo fechado; preso por abracadeira; troca abrindo o fundo
+hlk_pm01,rede,fundo,34,20,15,100,98.2,-39,datasheet Hi-Link HLK-PM01 (34 x 20.2 x 15); terminais de baixa tensao voltados p/ a divisoria (Y=min); em standoff acima do boss de insert
+modulo_rele,rede,fundo,50,27,19,150,98.2,-39,estimado modulo rele 1 canal (~50 x 26 x 19); IN/VCC/GND voltados p/ a divisoria; em standoff acima do boss de insert
+prensa_cabo_corpo,rede,parede,20,22,20,60,187,-32,estimado corpo interno do PG9 + porca; atras de prensa_cabo (x=70)
+tomada_j1_corpo,rede,parede,45,41,23,162,168,-33.5,doc: modulo 2P+T ~45 x 22.5 x 41; atras de tomada_j1 (x=185)
+# --- divisoria e fios ---
+divisoria,divisoria,divisoria,255.2,3,40,2.4,85.2,-42.6,policarbonato ou acrilico 3 mm; altura plena; em cantoneiras (cant_furo_*); rasgo de passa-fio p/ a travessia; largura reduzida de 257.6 p/ 255.2 (parede 2.4 mm de cada lado)
+travessia_fios,fios,livre,14,32,9,148,68,-33,5 fios (+5V e GND do HLK-PM01; VCC GND IN do rele) perpendiculares a divisoria; travessia unica

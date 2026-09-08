@@ -1,5 +1,18 @@
 # Catálogo de furos e aberturas — módulo físico
 
+**Nota (issue #116 — impressão 3D):** este catálogo descreve a versão em
+chapa dobrada (`build_peca1.py`/`build_peca2.py`, histórico). A versão atual,
+impressa em FDM (`build_peca1_3d.py`/`build_peca2_3d.py`), recria **as mesmas
+aberturas, nas mesmas coordenadas (x, y, z)** — só os nomes de objeto mudam
+(`saia_*` → `parede_*`; `fix_*`/`pr_*` → `boss_*`/`insert_*`, que agora
+resolvem a fixação Peça1/Peça2 por insert térmico em vez de porca-rebite; não
+há mais furo de canto porque a peça impressa já nasce fechada nos 4 cantos).
+Ver `_env3d.NOTAS_FUROS_P1`/`NOTAS_FUROS_P2` (texto embutido no FCStd) e a
+seção "Variante para impressão 3D" de `mechanical/README.md` para o
+detalhamento da fixação nova. As tabelas abaixo continuam válidas para as
+posições x/y das aberturas de face e dos rasgos — só a peça de fixação dos
+cantos deixou de existir.
+
 Propósito de cada furo/abertura dos modelos. Coordenadas no sistema das peças
 (face superior do tampo em `Z = 0`; `X` ao longo de `pegada_x`; `Y = 0` = saia
 frontal / baixa tensão; `Y = pegada_y` = saia traseira / rede; `X = 0` = lateral
@@ -83,3 +96,18 @@ protrai `espessura_fundo` (1,2 mm) abaixo da borda das saias. Os pés montam nel
 
 Centros `fundo_furo_*` = mesmos (x, y) dos `pr_*`. Centros `cant_furo_*`:
 (65, 85,2) e (195, 85,2).
+
+---
+
+## Variante impressa (FDM) — fixação Peça 1 / Peça 2
+
+Substitui `fix_*` (parafuso de canto — não existe mais, peça já nasce
+fechada) e `pr_*`/`fundo_furo_*` (porca-rebite) da chapa. Mesmas 8 posições
+(x, y) — geradas por `_env3d.insert_holes`, layout idêntico ao antigo
+`_env.porca_rebite_holes`.
+
+| Objeto (padrão) | Ø / eixo | Qtd | Propósito |
+|---|---|---|---|
+| `boss_<f\|t\|e\|d><a\|b>` | Ø9 (boss_d) / eixo Z | 8 | Reforço cilíndrico na flange, altura `insert_prof` (6 mm) — mais alto que a flange (2,4 mm) para caber o insert. Motivo do ajuste de z dos componentes `apoio=fundo` em `componentes_3d.csv` (sobem para standoff acima do boss). |
+| `insert_<f\|t\|e\|d><a\|b>` | Ø4,0 (insert_furo) / eixo Z | 8 | Furo cego pela face inferior, profundidade 6 mm. Aloja o insert térmico M3×5,7 fundido a quente após a impressão. |
+| `fundo_furo_1..8` (Peça 2) | Ø3,4 (furo_passagem) / eixo Z | 8 | Folga do parafuso M3 na Peça 2 — mesma lógica de montagem da chapa (parafuso entra por baixo, rosqueia no insert). |
