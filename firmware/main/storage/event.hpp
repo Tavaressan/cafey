@@ -24,6 +24,30 @@ struct Event {
     uint32_t timestamp_inicio = 0; // epoch seconds
     uint32_t timestamp_fim = 0;    // epoch seconds
     EventOrigin origem = EventOrigin::APP;
+
+    /**
+     * @brief Horario provisorio: o preparo terminou antes da sincronizacao NTP,
+     * quando o relogio interno ainda nao e confiavel (spec-backend §11,
+     * pendencia 2). O dispositivo revisa o instante depois; ate la o consumidor
+     * (drenagem/publicacao) precisa distinguir esse evento pelo campo abaixo.
+     * A deduplicacao continua por `evento_id` (bootId:seq, FW-08), nunca pelo
+     * timestamp que a origem corrige.
+     */
+    bool horario_provisorio = false;
 };
+
+/**
+ * @brief Monta um evento de preparo carimbando `horario_provisorio` quando o
+ * relogio ainda nao sincronizou por NTP (FW-15).
+ */
+inline Event make_brew_event(EventOrigin origem, uint32_t timestamp_inicio,
+                             uint32_t timestamp_fim, bool ntp_synced) {
+    Event event{};
+    event.timestamp_inicio = timestamp_inicio;
+    event.timestamp_fim = timestamp_fim;
+    event.origem = origem;
+    event.horario_provisorio = !ntp_synced;
+    return event;
+}
 
 } // namespace cafey::storage
