@@ -15,13 +15,18 @@ EventQueueStore::EventQueueStore()
       count_(0) {}
 
 esp_err_t EventQueueStore::init() {
+    static_assert(sizeof(LegacyPersistedLayoutV0) == 392,
+                  "layout legado do FW-19 deve ter 392 bytes");
+    static_assert(sizeof(PersistedLayout) == 400,
+                  "layout novo do FW-19 deve ter 400 bytes");
+
     esp_err_t err = nvs_.init();
     if (err != ESP_OK) {
         return err;
     }
 
-    PersistedLayout layout{};
-    err = nvs_.load_blob(kKey, &layout, sizeof(layout));
+    size_t stored_size = 0;
+    err = nvs_.blob_size(kKey, &stored_size);
     if (err == ESP_ERR_NVS_NOT_FOUND) {
         head_ = 0;
         count_ = 0;
@@ -31,14 +36,72 @@ esp_err_t EventQueueStore::init() {
         return err;
     }
 
-    head_ = layout.head % kCapacity;
-    count_ = layout.count > kCapacity ? kCapacity : layout.count;
-    std::memcpy(events_, layout.events, sizeof(events_));
+    if (stored_size == sizeof(PersistedLayout)) {
+        PersistedLayout layout{};
+        err = nvs_.load_blob(kKey, &layout, sizeof(layout));
+        if (err != ESP_OK) {
+            return err;
+        }
+        if (layout.magic != kEventQueueMagic ||
+            layout.schema_version != kEventQueueSchemaVersion) {
+            ESP_LOGW("EventQueueStore", "magic/schema desconhecido, fila zerada");
+            head_ = 0;
+            count_ = 0;
+            return ESP_OK;
+        }
+        head_ = layout.head % kCapacity;
+        count_ = layout.count > kCapacity ? kCapacity : layout.count;
+        std::memcpy(events_, layout.events, sizeof(events_));
+        return ESP_OK;
+    }
+
+    if (stored_size == sizeof(LegacyPersistedLayoutV0)) {
+        // Blob pré-#129: mesmo layout de bytes do `Event` atual, só sem o prefixo
+        // de schema. Relê os 392 bytes, copia head/count/events verbatim (sem
+        // tocar em `horario_provisorio`, que firmwares pós-#124 já gravam com
+        // valor válido) e regrava com o prefixo. Persiste ANTES de comitar a RAM;
+        // um persist falho retorna o erro sem deixar RAM inconsistente (FW-19).
+        LegacyPersistedLayoutV0 legacy{};
+        err = nvs_.load_blob(kKey, &legacy, sizeof(legacy));
+        if (err != ESP_OK) {
+            return err;
+        }
+
+        size_t migrated_head = legacy.head % kCapacity;
+        size_t migrated_count = legacy.count > kCapacity ? kCapacity : legacy.count;
+
+        PersistedLayout layout{};
+        layout.magic = kEventQueueMagic;
+        layout.schema_version = kEventQueueSchemaVersion;
+        layout.head = static_cast<uint32_t>(migrated_head);
+        layout.count = static_cast<uint32_t>(migrated_count);
+        std::memcpy(layout.events, legacy.events, sizeof(layout.events));
+
+        err = nvs_.save_blob(kKey, &layout, sizeof(layout));
+        if (err != ESP_OK) {
+            return err;
+        }
+
+        head_ = migrated_head;
+        count_ = migrated_count;
+        std::memcpy(events_, legacy.events, sizeof(events_));
+        ESP_LOGW("EventQueueStore", "fila legada migrada (%u eventos)",
+                 static_cast<unsigned>(count_));
+        return ESP_OK;
+    }
+
+    // Tamanho totalmente desconhecido: descarta e segue com fila vazia.
+    ESP_LOGW("EventQueueStore", "blob de %u bytes incompativel, fila zerada",
+             static_cast<unsigned>(stored_size));
+    head_ = 0;
+    count_ = 0;
     return ESP_OK;
 }
 
 esp_err_t EventQueueStore::persist() {
     PersistedLayout layout{};
+    layout.magic = kEventQueueMagic;
+    layout.schema_version = kEventQueueSchemaVersion;
     layout.head = static_cast<uint32_t>(head_);
     layout.count = static_cast<uint32_t>(count_);
     std::memcpy(layout.events, events_, sizeof(events_));
@@ -61,6 +124,8 @@ esp_err_t EventQueueStore::push(const Event& event) {
 
     // Constrói PersistedLayout com novo estado.
     PersistedLayout layout{};
+    layout.magic = kEventQueueMagic;
+    layout.schema_version = kEventQueueSchemaVersion;
     layout.head = static_cast<uint32_t>(new_head);
     layout.count = static_cast<uint32_t>(new_count);
     std::memcpy(layout.events, events_, sizeof(events_));
@@ -130,6 +195,8 @@ size_t EventQueueStore::remove_confirmed(const uint32_t* confirmed_inicios, size
     }
 
     PersistedLayout layout{};
+    layout.magic = kEventQueueMagic;
+    layout.schema_version = kEventQueueSchemaVersion;
     layout.head = 0;
     layout.count = static_cast<uint32_t>(kept_count);
     for (size_t i = 0; i < kept_count; ++i) {
@@ -163,6 +230,8 @@ esp_err_t EventQueueStore::pop(Event* out_event) {
 
     // Constrói PersistedLayout com novo estado.
     PersistedLayout layout{};
+    layout.magic = kEventQueueMagic;
+    layout.schema_version = kEventQueueSchemaVersion;
     layout.head = static_cast<uint32_t>(new_head);
     layout.count = static_cast<uint32_t>(new_count);
     std::memcpy(layout.events, events_, sizeof(events_));

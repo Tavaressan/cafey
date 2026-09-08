@@ -14,13 +14,16 @@ ScheduleStore::ScheduleStore()
       count_(0) {}
 
 esp_err_t ScheduleStore::init() {
+    static_assert(sizeof(PersistedLayout) == 664,
+                  "layout novo do FW-19 deve ter 664 bytes (antigo: 656)");
+
     esp_err_t err = nvs_.init();
     if (err != ESP_OK) {
         return err;
     }
 
-    PersistedLayout layout{};
-    err = nvs_.load_blob(kKey, &layout, sizeof(layout));
+    size_t stored_size = 0;
+    err = nvs_.blob_size(kKey, &stored_size);
     if (err == ESP_ERR_NVS_NOT_FOUND) {
         // Nothing persisted yet: start with an empty schedule list.
         count_ = 0;
@@ -28,6 +31,28 @@ esp_err_t ScheduleStore::init() {
     }
     if (err != ESP_OK) {
         return err;
+    }
+
+    if (stored_size != sizeof(PersistedLayout)) {
+        // Layout antigo ou blob corrompido: descarta e segue vazio. O backend
+        // republica a lista retida em `agendamentos` na reconexao (FW-19).
+        ESP_LOGW("ScheduleStore", "blob de %u bytes incompativel, ignorando",
+                 static_cast<unsigned>(stored_size));
+        count_ = 0;
+        return ESP_OK;
+    }
+
+    PersistedLayout layout{};
+    err = nvs_.load_blob(kKey, &layout, sizeof(layout));
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    if (layout.magic != kScheduleMagic ||
+        layout.schema_version != kScheduleSchemaVersion) {
+        ESP_LOGW("ScheduleStore", "magic/schema desconhecido, ignorando blob");
+        count_ = 0;
+        return ESP_OK;
     }
 
     count_ = layout.count > kMaxSchedules ? kMaxSchedules : layout.count;
@@ -42,6 +67,8 @@ esp_err_t ScheduleStore::replace_all(const Schedule* schedules, size_t count) {
     }
 
     PersistedLayout layout{};
+    layout.magic = kScheduleMagic;
+    layout.schema_version = kScheduleSchemaVersion;
     layout.version = version_; // replace_all nao mexe na versao monotonica
     layout.count = static_cast<uint32_t>(count);
     if (count > 0) {
@@ -76,6 +103,8 @@ esp_err_t ScheduleStore::replace_all_if_newer(const Schedule* schedules, size_t 
     }
 
     PersistedLayout layout{};
+    layout.magic = kScheduleMagic;
+    layout.schema_version = kScheduleSchemaVersion;
     layout.version = version;
     layout.count = static_cast<uint32_t>(count);
     if (count > 0) {

@@ -59,7 +59,16 @@ public:
     [[nodiscard]] uint64_t version() const noexcept { return version_; }
 
 private:
+    // Prefixo de schema gravado no início do blob (FW-19). Permite detectar um
+    // blob de layout antigo (sem prefixo, tamanho diferente) ou corrompido e
+    // tratá-lo como store vazio, deixando o backend republicar a lista retida.
+    static constexpr uint32_t kScheduleMagic = 0x53464143;   // 'CAFS' LE
+    static constexpr uint16_t kScheduleSchemaVersion = 1;
+
     struct PersistedLayout {
+        uint32_t magic;
+        uint16_t schema_version;
+        uint16_t reserved;
         uint64_t version;
         uint32_t count;
         Schedule schedules[kMaxSchedules];

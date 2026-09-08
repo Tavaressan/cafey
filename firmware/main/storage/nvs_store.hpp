@@ -5,6 +5,7 @@
 
 #if defined(ESP_PLATFORM)
 #include "esp_err.h"
+#include "esp_log.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #else
@@ -47,6 +48,14 @@ public:
      * or ESP-IDF error code.
      */
     esp_err_t load_blob(const char* key, void* out_value, size_t value_size);
+
+    /**
+     * @brief Descobre o tamanho real do blob gravado em `key` sem copiá-lo,
+     * para que o chamador decida entre layout corrente, layout legado ou
+     * blob desconhecido antes de ler (migração de schema, FW-19).
+     * @return ESP_OK e `*out_size` preenchido; ESP_ERR_NVS_NOT_FOUND se ausente.
+     */
+    esp_err_t blob_size(const char* key, size_t* out_size);
 
     /**
      * @brief Persists a blob under `key` and commits immediately, so the
