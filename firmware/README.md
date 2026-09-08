@@ -8,7 +8,7 @@ Fatia atual: **I/O local, Driver do Relé (com proteção anti-glitch no boot) e
 
 | Sinal | GPIO | Configuração Elétrica | Observação |
 |---|---|---|---|
-| Relé (IN) | 26 | Gatilho de nível ALTO (HIGH = ligado); R1 10 kΩ pull-down externo | O driver força nível BAIXO antes de inicializar para impedir pulso espúrio no boot |
+| Relé (IN) | 26 | Gatilho de nível BAIXO — módulo HL-52S (LOW = ligado); R1 10 kΩ pull-up externo | O driver força nível ALTO antes de inicializar para impedir pulso espúrio no boot |
 | Botão | 27 | R2 10 kΩ pull-up externo + C3 100 nF debounce RC | Solto = 1, pressionado = 0 (borda de descida = clique) |
 | LED vermelho | 21 | R3 220 Ω (Cátodo comum) | Aceso = cafeteira desligada |
 | LED verde | 22 | R4 100 Ω (Cátodo comum) | Aceso = cafeteira ligada |
@@ -45,7 +45,7 @@ firmware/
 ## Driver do Relé (`cafey::drivers::Relay`)
 
 - **Classe Orientada a Objetos**: RAII garantindo desligamento seguro no destrutor.
-- **Proteção Anti-Glitch**: Força o pino em nível lógico `LOW` antes e imediatamente após a configuração de saída do GPIO, atuando em conjunto com o resistor `R1` (10k pull-down) externo.
+- **Proteção Anti-Glitch**: Força o pino em nível lógico `HIGH` (active-low OFF) antes e imediatamente após a configuração de saída do GPIO, atuando em conjunto com o resistor `R1` (10k pull-up) externo.
 - **Métodos**: `init()`, `set(bool on)`, `turn_on()`, `turn_off()`, `toggle()`, `is_on()`, `is_initialized()`, `get_pin()`.
 - **Semântica Move**: Proteção contra duplicação de posse do hardware físico via exclusão de cópia e suporte a movimentação (`move`).
 
