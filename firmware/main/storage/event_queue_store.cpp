@@ -46,17 +46,38 @@ esp_err_t EventQueueStore::persist() {
 }
 
 esp_err_t EventQueueStore::push(const Event& event) {
+    // Pré-calcula novo estado sem mutar RAM.
+    size_t new_head = head_;
+    size_t new_count = count_;
+
     if (full()) {
-        // Drop the oldest event to make room, per the ring-buffer contract.
-        head_ = (head_ + 1) % kCapacity;
-        count_--;
+        // Descarta o evento mais antigo para fazer espaço.
+        new_head = (new_head + 1) % kCapacity;
+        new_count--;
     }
 
-    size_t tail = (head_ + count_) % kCapacity;
-    events_[tail] = event;
-    count_++;
+    size_t tail = (new_head + new_count) % kCapacity;
+    new_count++;
 
-    return persist();
+    // Constrói PersistedLayout com novo estado.
+    PersistedLayout layout{};
+    layout.head = static_cast<uint32_t>(new_head);
+    layout.count = static_cast<uint32_t>(new_count);
+    std::memcpy(layout.events, events_, sizeof(events_));
+    layout.events[tail] = event;
+
+    // Persiste PRIMEIRO.
+    esp_err_t err = nvs_.save_blob(kKey, &layout, sizeof(layout));
+    if (err != ESP_OK) {
+        return err;  // RAM não é mutado se persist falhar.
+    }
+
+    // Aplica mutações em RAM apenas após persist bem-sucedido.
+    head_ = new_head;
+    count_ = new_count;
+    events_[tail] = event;
+
+    return ESP_OK;
 }
 
 esp_err_t EventQueueStore::pop(Event* out_event) {
@@ -67,10 +88,28 @@ esp_err_t EventQueueStore::pop(Event* out_event) {
     if (out_event != nullptr) {
         *out_event = events_[head_];
     }
-    head_ = (head_ + 1) % kCapacity;
-    count_--;
 
-    return persist();
+    // Pré-calcula novo estado sem mutar RAM.
+    size_t new_head = (head_ + 1) % kCapacity;
+    size_t new_count = count_ - 1;
+
+    // Constrói PersistedLayout com novo estado.
+    PersistedLayout layout{};
+    layout.head = static_cast<uint32_t>(new_head);
+    layout.count = static_cast<uint32_t>(new_count);
+    std::memcpy(layout.events, events_, sizeof(events_));
+
+    // Persiste PRIMEIRO.
+    esp_err_t err = nvs_.save_blob(kKey, &layout, sizeof(layout));
+    if (err != ESP_OK) {
+        return err;  // RAM não é mutado se persist falhar.
+    }
+
+    // Aplica mutações em RAM apenas após persist bem-sucedido.
+    head_ = new_head;
+    count_ = new_count;
+
+    return ESP_OK;
 }
 
 } // namespace cafey::storage
