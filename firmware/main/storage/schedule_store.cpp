@@ -32,6 +32,7 @@ esp_err_t ScheduleStore::init() {
 
     count_ = layout.count > kMaxSchedules ? kMaxSchedules : layout.count;
     std::memcpy(schedules_, layout.schedules, count_ * sizeof(Schedule));
+    version_ = layout.version;
     return ESP_OK;
 }
 
@@ -41,6 +42,7 @@ esp_err_t ScheduleStore::replace_all(const Schedule* schedules, size_t count) {
     }
 
     PersistedLayout layout{};
+    layout.version = version_; // replace_all nao mexe na versao monotonica
     layout.count = static_cast<uint32_t>(count);
     if (count > 0) {
         std::memcpy(layout.schedules, schedules, count * sizeof(Schedule));
@@ -54,6 +56,44 @@ esp_err_t ScheduleStore::replace_all(const Schedule* schedules, size_t count) {
     count_ = count;
     if (count > 0) {
         std::memcpy(schedules_, schedules, count * sizeof(Schedule));
+    }
+    return ESP_OK;
+}
+
+esp_err_t ScheduleStore::replace_all_if_newer(const Schedule* schedules, size_t count,
+                                              uint64_t version, bool* applied) {
+    if (applied != nullptr) {
+        *applied = false;
+    }
+
+    if (count > kMaxSchedules) {
+        return ESP_ERR_INVALID_SIZE;
+    }
+
+    if (version <= version_) {
+        // Retain antigo entregue na reconexao: ignora a lista inteira.
+        return ESP_OK;
+    }
+
+    PersistedLayout layout{};
+    layout.version = version;
+    layout.count = static_cast<uint32_t>(count);
+    if (count > 0) {
+        std::memcpy(layout.schedules, schedules, count * sizeof(Schedule));
+    }
+
+    esp_err_t err = nvs_.save_blob(kKey, &layout, sizeof(layout));
+    if (err != ESP_OK) {
+        return err;
+    }
+
+    version_ = version;
+    count_ = count;
+    if (count > 0) {
+        std::memcpy(schedules_, schedules, count * sizeof(Schedule));
+    }
+    if (applied != nullptr) {
+        *applied = true;
     }
     return ESP_OK;
 }
