@@ -40,7 +40,7 @@ int test_cafeteira_button_toggles_relay_and_led() {
     caf.process_pending();
     TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::On, "liga apos clique");
     TEST_ASSERT(caf.relay_on(), "rele fecha");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "GPIO rele HIGH");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "GPIO rele LOW (active-low ligado)");
     TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_22).level == 1, "LED G aceso (verde)");
     TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_21).level == 0, "LED R apagado");
 
@@ -49,7 +49,7 @@ int test_cafeteira_button_toggles_relay_and_led() {
     caf.process_pending();
     TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "desliga apos 2o clique");
     TEST_ASSERT(!caf.relay_on(), "rele reabre");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "GPIO rele LOW");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "GPIO rele HIGH (active-low desligado)");
 
     std::cout << "[PASS] test_cafeteira_button_toggles_relay_and_led" << std::endl;
     return 0;

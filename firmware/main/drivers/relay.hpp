@@ -18,10 +18,11 @@ namespace cafey::drivers {
  *
  * Hardware design specification:
  * - Signal pin: GPIO 26 (default)
- * - Trigger: Active HIGH (HIGH = Relay energised / Coffee maker ON, LOW = Relay open / Coffee maker OFF)
- * - External R1 10k pull-down: keeps GPIO at 0V during high-impedance (boot).
+ * - Trigger: Active LOW (LOW = Relay energised / Coffee maker ON, HIGH = Relay open / Coffee maker OFF).
+ *   Module in use: HL-52S.
+ * - External R1 10k pull-up: keeps GPIO at 3V3 during high-impedance (boot).
  *   To guarantee zero spurious pulses at power-on / boot, the driver explicitly forces
- *   the GPIO level to LOW before and upon configuring the output direction.
+ *   the GPIO level to HIGH before and upon configuring the output direction.
  * - RAII: Safely turns off the relay on object destruction.
  */
 class Relay {
@@ -48,7 +49,7 @@ public:
 
     /**
      * @brief Initialize the relay GPIO.
-     * Forces LOW before output configuration to prevent any boot pulse glitch.
+     * Forces HIGH (active-low OFF) before output configuration to prevent any boot pulse glitch.
      * @return ESP_OK on success, or ESP-IDF error code.
      */
     esp_err_t init();

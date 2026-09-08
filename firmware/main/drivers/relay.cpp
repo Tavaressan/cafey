@@ -87,7 +87,7 @@ esp_err_t Relay::init() {
 
     is_on_ = false;
     is_initialized_ = true;
-    ESP_LOGI("Relay", "Relay initialized on GPIO %d (Active HIGH, default OFF)", pin_);
+    ESP_LOGI("Relay", "Relay initialized on GPIO %d (Active LOW, default OFF)", pin_);
     return ESP_OK;
 }
 
