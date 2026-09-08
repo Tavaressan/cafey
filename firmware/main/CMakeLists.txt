@@ -5,6 +5,7 @@ idf_component_register(
         "core/active_object.cpp"
         "core/mutex_lock.cpp"
         "core/reconnect_policy.cpp"
+        "core/ntp_sync.cpp"
         "core/wifi_credentials.cpp"
         "core/wifi_manager.cpp"
         "storage/nvs_store.cpp"
@@ -30,5 +31,6 @@ idf_component_register(
         esp_wifi
         freertos
         log
+        lwip
         nvs_flash
 )
