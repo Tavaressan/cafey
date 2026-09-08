@@ -43,6 +43,13 @@ add_executable(test_cafeteira
 )
 add_test(NAME CafeteiraActiveObjectTest COMMAND test_cafeteira)
 
+add_executable(test_agendador
+    test_agendador.cpp
+    ../main/core/active_object.cpp
+    ../main/app/agendador.cpp
+)
+add_test(NAME AgendadorTest COMMAND test_agendador)
+
 add_executable(test_schedule_store
     test_schedule_store.cpp
     ../main/storage/schedule_store.cpp

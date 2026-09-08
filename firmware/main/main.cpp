@@ -12,6 +12,7 @@
  */
 
 #include "esp_log.h"
+#include "core/ntp_sync.hpp"
 #include "core/wifi_manager.hpp"
 #include "storage/schedule_store.hpp"
 #include "storage/event_queue_store.hpp"
@@ -60,9 +61,29 @@ extern "C" void app_main(void) {
         ESP_LOGE(TAG, "Falha ao inicializar Wi-Fi: %d", wifi_err);
     }
 
+    // Disparo do agendamento: o Agendador aciona o preparo pelo relogio interno
+    // (spec §5.5), postando StartBrew para a Cafeteira, sem passar pela nuvem.
+    g_agendador.set_on_fire([] {
+        g_cafeteira.post(cafey::core::Message{cafey::core::MessageType::StartBrew, 0});
+    });
+
+    // Carrega os agendamentos persistidos para o Agendador executar offline.
+    {
+        static cafey::storage::Schedule loaded[cafey::storage::ScheduleStore::kMaxSchedules];
+        const size_t n = schedule_store.count();
+        for (size_t i = 0; i < n; ++i) loaded[i] = schedule_store.at(i);
+        g_agendador.set_schedules(loaded, n);
+    }
+
+    // SNTP em background: ao sincronizar, o Agendador passa a disparar por horario.
+    static cafey::core::NtpSync ntp_sync([] {
+        g_agendador.post(cafey::core::Message{cafey::core::MessageType::TimeSynced, 0});
+    });
+
     g_cafeteira.start();
     g_conectividade.start();
     g_agendador.start();
+    ntp_sync.start();
 
     ESP_LOGI(TAG, "pronto - AOs Cafeteira/Conectividade/Agendador iniciados");
 }
