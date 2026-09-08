@@ -119,8 +119,9 @@ reflete a decisão nova) ou *aberta* (ainda depende de pendência).
 | P8 | `evento_id` no formato `bootId:seq` (`%08x:%u`), com `seq` persistido em NVS e incrementado a cada geração | **Confirmada** — implementada em `firmware/main/storage/event_id_generator.cpp` | Chave de deduplicação repete entre boots |
 | P9 | `duracao_preparo_s` padrão de 300 s, ajustável pelo dono | **Aberta** — estimativa não medida; depende da pendência 7, que bloqueia `V3` | Muda apenas o default da coluna |
 
-P9 é estimativa não confirmada — ver pendência 7. O `DEFAULT 300` já presente em
-`V3__dispositivos.sql` é provisório até o ensaio de extração da Britânia CP30.
+P9 é estimativa não confirmada — ver pendência 7 (issue #134). O `DEFAULT 300` já
+presente em `V3__dispositivos.sql` é provisório até o ensaio de extração da
+Britânia CP30.
 
 ---
 
@@ -602,5 +603,5 @@ pertencem a esse marco; MQTT é Fase 2.
 | 4 | Criar thing e certificado do backend no AWS IoT Core | Aberta |
 | 5 | Fixar a versão do `aws-iot-device-sdk` | Aberta |
 | 6 | Decidir se `/auth/senha/*` entra ou é cortado | **Fechada.** Entrou: `V6__password_reset.sql`, UC-03 |
-| 7 | Confirmar `duracao_preparo_s` com o tempo real de extração da Britânia CP30 | **Nova.** Bloqueia `V3` |
+| 7 | Confirmar `duracao_preparo_s` com o tempo real de extração da Britânia CP30 | **Nova.** Bloqueia `V3`. Issue #134 (P9) |
 | 8 | Corrigir o código para `br.com.tavaressan.cafey` (P1): `group`, `package` dos fontes `main`, pasta de teste | **Nova.** Issue #132 |
