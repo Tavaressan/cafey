@@ -89,18 +89,17 @@ private:
         Event events[kCapacity];
     };
 
-    // Layout gravado pelo firmware anterior à PR #124: sem prefixo de schema e
-    // com `Event` sem o campo `horario_provisorio`. Usado só para migrar blobs
-    // legados na primeira inicialização após a atualização (FW-19).
-    struct LegacyEventV0 {
-        uint32_t timestamp_inicio;
-        uint32_t timestamp_fim;
-        EventOrigin origem;
-    };
+    // Layout gravado antes da PR #129: idêntico ao atual byte a byte, apenas sem
+    // o prefixo magic/schema_version/reserved no início do blob. O `sizeof(Event)`
+    // não mudou entre pré e pós-#124 (o padding do struct absorveu o campo
+    // `horario_provisorio`), então o mesmo tamanho de 392 bytes cobre os dois
+    // casos e a flag pode já estar gravada com valor válido. A migração é só
+    // reprefixar: copiar head/count/events verbatim e regravar com o prefixo,
+    // sem zerar nada (FW-19).
     struct LegacyPersistedLayoutV0 {
         uint32_t head;
         uint32_t count;
-        LegacyEventV0 events[kCapacity];
+        Event events[kCapacity];
     };
 
     esp_err_t persist();

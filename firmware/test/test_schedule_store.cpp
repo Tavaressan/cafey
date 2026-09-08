@@ -209,7 +209,9 @@ int test_incompatible_blob_is_treated_as_empty() {
 
     nvs_handle_t handle = 0;
     TEST_ASSERT(nvs_open("cafey_sched", NVS_READWRITE, &handle) == ESP_OK, "open mock ns");
-    std::vector<uint8_t> legacy_blob(644, 0xAB); // tamanho do layout pre-#124
+    // Layout pré-#129 (sem prefixo de schema): 656 bytes, != sizeof(PersistedLayout)
+    // novo (664). Qualquer tamanho diferente do novo layout cai no ramo "incompativel".
+    std::vector<uint8_t> legacy_blob(656, 0xAB);
     TEST_ASSERT(nvs_set_blob(handle, "list", legacy_blob.data(), legacy_blob.size()) == ESP_OK,
                 "write synthetic legacy blob");
     nvs_commit(handle);

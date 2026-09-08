@@ -182,12 +182,15 @@ int test_pop_fails_if_nvs_persist_fails() {
 }
 
 namespace {
-// Réplica exata do layout gravado pelo firmware pré-#124 (sem prefixo de schema,
-// Event sem `horario_provisorio`), para montar um blob legado sintético.
+// Réplica do layout gravado antes da PR #129 (sem prefixo de schema). O `Event`
+// aqui já está no formato atual: o campo `horario_provisorio` cabe no padding e o
+// sizeof não mudou desde pré-#124, então firmwares pós-#124 gravam a flag com
+// valor válido dentro desse mesmo blob de 392 bytes.
 struct LegacyEventV0 {
     uint32_t timestamp_inicio;
     uint32_t timestamp_fim;
     EventOrigin origem;
+    bool horario_provisorio;
 };
 struct LegacyPersistedLayoutV0 {
     uint32_t head;
@@ -203,17 +206,21 @@ void write_blob(const char* key, const void* data, size_t size) {
 }
 } // namespace
 
-// FW-19: blob no layout legado conhecido deve ser migrado, nao descartado.
+// FW-19: blob no layout legado conhecido deve ser migrado, nao descartado, e a
+// flag `horario_provisorio` gravada por firmware pós-#124 deve ser preservada
+// verbatim (nao zerada) durante a migracao.
 int test_legacy_blob_is_migrated() {
     MockNvs::reset();
 
     LegacyPersistedLayoutV0 legacy{};
     legacy.head = 0;
     legacy.count = 3;
-    legacy.events[0] = {10, 20, EventOrigin::APP};
-    legacy.events[1] = {30, 40, EventOrigin::AGENDAMENTO};
-    legacy.events[2] = {50, 60, EventOrigin::BOTAO};
+    legacy.events[0] = {10, 20, EventOrigin::APP, false};
+    legacy.events[1] = {30, 40, EventOrigin::AGENDAMENTO, true};
+    legacy.events[2] = {50, 60, EventOrigin::BOTAO, true};
     write_blob("queue", &legacy, sizeof(legacy));
+
+    const bool expected_provisorio[3] = {false, true, true};
 
     {
         EventQueueStore store;
@@ -222,7 +229,8 @@ int test_legacy_blob_is_migrated() {
         for (size_t i = 0; i < 3; ++i) {
             Event out{};
             TEST_ASSERT(store.at(i, &out) == ESP_OK, "at() should succeed");
-            TEST_ASSERT(!out.horario_provisorio, "migrated events default horario_provisorio=false");
+            TEST_ASSERT(out.horario_provisorio == expected_provisorio[i],
+                        "horario_provisorio must be preserved verbatim through migration");
         }
         TEST_ASSERT(store.at(0, nullptr) == ESP_OK, "first event present");
     }
@@ -232,6 +240,12 @@ int test_legacy_blob_is_migrated() {
         EventQueueStore store;
         TEST_ASSERT(store.init() == ESP_OK, "second init() reads the rewritten new layout");
         TEST_ASSERT(store.size() == 3, "rewritten blob keeps the 3 events");
+        for (size_t i = 0; i < 3; ++i) {
+            Event out{};
+            TEST_ASSERT(store.at(i, &out) == ESP_OK, "at() should succeed");
+            TEST_ASSERT(out.horario_provisorio == expected_provisorio[i],
+                        "horario_provisorio must survive the rewritten new layout");
+        }
         Event out{};
         TEST_ASSERT(store.pop(&out) == ESP_OK, "pop() should succeed");
         TEST_ASSERT(out.timestamp_inicio == 10, "FIFO order preserved after migration");
