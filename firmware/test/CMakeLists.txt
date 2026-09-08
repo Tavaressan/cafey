@@ -21,6 +21,12 @@ add_executable(test_relay
 )
 add_test(NAME RelayDriverTest COMMAND test_relay)
 
+add_executable(test_rgb_led
+    test_rgb_led.cpp
+    ../main/drivers/rgb_led.cpp
+)
+add_test(NAME RgbLedDriverTest COMMAND test_rgb_led)
+
 add_executable(test_active_object
     test_active_object.cpp
     ../main/core/active_object.cpp

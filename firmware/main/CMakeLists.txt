@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "main.cpp"
         "drivers/relay.cpp"
+        "drivers/rgb_led.cpp"
         "core/active_object.cpp"
         "core/mutex_lock.cpp"
         "core/reconnect_policy.cpp"
