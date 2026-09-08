@@ -21,6 +21,12 @@ add_executable(test_relay
 )
 add_test(NAME RelayDriverTest COMMAND test_relay)
 
+add_executable(test_rgb_led
+    test_rgb_led.cpp
+    ../main/drivers/rgb_led.cpp
+)
+add_test(NAME RgbLedDriverTest COMMAND test_rgb_led)
+
 add_executable(test_active_object
     test_active_object.cpp
     ../main/core/active_object.cpp
@@ -59,6 +65,14 @@ add_executable(test_event_queue_store
     ../main/core/mutex_lock.cpp
 )
 add_test(NAME EventQueueStoreTest COMMAND test_event_queue_store)
+
+add_executable(test_event_id_generator
+    test_event_id_generator.cpp
+    ../main/storage/event_id_generator.cpp
+    ../main/storage/nvs_store.cpp
+    ../main/core/mutex_lock.cpp
+)
+add_test(NAME EventIdGeneratorTest COMMAND test_event_id_generator)
 
 add_executable(test_reconnect_policy
     test_reconnect_policy.cpp

@@ -112,6 +112,75 @@ int test_queue_survives_reboot() {
     return 0;
 }
 
+int test_push_fails_if_nvs_persist_fails() {
+    MockNvs::reset();
+    EventQueueStore store;
+    store.init();
+
+    Event e1{100, 130, EventOrigin::AGENDAMENTO};
+    TEST_ASSERT(store.push(e1) == ESP_OK, "first push() should succeed");
+    TEST_ASSERT(store.size() == 1, "size() should be 1 after first push");
+
+    // Inject NVS write failure for next persist().
+    Event e2{200, 210, EventOrigin::BOTAO};
+    MockNvs::set_blob_ret_code = ESP_FAIL;
+    esp_err_t result = store.push(e2);
+    TEST_ASSERT(result == ESP_FAIL, "push() must return the persist() error");
+
+    // CRITICAL: RAM must NOT advance if persist() fails.
+    // With the fix, count_ should still be 1 (not incremented).
+    // Without the fix, count_ would be 2 (already incremented before persist failed).
+    TEST_ASSERT(store.size() == 1, "size() must NOT advance when persist() fails; must stay at 1");
+
+    // Verify NVS still has only 1 event (not 2).
+    // Create a new store instance and verify it reloads only 1 event.
+    MockNvs::set_blob_ret_code = ESP_OK; // restore normal operation
+    {
+        EventQueueStore store2;
+        TEST_ASSERT(store2.init() == ESP_OK, "second instance init() should succeed");
+        TEST_ASSERT(store2.size() == 1, "second instance must reload only 1 event from NVS");
+
+        Event out{};
+        TEST_ASSERT(store2.pop(&out) == ESP_OK, "pop() on second instance should succeed");
+        TEST_ASSERT(out.timestamp_inicio == 100, "event in NVS must be the original e1, not e2");
+    }
+
+    std::cout << "[PASS] test_push_fails_if_nvs_persist_fails" << std::endl;
+    return 0;
+}
+
+int test_pop_fails_if_nvs_persist_fails() {
+    MockNvs::reset();
+    EventQueueStore store;
+    store.init();
+
+    Event e1{100, 130, EventOrigin::AGENDAMENTO};
+    TEST_ASSERT(store.push(e1) == ESP_OK, "push(e1) should succeed");
+    TEST_ASSERT(store.size() == 1, "size() should be 1 after push");
+
+    // Inject NVS write failure for pop's persist().
+    MockNvs::set_blob_ret_code = ESP_FAIL;
+    Event out{};
+    esp_err_t result = store.pop(&out);
+    TEST_ASSERT(result == ESP_FAIL, "pop() must return the persist() error");
+
+    // CRITICAL: RAM must NOT advance if persist() fails.
+    // With the fix, count_ should still be 1 (not decremented).
+    // Without the fix, count_ would be 0 (already decremented before persist failed).
+    TEST_ASSERT(store.size() == 1, "size() must NOT advance when persist() fails; must stay at 1");
+
+    // Verify NVS still has 1 event.
+    MockNvs::set_blob_ret_code = ESP_OK; // restore normal operation
+    {
+        EventQueueStore store2;
+        TEST_ASSERT(store2.init() == ESP_OK, "second instance init() should succeed");
+        TEST_ASSERT(store2.size() == 1, "second instance must reload 1 event from NVS (pop was never persisted)");
+    }
+
+    std::cout << "[PASS] test_pop_fails_if_nvs_persist_fails" << std::endl;
+    return 0;
+}
+
 int main() {
     std::cout << "Running Cafey EventQueueStore Unit Tests..." << std::endl;
 
@@ -120,7 +189,9 @@ int main() {
     if (test_pop_on_empty_queue_fails()) return 1;
     if (test_push_beyond_capacity_overwrites_oldest()) return 1;
     if (test_queue_survives_reboot()) return 1;
+    if (test_push_fails_if_nvs_persist_fails()) return 1;
+    if (test_pop_fails_if_nvs_persist_fails()) return 1;
 
-    std::cout << "All 5 EventQueueStore tests PASSED!" << std::endl;
+    std::cout << "All 7 EventQueueStore tests PASSED!" << std::endl;
     return 0;
 }
