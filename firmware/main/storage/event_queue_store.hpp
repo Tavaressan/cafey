@@ -53,6 +53,24 @@ public:
      */
     esp_err_t front(Event* out_event) const;
 
+    /**
+     * @brief Copies the event at logical position `index` (0 = oldest) without
+     * removing it, so the BLE proxy (FW-18) can enumerate the whole pending
+     * queue for the phone to relay.
+     * @return ESP_OK on success, ESP_ERR_INVALID_STATE if `index` is out of range.
+     */
+    esp_err_t at(size_t index, Event* out_event) const;
+
+    /**
+     * @brief Removes every queued event whose `timestamp_inicio` is listed in
+     * `confirmed_inicios` (FW-18, spec §6.5: the phone only confirms the subset
+     * the backend actually accepted; `timestamp_inicio` is the backend's
+     * dedup key). FIFO order of the survivors is preserved. Persists before
+     * mutating RAM.
+     * @return number of events removed (0 if none matched or the write failed).
+     */
+    size_t remove_confirmed(const uint32_t* confirmed_inicios, size_t count);
+
     [[nodiscard]] size_t size() const noexcept { return count_; }
     [[nodiscard]] bool empty() const noexcept { return count_ == 0; }
     [[nodiscard]] bool full() const noexcept { return count_ == kCapacity; }

@@ -90,6 +90,64 @@ esp_err_t EventQueueStore::front(Event* out_event) const {
     return ESP_OK;
 }
 
+esp_err_t EventQueueStore::at(size_t index, Event* out_event) const {
+    if (index >= count_) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (out_event != nullptr) {
+        *out_event = events_[(head_ + index) % kCapacity];
+    }
+    return ESP_OK;
+}
+
+size_t EventQueueStore::remove_confirmed(const uint32_t* confirmed_inicios, size_t count) {
+    if (confirmed_inicios == nullptr || count == 0) {
+        return 0;
+    }
+
+    // Compacta a fila mantendo apenas os nao-confirmados, em ordem FIFO.
+    Event kept[kCapacity];
+    size_t kept_count = 0;
+    size_t removed = 0;
+    for (size_t i = 0; i < count_; ++i) {
+        const Event& event = events_[(head_ + i) % kCapacity];
+        bool confirmed = false;
+        for (size_t j = 0; j < count; ++j) {
+            if (confirmed_inicios[j] == event.timestamp_inicio) {
+                confirmed = true;
+                break;
+            }
+        }
+        if (confirmed) {
+            ++removed;
+        } else {
+            kept[kept_count++] = event;
+        }
+    }
+
+    if (removed == 0) {
+        return 0;
+    }
+
+    PersistedLayout layout{};
+    layout.head = 0;
+    layout.count = static_cast<uint32_t>(kept_count);
+    for (size_t i = 0; i < kept_count; ++i) {
+        layout.events[i] = kept[i];
+    }
+
+    // Persiste PRIMEIRO; RAM so muda apos sucesso (mesma disciplina de push/pop).
+    esp_err_t err = nvs_.save_blob(kKey, &layout, sizeof(layout));
+    if (err != ESP_OK) {
+        return 0;
+    }
+
+    std::memcpy(events_, layout.events, sizeof(events_));
+    head_ = 0;
+    count_ = kept_count;
+    return removed;
+}
+
 esp_err_t EventQueueStore::pop(Event* out_event) {
     if (empty()) {
         return ESP_ERR_INVALID_STATE;

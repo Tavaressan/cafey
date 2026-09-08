@@ -109,3 +109,30 @@ add_executable(test_pending_event_publisher
     ../main/core/mutex_lock.cpp
 )
 add_test(NAME PendingEventPublisherTest COMMAND test_pending_event_publisher)
+
+add_executable(test_coffee_command
+    test_coffee_command.cpp
+    ../main/app/coffee_command.cpp
+)
+add_test(NAME CoffeeCommandTest COMMAND test_coffee_command)
+
+add_executable(test_schedule_payload
+    test_schedule_payload.cpp
+    ../main/app/schedule_payload.cpp
+)
+add_test(NAME SchedulePayloadTest COMMAND test_schedule_payload)
+
+add_executable(test_ble_service
+    test_ble_service.cpp
+    ../main/app/coffee_command.cpp
+    ../main/app/schedule_payload.cpp
+)
+add_test(NAME BleServiceTest COMMAND test_ble_service)
+
+add_executable(test_ble_event_proxy
+    test_ble_event_proxy.cpp
+    ../main/storage/event_queue_store.cpp
+    ../main/storage/nvs_store.cpp
+    ../main/core/mutex_lock.cpp
+)
+add_test(NAME BleEventProxyTest COMMAND test_ble_event_proxy)

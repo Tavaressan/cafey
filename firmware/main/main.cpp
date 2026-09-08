@@ -18,8 +18,11 @@
 #include "storage/event_queue_store.hpp"
 
 #include "app/agendador.hpp"
+#include "app/ble_event_proxy.hpp"
+#include "app/ble_service.hpp"
 #include "app/cafeteira.hpp"
 #include "app/conectividade.hpp"
+#include "core/esp_nimble_server.hpp"
 
 namespace {
 const char* TAG = "cafey";
@@ -79,6 +82,44 @@ extern "C" void app_main(void) {
     static cafey::core::NtpSync ntp_sync([] {
         g_agendador.post(cafey::core::Message{cafey::core::MessageType::TimeSynced, 0});
     });
+
+    // Servico BLE (FW-17, spec §6.4): comando/estado/agendamentos delegam para
+    // os mesmos handlers de dominio do caminho MQTT — sem regra de negocio na
+    // camada BLE. E o proxy da fila de eventos pendentes (FW-18, spec §6.5).
+    static cafey::core::EspNimbleServer ble_server(cafey::app::BleService::kServiceUuid);
+    static cafey::app::BleService ble_service(
+        ble_server,
+        [](const cafey::app::CoffeeCommand& cmd) {
+            using cafey::core::Message;
+            using cafey::core::MessageType;
+            switch (cmd.action) {
+                case cafey::app::CoffeeAction::Ligar:
+                    g_cafeteira.post(Message{MessageType::StartBrew,
+                                             static_cast<int32_t>(cmd.duracao_s)});
+                    break;
+                case cafey::app::CoffeeAction::Desligar:
+                case cafey::app::CoffeeAction::Cancelar:
+                    g_cafeteira.post(Message{MessageType::StopBrew, 0});
+                    break;
+                case cafey::app::CoffeeAction::Unknown:
+                    break;
+            }
+        },
+        [](const cafey::storage::Schedule* list, size_t count,
+           const cafey::app::SchedulePayloadMeta&) {
+            // Mesmo caminho logico do downlink `agendamentos`: persiste e
+            // recarrega o Agendador com a lista completa (idempotente).
+            schedule_store.replace_all(list, count);
+            g_agendador.set_schedules(list, count);
+        });
+    static cafey::app::BleEventProxy ble_event_proxy(ble_server, event_queue_store);
+
+    if (ble_service.begin("cafey")) {
+        ble_event_proxy.begin();
+        ESP_LOGI(TAG, "servico BLE ativo (comando/estado/agendamentos + proxy de eventos)");
+    } else {
+        ESP_LOGE(TAG, "falha ao iniciar o servico BLE");
+    }
 
     g_cafeteira.start();
     g_conectividade.start();

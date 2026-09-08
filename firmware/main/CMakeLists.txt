@@ -11,6 +11,7 @@ idf_component_register(
         "core/wifi_manager.cpp"
         "core/mqtt_config_store.cpp"
         "core/esp_mqtt_client.cpp"
+        "core/esp_nimble_server.cpp"
         "storage/nvs_store.cpp"
         "storage/schedule_store.cpp"
         "storage/event_queue_store.cpp"
@@ -18,6 +19,8 @@ idf_component_register(
         "app/cafeteira.cpp"
         "app/conectividade.cpp"
         "app/agendador.cpp"
+        "app/coffee_command.cpp"
+        "app/schedule_payload.cpp"
     INCLUDE_DIRS
         "."
         "drivers"
@@ -25,6 +28,7 @@ idf_component_register(
         "storage"
         "app"
     REQUIRES
+        bt
         driver
         esp_driver_gpio
         esp_common
