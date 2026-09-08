@@ -30,6 +30,32 @@ void Cafeteira::apply_state() {
     }
 }
 
+void Cafeteira::start_brew(uint32_t duration_s) {
+    if (duration_s == 0) duration_s = kDefaultDurationS;
+    brew_ticks_left_ = duration_s * kTicksPerSecond;
+    last_result_ = Result::None;
+    state_ = State::On;
+    apply_state();
+}
+
+void Cafeteira::cancel_brew() {
+    // Corte por botao/comando enquanto preparava -> CANCELADO (UC-09).
+    if (state_ == State::On) last_result_ = Result::Cancelado;
+    brew_ticks_left_ = 0;
+    state_ = State::Off;
+    apply_state();
+}
+
+void Cafeteira::finish_brew() {
+    // Fim do preparo pelo temporizador local. Sem sensor de extracao, o corte
+    // de energia da carga tem o mesmo desfecho: resultado CONCLUIDO
+    // (spec-backend §14 / P7).
+    brew_ticks_left_ = 0;
+    last_result_ = Result::Concluido;
+    state_ = State::Off;
+    apply_state();
+}
+
 void Cafeteira::on_start() {
     relay_.init();
 
@@ -66,7 +92,13 @@ void Cafeteira::on_tick() {
         btn_same_count_ = 0;
         return;
     }
-    if (btn_same_count_ >= kDebounceSamples) return;
+    if (btn_same_count_ >= kDebounceSamples) {
+        // Temporizador local do preparo: decrementa a cada tick sem botao.
+        if (state_ == State::On && brew_ticks_left_ > 0 && --brew_ticks_left_ == 0) {
+            finish_brew();
+        }
+        return;
+    }
     if (++btn_same_count_ == kDebounceSamples && level != btn_stable_) {
         btn_stable_ = level;
         if (btn_stable_ == 0) { // borda de descida (pull-up): clique
@@ -78,17 +110,22 @@ void Cafeteira::on_tick() {
 void Cafeteira::dispatch(const Message& msg) {
     switch (msg.type) {
         case MessageType::ButtonPressed:
-            state_ = (state_ == State::Off) ? State::On : State::Off;
-            apply_state();
+            // Toque curto: liga (inicia preparo) / desliga (cancela).
+            if (state_ == State::Off) {
+                start_brew(kDefaultDurationS);
+            } else {
+                cancel_brew();
+            }
             break;
         case MessageType::StartBrew:
-            state_ = State::On;
-            apply_state();
+            // msg.arg = duracaoS enviado pelo comando/agendamento.
+            start_brew(msg.arg > 0 ? static_cast<uint32_t>(msg.arg) : kDefaultDurationS);
             break;
         case MessageType::StopBrew:
+            cancel_brew();
+            break;
         case MessageType::BrewFinished:
-            state_ = State::Off;
-            apply_state();
+            finish_brew();
             break;
         default:
             break;
