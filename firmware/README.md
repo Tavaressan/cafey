@@ -75,6 +75,30 @@ ctest --output-on-failure
 3. Cole o conteúdo de `diagram.json` e `wokwi.toml`.
 4. Clique em **Run**. O log serial reportará o boot com LED azul e ao clicar no botão `SW1`, o relé e o LED alternam o estado.
 
+### Simulação headless via `wokwi-cli` (CI local / validação sem hardware)
+
+```sh
+curl -L https://wokwi.com/ci/install.sh | sh   # instala em ~/bin/wokwi-cli
+export WOKWI_CLI_TOKEN=<seu-token>             # gerado em https://wokwi.com/dashboard/ci
+cd firmware
+. ~/.espressif/v6.1/esp-idf/export.sh && idf.py build   # gera build/cafey_firmware.elf
+wokwi-cli --serial-log-file /tmp/serial.log .            # lê wokwi.toml automaticamente
+```
+
+**Gotcha crítico:** `diagram.json` precisa conectar explicitamente os pinos TX0/RX0 do ESP32 ao
+part virtual `$serialMonitor`, senão o `wokwi-cli` conecta na API normalmente e a simulação roda
+(inclusive o firmware de verdade), mas **nenhum byte de serial chega ao CLI** — nem o banner de
+boot do ROM, que independe do firmware. É silencioso: sem erro, sem timeout diferenciado, só
+`--serial-log-file` vazio. As duas conexões que resolvem:
+```json
+[ "esp:TX0", "$serialMonitor:RX", "", [] ],
+[ "esp:RX0", "$serialMonitor:TX", "", [] ]
+```
+Diagramas antigos/copiados do editor web às vezes não têm essa conexão (o editor web injeta um
+monitor serial implícito que o `wokwi-cli` headless não replica). Rode `wokwi-cli lint .` para
+pegar problemas de fiação — mas o lint não detecta a ausência do `$serialMonitor` (não é erro de
+fiação, é ausência de conexão opcional do ponto de vista do simulador).
+
 ## Compilação Local com ESP-IDF (≥ 5.x)
 
 ```sh

@@ -157,6 +157,18 @@
   ],
   "connections": [
     [
+      "esp:TX0",
+      "$serialMonitor:RX",
+      "",
+      []
+    ],
+    [
+      "esp:RX0",
+      "$serialMonitor:TX",
+      "",
+      []
+    ],
+    [
       "esp:3V3",
       "bb1:tp.2",
       "red",

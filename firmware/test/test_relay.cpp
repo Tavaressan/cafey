@@ -30,15 +30,15 @@ int test_initialization() {
     TEST_ASSERT(pin_state.is_configured, "GPIO 26 should be configured");
     TEST_ASSERT(pin_state.mode == GPIO_MODE_OUTPUT, "GPIO 26 should be in OUTPUT mode");
     TEST_ASSERT(pin_state.pull_up == GPIO_PULLUP_DISABLE, "Internal pull-up should be disabled");
-    TEST_ASSERT(pin_state.pull_down == GPIO_PULLDOWN_DISABLE, "Internal pull-down should be disabled (R1 handles external pull-down)");
-    TEST_ASSERT(pin_state.level == 0, "GPIO level should be 0 (LOW)");
+    TEST_ASSERT(pin_state.pull_down == GPIO_PULLDOWN_DISABLE, "Internal pull-down should be disabled (R1 handles external pull-up, active-low)");
+    TEST_ASSERT(pin_state.level == 1, "GPIO level should be 1 (HIGH, active-low OFF)");
 
-    // Verify anti-glitch sequence: gpio_set_level(26, 0) was called BEFORE and AFTER gpio_config
+    // Verify anti-glitch sequence: gpio_set_level(26, 1) was called BEFORE and AFTER gpio_config
     const auto& history = MockGpio::get_history();
     TEST_ASSERT(history.size() >= 3, "History should contain pre-config set_level, config, and post-config set_level");
-    TEST_ASSERT(history[0] == "gpio_set_level:26=0", "First call must force LOW before config");
+    TEST_ASSERT(history[0] == "gpio_set_level:26=1", "First call must force HIGH before config (active-low OFF)");
     TEST_ASSERT(history[1] == "gpio_config:26", "Second call must configure GPIO");
-    TEST_ASSERT(history[2] == "gpio_set_level:26=0", "Third call must re-assert LOW");
+    TEST_ASSERT(history[2] == "gpio_set_level:26=1", "Third call must re-assert HIGH (active-low OFF)");
 
     std::cout << "[PASS] test_initialization" << std::endl;
     return 0;
@@ -50,7 +50,7 @@ int test_auto_init_constructor() {
         cafey::drivers::Relay relay(GPIO_NUM_26, true);
         TEST_ASSERT(relay.is_initialized(), "Relay with auto_init=true should be initialized");
         TEST_ASSERT(!relay.is_on(), "Relay should be OFF after auto_init");
-        TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "Pin level should be 0");
+        TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "Pin level should be 1 (active-low OFF)");
     }
     std::cout << "[PASS] test_auto_init_constructor" << std::endl;
     return 0;
@@ -88,35 +88,35 @@ int test_state_transitions() {
     cafey::drivers::Relay relay(GPIO_NUM_26);
     relay.init();
 
-    // Turn ON (Active HIGH -> pin level = 1)
+    // Turn ON (Active LOW -> pin level = 0)
     esp_err_t err = relay.turn_on();
     TEST_ASSERT(err == ESP_OK, "turn_on() should succeed");
     TEST_ASSERT(relay.is_on(), "relay.is_on() should be true");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "GPIO 26 level should be 1 (HIGH)");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "GPIO 26 level should be 0 (LOW, active-low ON)");
 
-    // Turn OFF (Active HIGH -> pin level = 0)
+    // Turn OFF (Active LOW -> pin level = 1)
     err = relay.turn_off();
     TEST_ASSERT(err == ESP_OK, "turn_off() should succeed");
     TEST_ASSERT(!relay.is_on(), "relay.is_on() should be false");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "GPIO 26 level should be 0 (LOW)");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "GPIO 26 level should be 1 (HIGH, active-low OFF)");
 
     // Toggle OFF -> ON
     err = relay.toggle();
     TEST_ASSERT(err == ESP_OK, "toggle() should succeed");
     TEST_ASSERT(relay.is_on(), "relay.is_on() should be true");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "GPIO 26 level should be 1");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "GPIO 26 level should be 0");
 
     // Toggle ON -> OFF
     err = relay.toggle();
     TEST_ASSERT(err == ESP_OK, "toggle() should succeed");
     TEST_ASSERT(!relay.is_on(), "relay.is_on() should be false");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "GPIO 26 level should be 0");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "GPIO 26 level should be 1");
 
     // Direct set(true) and set(false)
     relay.set(true);
-    TEST_ASSERT(relay.is_on() && MockGpio::get_pin(GPIO_NUM_26).level == 1, "set(true) should turn relay ON");
+    TEST_ASSERT(relay.is_on() && MockGpio::get_pin(GPIO_NUM_26).level == 0, "set(true) should turn relay ON");
     relay.set(false);
-    TEST_ASSERT(!relay.is_on() && MockGpio::get_pin(GPIO_NUM_26).level == 0, "set(false) should turn relay OFF");
+    TEST_ASSERT(!relay.is_on() && MockGpio::get_pin(GPIO_NUM_26).level == 1, "set(false) should turn relay OFF");
 
     std::cout << "[PASS] test_state_transitions" << std::endl;
     return 0;
@@ -128,10 +128,10 @@ int test_raii_destruction() {
         cafey::drivers::Relay relay(GPIO_NUM_26);
         relay.init();
         relay.turn_on();
-        TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "Relay should be ON");
+        TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "Relay should be ON (active-low)");
     }
     // Out of scope: destructor should turn relay OFF
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "Relay destructor must safely turn off relay");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "Relay destructor must safely turn off relay (active-low OFF)");
 
     std::cout << "[PASS] test_raii_destruction" << std::endl;
     return 0;
@@ -162,7 +162,7 @@ int test_move_semantics() {
         TEST_ASSERT(r3.get_pin() == GPIO_NUM_26, "r3 should have pin GPIO_NUM_26");
     }
     // All destroyed
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "GPIO 26 should be 0 (OFF)");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "GPIO 26 should be 1 (OFF, active-low)");
 
     std::cout << "[PASS] test_move_semantics" << std::endl;
     return 0;
