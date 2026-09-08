@@ -72,6 +72,69 @@ int test_cafeteira_debounce_polling_posts_event() {
     return 0;
 }
 
+int test_cafeteira_brew_timer_completes_with_concluido() {
+    MockGpio::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1; // botao solto
+    TestableCafeteira caf;
+    caf.boot();
+
+    // Comando de preparo com duracaoS = 2 s.
+    caf.post(Message{MessageType::StartBrew, 2});
+    caf.process_pending();
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::On, "preparo iniciado");
+    TEST_ASSERT(caf.relay_on(), "rele fecha durante o preparo");
+    TEST_ASSERT(caf.brew_seconds_left() == 2, "temporizador armado com 2 s");
+
+    // 2 s = 200 ticks de 10 ms (alguns ticks iniciais sao gastos estabilizando
+    // o debounce do botao antes de o temporizador comecar a contar).
+    for (int i = 0; i < 150; ++i) caf.tick();
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::On, "ainda preparando antes do fim");
+    for (int i = 0; i < 100; ++i) caf.tick();
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "temporizador encerra o preparo");
+    TEST_ASSERT(!caf.relay_on(), "rele abre ao fim do preparo");
+    TEST_ASSERT(caf.last_result() == cafey::app::Cafeteira::Result::Concluido,
+                "resultado CONCLUIDO ao fim do temporizador");
+
+    std::cout << "[PASS] test_cafeteira_brew_timer_completes_with_concluido" << std::endl;
+    return 0;
+}
+
+int test_cafeteira_button_cancels_brew() {
+    MockGpio::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    TestableCafeteira caf;
+    caf.boot();
+
+    caf.post(Message{MessageType::StartBrew, 300});
+    caf.process_pending();
+    for (int i = 0; i < 50; ++i) caf.tick(); // preparo parcial
+
+    caf.post(Message{MessageType::ButtonPressed, 0}); // toque durante o preparo
+    caf.process_pending();
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "botao desliga durante preparo");
+    TEST_ASSERT(!caf.relay_on(), "rele abre ao cancelar");
+    TEST_ASSERT(caf.last_result() == cafey::app::Cafeteira::Result::Cancelado,
+                "resultado CANCELADO no corte por botao");
+
+    std::cout << "[PASS] test_cafeteira_button_cancels_brew" << std::endl;
+    return 0;
+}
+
+int test_cafeteira_start_brew_without_duration_uses_default() {
+    MockGpio::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    TestableCafeteira caf;
+    caf.boot();
+
+    caf.post(Message{MessageType::StartBrew, 0});
+    caf.process_pending();
+    TEST_ASSERT(caf.brew_seconds_left() == cafey::app::Cafeteira::kDefaultDurationS,
+                "duracaoS ausente aplica o default de 300 s");
+
+    std::cout << "[PASS] test_cafeteira_start_brew_without_duration_uses_default" << std::endl;
+    return 0;
+}
+
 int test_skeleton_active_objects() {
     cafey::app::Conectividade con;
     con.start();
@@ -96,6 +159,9 @@ int main() {
     std::cout << "Running Cafey Cafeteira AO Unit Tests..." << std::endl;
     if (test_cafeteira_button_toggles_relay_and_led()) return 1;
     if (test_cafeteira_debounce_polling_posts_event()) return 1;
+    if (test_cafeteira_brew_timer_completes_with_concluido()) return 1;
+    if (test_cafeteira_button_cancels_brew()) return 1;
+    if (test_cafeteira_start_brew_without_duration_uses_default()) return 1;
     if (test_skeleton_active_objects()) return 1;
     std::cout << "All Cafeteira AO tests PASSED!" << std::endl;
     return 0;

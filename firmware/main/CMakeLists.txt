@@ -2,9 +2,11 @@ idf_component_register(
     SRCS
         "main.cpp"
         "drivers/relay.cpp"
+        "drivers/rgb_led.cpp"
         "core/active_object.cpp"
         "core/mutex_lock.cpp"
         "core/reconnect_policy.cpp"
+        "core/ntp_sync.cpp"
         "core/wifi_credentials.cpp"
         "core/wifi_manager.cpp"
         "core/mqtt_config_store.cpp"
@@ -12,6 +14,7 @@ idf_component_register(
         "storage/nvs_store.cpp"
         "storage/schedule_store.cpp"
         "storage/event_queue_store.cpp"
+        "storage/event_id_generator.cpp"
         "app/cafeteira.cpp"
         "app/conectividade.cpp"
         "app/agendador.cpp"
@@ -32,6 +35,7 @@ idf_component_register(
         esp_wifi
         freertos
         log
+        lwip
         mqtt
         nvs_flash
 )
