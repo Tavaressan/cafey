@@ -49,7 +49,7 @@ public:
 
     /**
      * @brief Initialize the relay GPIO.
-     * Forces LOW before output configuration to prevent any boot pulse glitch.
+     * Forces HIGH (active-low OFF) before output configuration to prevent any boot pulse glitch.
      * @return ESP_OK on success, or ESP-IDF error code.
      */
     esp_err_t init();
