@@ -1,4 +1,15 @@
-# Módulo físico — pedestal em aço inox
+# Módulo físico — pedestal
+
+**Atualização 08/09/2026 (issue #116) — pivô para impressão 3D.** A
+tecnologia de fabricação mudou de chapa de inox dobrada para impressão 3D
+(FDM). O que segue neste documento, até a seção "Atualização — impressão 3D",
+é o histórico da decisão original em chapa (preservado, não apagado); a
+seção final documenta o que mudou e por quê. Os scripts de modelagem também
+foram preservados (`mechanical/scripts/build_peca1.py` etc. continuam
+funcionando) e os novos scripts `*_3d.py` implementam a versão atual — ver
+`mechanical/README.md`.
+
+---
 
 Data: 01/09/2026. Sessão de decisão de arquitetura da peça. Nenhuma geometria
 modelada ainda; o que segue é o que entra no CAD.
@@ -231,3 +242,103 @@ Nenhum item abaixo é decisão. São medições, consultas ou ensaios.
 |---|---|
 | 13 | Isolamento térmico sob o tampo. Depende do 10. Verificar classe de temperatura e de inflamabilidade; comparar espuma injetada contra placa pré-cortada sobre falso teto. Custo geométrico: falso teto como peça adicional e ~12 mm de altura interna |
 | 15 | Porta-fusível em linha fechado, 250 V, 5 × 20 mm. Fusível 8 A cerâmico; verificar capacidade de interrupção na folha de dados. Vidro tem capacidade baixa demais para proteção de rede |
+
+---
+
+## Atualização — impressão 3D (08/09/2026, issue #116)
+
+**Pedido da issue:** reformular a mecânica para ser impressa (FDM), no lugar
+de chapa dobrada, endereçando dobra, fixação, tolerância de parede,
+ventilação e resistência mecânica sob a carga de operação.
+
+**Decisão de arquitetura.** A Peça 1 deixa de ser 8 dobras + 4 abas de canto
+e passa a ser **um sólido único impresso**: tampo + 4 paredes + flange
+interna contínua na base — os 4 cantos já nascem fechados, sem fator K, sem
+linha neutra, sem planificação. A Peça 2 continua um fundo plano removível,
+parafusado por baixo, mesma lógica de manutenção da versão em chapa (abre
+para trocar o fusível). Pegada (260 × 210 mm), altura externa (45 mm) e
+arranjo interno (`mechanical/params/componentes_3d.csv`, mesmos 14
+componentes de `componentes.csv`) foram preservados.
+
+**Parede: 2,4 mm** (3 perímetros de bico 0,4 mm), contra 1,2 mm da chapa.
+Motivo: numa peça impressa a parede é estrutura primária (não um invólucro
+dobrado sobre si mesmo com abas de reforço) — 1,2 mm isolado tende a
+delaminar ou flexionar sob os ~2,9 kg do conjunto cafeteira + água. 2,4 mm é
+o mínimo prático recomendado nas referências de projeto para FDM consultadas
+(regra geral de 3 perímetros como piso estrutural — inferência de projeto,
+não normativa específica de eletrodoméstico). A altura interna livre cai de
+41,4 mm (chapa) para 40,2 mm.
+
+**Fixação Peça 1 / Peça 2: insert térmico rosqueado M3** (Ø furo 4,0 mm,
+profundidade 6 mm, fundido a quente em 8 bosses da flange, Ø 9 mm), no lugar
+da porca-rebite da chapa. Decisão e alternativas descartadas:
+- **Parafuso auto-atarraxante direto no PETG:** descartado. A rosca em
+  plástico degrada em poucas desmontagens, e o fundo abre rotineiramente
+  para trocar o fusível (item 15 da lista de verificação) — não é uma
+  junta que se abre uma vez só.
+- **Porca comum presa por atrito/geometria:** descartado por não ter o
+  mesmo travamento confiável de um insert fundido, e por exigir bolso extra
+  na peça para a porca não girar.
+- **Insert térmico M3:** mantido. Mesma lógica de montagem da chapa
+  (parafuso entra por baixo, na Peça 2, e rosqueia no insert da Peça 1) —
+  menor mudança de processo de montagem, rosca durável em plástico.
+- Não há mais parafuso de canto: a peça impressa já nasce fechada nos 4
+  cantos, então os 8 parafusos M3 de canto da chapa deixam de existir. Só
+  restam os 8 parafusos de fixação do fundo.
+
+**Ventilação e aberturas:** todo o catálogo de `mechanical/FUROS.md`
+(janela de RF, LED, botão, prensa-cabo PG9, tomada J1, recorte USB, 9 rasgos
+de ventilação) foi recriado 1:1 nas mesmas coordenadas (x, y, z), só a
+espessura de parede atravessada mudou (2,4 mm em vez de 1,2 mm). Ver
+`mechanical/scripts/build_peca1_3d.py` e a nota "Variante impressa (FDM)" no
+próprio `FUROS.md`.
+
+**Material: PETG, premissa desta issue, NÃO validado por ensaio.** Motivo:
+PETG tem temperatura de deflexão térmica (HDT) mais alta que PLA (relevante
+porque a cafeteira apoia diretamente no tampo) e é mais fácil de imprimir e
+menos frágil que ABS. Esta é uma **inferência de engenharia geral**, não uma
+confirmação — o item 10 da lista de verificação (temperatura da base da
+cafeteira após um ciclo completo) segue pendente e é o que valida ou
+invalida a escolha. Se o ensaio mostrar temperatura mais alta que a faixa
+segura de HDT do PETG (~70 °C sob carga), reavaliar para ABS ou PC-blend.
+Densidade usada nos scripts (`_env3d.DENSIDADE_PETG`) só para estimar massa
+em **sólido cheio** — o infill real do fatiador fica abaixo disso.
+
+**Resistência mecânica: estimativa analítica, não ensaio.** O tampo foi
+tratado como uma placa retangular simplesmente apoiada nas 4 paredes (pior
+caso realista — o encaixe real com as paredes tende a se comportar mais como
+engastado, o que reduziria a flecha real), carga uniforme de 2,9 kgf
+distribuída em 260 × 210 mm, fórmula de flecha máxima de placa retangular
+sob carga uniforme (Roark's Formulas for Stress and Strain). Resultado:
+flecha estimada ≈ 0,57 mm, contra um limite de referência de `L/300` do
+menor vão (0,70 mm — critério usual de rigidez de painel/prateleira, não uma
+norma específica para pedestal de eletrodoméstico). A memória de cálculo
+está em `mechanical/scripts/_env3d.deflexao_tampo_mm`, validada por
+`check_peca1_3d.py`. **Isto não substitui o ensaio de bancada** (equivalente
+ao item 8 da lista de verificação, adaptado de "consulta à empresa" para
+"imprimir o protótipo e testar com a carga real").
+
+**Novo entregável: STL.** `mechanical/scripts/export_stl.py` exporta
+`peca1_3d.stl` e `peca2_3d.stl` (tolerância linear 0,1 mm), além do STEP —
+requisito explícito da issue #116 para envio ao fatiador.
+
+**Validação executada** (todos os scripts abaixo verdes via `freecadcmd`,
+sem interferência entre Peça 1/Peça 2 nem com os 14 volumes do arranjo
+interno): `build_peca1_3d.py`, `build_peca2_3d.py`, `check_peca1_3d.py`,
+`check_peca2_3d.py`, `check_montagem_3d.py`, `build_arranjo_3d.py`,
+`check_arranjo_3d.py`, `export_step_3d.py`, `export_stl.py`. O pipeline em
+chapa (não renomeado, mantido por compatibilidade histórica) continua verde
+e não foi alterado.
+
+**O que fica pendente** (mesma natureza do que já estava pendente na versão
+em chapa — medição, ensaio ou consulta, não decisão de arquitetura):
+- Ensaio de temperatura da base da cafeteira (item 10) — confirma ou invalida
+  a escolha de PETG.
+- Ensaio de bancada com o protótipo impresso sob a carga real (equivalente
+  ao item 8) — confirma ou invalida a estimativa analítica de flecha.
+- Insert térmico real comprado: confirmar `boss_d`/`insert_furo`/
+  `insert_prof` contra o datasheet do insert específico (os valores atuais
+  são nominais de M3×5,7, comuns no mercado).
+- Itens 1 a 5, 13 a 17 da lista de verificação abaixo continuam válidos
+  (dimensões reais de componentes, tomada, fusível, isolamento térmico) —
+  são medições/consultas independentes da tecnologia de fabricação.
