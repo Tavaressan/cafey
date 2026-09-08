@@ -36,11 +36,31 @@ public:
      */
     esp_err_t replace_all(const Schedule* schedules, size_t count);
 
+    /**
+     * @brief Aplica a lista somente se `version` for maior que a gravada em NVS
+     * (regra de versao monotonica, spec-backend §6.2). Protege contra a mensagem
+     * retida antiga que o AWS IoT Core reentrega na reconexao.
+     *
+     * `version <= version()` -> lista ignorada por completo: agendamentos e
+     * versao permanecem intactos e `*applied` recebe false. Caso contrario a
+     * lista e a nova versao sao persistidas e `*applied` recebe true.
+     *
+     * @return ESP_ERR_INVALID_SIZE se `count` exceder kMaxSchedules; ESP_OK
+     * quando a lista e aceita ou deliberadamente ignorada; ou o codigo de erro
+     * da escrita em NVS.
+     */
+    esp_err_t replace_all_if_newer(const Schedule* schedules, size_t count,
+                                   uint64_t version, bool* applied = nullptr);
+
     [[nodiscard]] size_t count() const noexcept { return count_; }
     [[nodiscard]] const Schedule& at(size_t index) const { return schedules_[index]; }
 
+    /** Versao da lista de agendamentos atualmente gravada (0 = nada gravado). */
+    [[nodiscard]] uint64_t version() const noexcept { return version_; }
+
 private:
     struct PersistedLayout {
+        uint64_t version;
         uint32_t count;
         Schedule schedules[kMaxSchedules];
     };
@@ -48,6 +68,7 @@ private:
     NvsStore nvs_;
     Schedule schedules_[kMaxSchedules];
     size_t count_;
+    uint64_t version_ = 0;
 };
 
 } // namespace cafey::storage

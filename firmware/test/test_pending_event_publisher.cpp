@@ -101,11 +101,69 @@ static void test_drain_survives_reboot_via_persisted_queue() {
     std::cout << "OK: test_drain_survives_reboot_via_persisted_queue\n";
 }
 
+// FW-15: preparo antes do sync NTP -> horario provisorio, distinguivel na drenagem.
+
+static void test_provisional_event_is_flagged_on_publish() {
+    MockNvs::reset();
+    EventQueueStore store;
+    store.init();
+    FakeMqttClient client;
+
+    PendingEventPublisher pub(store, client, "dispositivos/cafey-001/eventos");
+    // Preparo pelo botao antes do NTP: relogio interno ainda nao confiavel.
+    pub.enqueue(cafey::storage::make_brew_event(EventOrigin::BOTAO, 5, 305, /*ntp_synced=*/false));
+
+    assert(pub.drain() == 1);
+    assert(client.publishes[0].payload ==
+           "{\"inicio\":5,\"fim\":305,\"origem\":\"BOTAO\",\"relogioProvisorio\":true}");
+    std::cout << "OK: test_provisional_event_is_flagged_on_publish\n";
+}
+
+static void test_synced_event_has_no_provisional_flag() {
+    MockNvs::reset();
+    EventQueueStore store;
+    store.init();
+    FakeMqttClient client;
+
+    PendingEventPublisher pub(store, client, "dispositivos/cafey-001/eventos");
+    pub.enqueue(cafey::storage::make_brew_event(EventOrigin::AGENDAMENTO, 1000, 1300, /*ntp_synced=*/true));
+
+    assert(pub.drain() == 1);
+    assert(client.publishes[0].payload ==
+           "{\"inicio\":1000,\"fim\":1300,\"origem\":\"AGENDAMENTO\"}");
+    std::cout << "OK: test_synced_event_has_no_provisional_flag\n";
+}
+
+static void test_provisional_flag_survives_reboot() {
+    MockNvs::reset();
+    {
+        EventQueueStore store;
+        store.init();
+        FakeMqttClient offline;
+        offline.connected = false;
+        PendingEventPublisher pub(store, offline, "dispositivos/cafey-001/eventos");
+        pub.enqueue(cafey::storage::make_brew_event(EventOrigin::BOTAO, 7, 42, /*ntp_synced=*/false));
+    }
+    {
+        EventQueueStore store;
+        store.init();
+        FakeMqttClient client;
+        PendingEventPublisher pub(store, client, "dispositivos/cafey-001/eventos");
+        assert(pub.drain() == 1);
+        assert(client.publishes[0].payload ==
+               "{\"inicio\":7,\"fim\":42,\"origem\":\"BOTAO\",\"relogioProvisorio\":true}");
+    }
+    std::cout << "OK: test_provisional_flag_survives_reboot\n";
+}
+
 int main() {
     test_events_are_queued_while_offline();
     test_drain_publishes_all_pending_on_reconnect_fifo();
     test_drain_stops_on_publish_failure_and_keeps_remaining();
     test_drain_survives_reboot_via_persisted_queue();
+    test_provisional_event_is_flagged_on_publish();
+    test_synced_event_has_no_provisional_flag();
+    test_provisional_flag_survives_reboot();
     std::cout << "Todos os testes de PendingEventPublisher passaram.\n";
     return 0;
 }

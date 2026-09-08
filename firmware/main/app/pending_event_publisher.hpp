@@ -53,9 +53,16 @@ public:
 
     /** @brief Serializa o evento no formato de `dispositivos/{id}/eventos` (spec §6.2). */
     static std::string serialize(const cafey::storage::Event& event) {
-        return "{\"inicio\":" + std::to_string(event.timestamp_inicio) +
-               ",\"fim\":" + std::to_string(event.timestamp_fim) +
-               ",\"origem\":\"" + origin_name(event.origem) + "\"}";
+        std::string json = "{\"inicio\":" + std::to_string(event.timestamp_inicio) +
+                           ",\"fim\":" + std::to_string(event.timestamp_fim) +
+                           ",\"origem\":\"" + origin_name(event.origem) + "\"";
+        // FW-15: sinaliza ao backend que o carimbo e provisorio (preparo antes
+        // do sync NTP). Ausente quando o horario ja e confiavel.
+        if (event.horario_provisorio) {
+            json += ",\"relogioProvisorio\":true";
+        }
+        json += "}";
+        return json;
     }
 
 private:
