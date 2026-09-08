@@ -7,6 +7,8 @@ idf_component_register(
         "core/reconnect_policy.cpp"
         "core/wifi_credentials.cpp"
         "core/wifi_manager.cpp"
+        "core/mqtt_config_store.cpp"
+        "core/esp_mqtt_client.cpp"
         "storage/nvs_store.cpp"
         "storage/schedule_store.cpp"
         "storage/event_queue_store.cpp"
@@ -30,5 +32,6 @@ idf_component_register(
         esp_wifi
         freertos
         log
+        mqtt
         nvs_flash
 )
