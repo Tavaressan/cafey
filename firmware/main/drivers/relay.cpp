@@ -53,7 +53,10 @@ esp_err_t Relay::init() {
     // Step 1: Force GPIO level LOW BEFORE configuring output mode to guarantee
     // zero glitch when switching from high-impedance to output.
     // External 10k R1 pull-down holds 0V; setting low level first maintains this.
-    gpio_set_level(pin_, 0);
+    // gpio_set_level(pin_, 0);
+
+    // Active low de teste de bancada
+    gpio_set_level(pin_, 1);
 
     // Step 2: Configure GPIO as output, pull-up/down disabled (external R1 handles pull-down),
     // interrupts disabled.
@@ -72,7 +75,11 @@ esp_err_t Relay::init() {
     }
 
     // Step 3: Re-assert LOW state immediately after configuration
-    err = gpio_set_level(pin_, 0);
+    // err = gpio_set_level(pin_, 0);
+
+    // Active low de teste de bancada
+    err = gpio_set_level(pin_, 1);
+
     if (err != ESP_OK) {
         ESP_LOGE("Relay", "Failed to set GPIO %d level: %d", pin_, err);
         return err;
@@ -89,8 +96,12 @@ esp_err_t Relay::set(bool on) {
         ESP_LOGE("Relay", "Relay not initialized on GPIO %d", pin_);
         return ESP_ERR_INVALID_STATE;
     }
+    // Active High atual 
+    // esp_err_t err = gpio_set_level(pin_, on ? 1 : 0);
 
-    esp_err_t err = gpio_set_level(pin_, on ? 1 : 0);
+    // Active Low de teste de bancada
+    esp_err_t err = gpio_set_level(pin_, on ? 0 : 1);
+
     if (err == ESP_OK) {
         is_on_ = on;
         ESP_LOGI("Relay", "Relay on GPIO %d -> %s", pin_, on ? "ON" : "OFF");

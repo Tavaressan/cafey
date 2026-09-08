@@ -3,90 +3,427 @@
   "author": "Cafey",
   "editor": "wokwi",
   "parts": [
-    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
-    { "type": "wokwi-relay-module", "id": "relay", "top": -115, "left": 210, "attrs": {} },
     {
-      "type": "wokwi-resistor",
-      "id": "R1",
-      "top": 120,
-      "left": 229.85,
-      "rotate": 90,
-      "attrs": { "value": "10000" }
+      "type": "wokwi-breadboard",
+      "id": "bb1",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
     },
     {
-      "type": "wokwi-pushbutton",
-      "id": "SW1",
-      "top": 175,
-      "left": -190,
-      "attrs": { "color": "green", "label": "SW1" }
-    },
-    {
-      "type": "wokwi-resistor",
-      "id": "R2",
-      "top": 281.8,
-      "left": -250.45,
-      "rotate": 270,
-      "attrs": { "value": "10000" }
-    },
-    {
-      "type": "wokwi-capacitor",
-      "id": "C3",
+      "type": "wokwi-esp32-devkit-v1",
+      "id": "esp",
       "top": 260,
-      "left": -120,
-      "rotate": 90,
-      "attrs": { "value": "100n" }
+      "left": 40,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-relay-module",
+      "id": "relay",
+      "top": -175,
+      "left": 420,
+      "attrs": {
+        "transistor": "pnp"
+      }
     },
     {
       "type": "wokwi-rgb-led",
       "id": "D1",
-      "top": -90,
-      "left": -180,
-      "attrs": { "common": "cathode" }
+      "top": 9,
+      "left": 39.4,
+      "attrs": {
+        "common": "cathode"
+      }
     },
     {
       "type": "wokwi-resistor",
       "id": "R3",
-      "top": -15.25,
-      "left": -105.6,
-      "rotate": 180,
-      "attrs": { "value": "220" }
+      "top": 84.6,
+      "left": 36.05,
+      "rotate": 90,
+      "attrs": {
+        "value": "220"
+      }
     },
     {
       "type": "wokwi-resistor",
       "id": "R4",
-      "top": 23.45,
-      "left": -107,
-      "rotate": 180,
-      "attrs": { "value": "100" }
+      "top": 84.6,
+      "left": 55.25,
+      "rotate": 90,
+      "attrs": {
+        "value": "220"
+      }
     },
     {
       "type": "wokwi-resistor",
       "id": "R5",
-      "top": 4.25,
-      "left": -107,
-      "rotate": 180,
-      "attrs": { "value": "100" }
+      "top": 84.6,
+      "left": 64.85,
+      "rotate": 90,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "R1",
+      "top": -22,
+      "left": 132.05,
+      "rotate": 90,
+      "attrs": {
+        "value": "10000"
+      }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "SW1",
+      "top": 61,
+      "left": 183.4,
+      "attrs": {
+        "color": "green",
+        "label": "SW1"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "R2",
+      "top": -22,
+      "left": 180.05,
+      "rotate": 90,
+      "attrs": {
+        "value": "10000"
+      }
+    },
+    {
+      "type": "wokwi-resistor",
+      "id": "R6",
+      "top": 130,
+      "left": 245,
+      "attrs": {
+        "value": "220"
+      }
+    },
+    {
+      "type": "wokwi-led",
+      "id": "D2",
+      "top": 120,
+      "left": 269.8,
+      "attrs": {
+        "color": "red",
+        "label": "CARGA"
+      }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "txt1",
+      "top": -120,
+      "left": 0,
+      "attrs": {
+        "text": "Trilho superior: + = 3V3, - = GND. Trilho inferior: + = 5V (VIN), - = GND.",
+        "fontSize": "12"
+      }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "txt2",
+      "top": -100,
+      "left": 0,
+      "attrs": {
+        "text": "R1 e R2 sao pull-ups (3V3 -> GPIO). Nao sao alimentacao: definem o nivel de repouso.",
+        "fontSize": "12"
+      }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "txt3",
+      "top": -80,
+      "left": 0,
+      "attrs": {
+        "text": "HL-52S: gatilho por nivel BAIXO. Verificar o atributo transistor na 1a simulacao.",
+        "fontSize": "12"
+      }
+    },
+    {
+      "type": "wokwi-text",
+      "id": "txt4",
+      "top": 175,
+      "left": 230,
+      "attrs": {
+        "text": "Carga simulada. Na montagem real: fase da rede em COM/NO.",
+        "fontSize": "12"
+      }
     }
   ],
   "connections": [
-    [ "esp:D26", "relay:IN", "green", [] ],
-    [ "esp:D26", "R1:1", "green", [ "v4.6", "h254.2", "v-9.6" ] ],
-    [ "R1:2", "esp:GND.1", "black", [ "v-1.2", "h-157.9" ] ],
-    [ "esp:VIN", "relay:VCC", "red", [ "v4.7", "h187", "v-259.2" ] ],
-    [ "esp:GND.1", "relay:GND", "black", [ "h100.3", "v-235" ] ],
-    [ "esp:D27", "SW1:1.l", "green", [ "v4.4", "h-195" ] ],
-    [ "esp:D27", "R2:2", "blue", [] ],
-    [ "R2:1", "esp:3V3", "red", [ "h315.85", "v92.5" ] ],
-    [ "SW1:2.l", "esp:GND.2", "black", [ "v33", "h195" ] ],
-    [ "esp:D27", "C3:1", "blue", [] ],
-    [ "C3:2", "esp:GND.2", "black", [] ],
-    [ "esp:D21", "R3:1", "orange", [] ],
-    [ "R3:2", "D1:R", "orange", [] ],
-    [ "esp:D22", "R4:1", "green", [] ],
-    [ "R4:2", "D1:G", "green", [] ],
-    [ "esp:D23", "R5:1", "blue", [ "h-130.1", "v42.9" ] ],
-    [ "R5:2", "D1:B", "blue", [] ],
-    [ "D1:COM", "esp:GND.3", "black", [] ]
+    [
+      "esp:3V3",
+      "bb1:tp.2",
+      "red",
+      []
+    ],
+    [
+      "esp:GND.2",
+      "bb1:tn.2",
+      "black",
+      []
+    ],
+    [
+      "esp:VIN",
+      "bb1:bp.2",
+      "red",
+      []
+    ],
+    [
+      "esp:GND.1",
+      "bb1:bn.2",
+      "black",
+      []
+    ],
+    [
+      "D1:R",
+      "bb1:5t.a",
+      "orange",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "D1:COM",
+      "bb1:6t.a",
+      "black",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "D1:G",
+      "bb1:7t.a",
+      "green",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "D1:B",
+      "bb1:8t.a",
+      "blue",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "bb1:6t.b",
+      "bb1:tn.6",
+      "black",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "R3:1",
+      "bb1:5t.b",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "R3:2",
+      "bb1:5b.f",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "R4:1",
+      "bb1:7t.b",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "R4:2",
+      "bb1:7b.f",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "R5:1",
+      "bb1:8t.b",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "R5:2",
+      "bb1:8b.f",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "esp:D21",
+      "bb1:5b.j",
+      "orange",
+      []
+    ],
+    [
+      "esp:D22",
+      "bb1:7b.j",
+      "green",
+      []
+    ],
+    [
+      "esp:D23",
+      "bb1:8b.j",
+      "blue",
+      []
+    ],
+    [
+      "esp:D26",
+      "bb1:15t.d",
+      "gold",
+      []
+    ],
+    [
+      "relay:IN",
+      "bb1:15t.e",
+      "gold",
+      []
+    ],
+    [
+      "R1:1",
+      "bb1:15t.a",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "R1:2",
+      "bb1:tp.14",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "esp:D27",
+      "bb1:20t.c",
+      "purple",
+      []
+    ],
+    [
+      "SW1:1.l",
+      "bb1:20t.e",
+      "purple",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "SW1:2.l",
+      "bb1:20b.f",
+      "black",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "bb1:20b.j",
+      "bb1:bn.20",
+      "black",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "R2:1",
+      "bb1:20t.a",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "R2:2",
+      "bb1:tp.19",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "relay:VCC",
+      "bb1:bp.8",
+      "red",
+      []
+    ],
+    [
+      "relay:GND",
+      "bb1:bn.8",
+      "black",
+      []
+    ],
+    [
+      "relay:COM",
+      "bb1:bp.26",
+      "red",
+      []
+    ],
+    [
+      "relay:NO",
+      "bb1:26b.j",
+      "red",
+      []
+    ],
+    [
+      "R6:1",
+      "bb1:26b.i",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "R6:2",
+      "bb1:29b.i",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "D2:A",
+      "bb1:29b.f",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "D2:C",
+      "bb1:30b.f",
+      "",
+      [
+        "$bb"
+      ]
+    ],
+    [
+      "bb1:30b.j",
+      "bb1:bn.30",
+      "black",
+      [
+        "$bb"
+      ]
+    ]
   ],
   "dependencies": {}
 }
