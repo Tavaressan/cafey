@@ -59,6 +59,16 @@ esp_err_t EventQueueStore::push(const Event& event) {
     return persist();
 }
 
+esp_err_t EventQueueStore::front(Event* out_event) const {
+    if (empty()) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    if (out_event != nullptr) {
+        *out_event = events_[head_];
+    }
+    return ESP_OK;
+}
+
 esp_err_t EventQueueStore::pop(Event* out_event) {
     if (empty()) {
         return ESP_ERR_INVALID_STATE;

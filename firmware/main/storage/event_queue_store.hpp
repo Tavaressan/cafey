@@ -46,6 +46,13 @@ public:
      */
     esp_err_t pop(Event* out_event);
 
+    /**
+     * @brief Copies the oldest event without removing it, so a caller can try to
+     * deliver it and only pop() after confirmed success (FW-16 drain).
+     * @return ESP_OK on success, ESP_ERR_INVALID_STATE if the queue is empty.
+     */
+    esp_err_t front(Event* out_event) const;
+
     [[nodiscard]] size_t size() const noexcept { return count_; }
     [[nodiscard]] bool empty() const noexcept { return count_ == 0; }
     [[nodiscard]] bool full() const noexcept { return count_ == kCapacity; }
