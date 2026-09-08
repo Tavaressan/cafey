@@ -11,6 +11,7 @@ idf_component_register(
         "storage/nvs_store.cpp"
         "storage/schedule_store.cpp"
         "storage/event_queue_store.cpp"
+        "storage/event_id_generator.cpp"
         "app/cafeteira.cpp"
         "app/conectividade.cpp"
         "app/agendador.cpp"

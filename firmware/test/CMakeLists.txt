@@ -59,6 +59,14 @@ add_executable(test_event_queue_store
 )
 add_test(NAME EventQueueStoreTest COMMAND test_event_queue_store)
 
+add_executable(test_event_id_generator
+    test_event_id_generator.cpp
+    ../main/storage/event_id_generator.cpp
+    ../main/storage/nvs_store.cpp
+    ../main/core/mutex_lock.cpp
+)
+add_test(NAME EventIdGeneratorTest COMMAND test_event_id_generator)
+
 add_executable(test_reconnect_policy
     test_reconnect_policy.cpp
     ../main/core/reconnect_policy.cpp
