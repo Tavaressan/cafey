@@ -2,6 +2,7 @@ idf_component_register(
     SRCS
         "main.cpp"
         "drivers/relay.cpp"
+        "drivers/rgb_led.cpp"
         "core/active_object.cpp"
         "core/mutex_lock.cpp"
         "core/reconnect_policy.cpp"
@@ -10,6 +11,7 @@ idf_component_register(
         "storage/nvs_store.cpp"
         "storage/schedule_store.cpp"
         "storage/event_queue_store.cpp"
+        "storage/event_id_generator.cpp"
         "app/cafeteira.cpp"
         "app/conectividade.cpp"
         "app/agendador.cpp"
