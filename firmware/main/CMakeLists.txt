@@ -9,6 +9,8 @@ idf_component_register(
         "core/ntp_sync.cpp"
         "core/wifi_credentials.cpp"
         "core/wifi_manager.cpp"
+        "core/mqtt_config_store.cpp"
+        "core/esp_mqtt_client.cpp"
         "storage/nvs_store.cpp"
         "storage/schedule_store.cpp"
         "storage/event_queue_store.cpp"
@@ -34,5 +36,6 @@ idf_component_register(
         freertos
         log
         lwip
+        mqtt
         nvs_flash
 )

@@ -85,3 +85,27 @@ add_executable(test_wifi_credentials
     ../main/core/wifi_credentials.cpp
 )
 add_test(NAME WifiCredentialsStoreTest COMMAND test_wifi_credentials)
+
+add_executable(test_mqtt_config_store
+    test_mqtt_config_store.cpp
+    ../main/core/mqtt_config_store.cpp
+)
+add_test(NAME MqttConfigStoreTest COMMAND test_mqtt_config_store)
+
+add_executable(test_downlink_subscriber
+    test_downlink_subscriber.cpp
+)
+add_test(NAME DownlinkSubscriberTest COMMAND test_downlink_subscriber)
+
+add_executable(test_uplink_publisher
+    test_uplink_publisher.cpp
+)
+add_test(NAME UplinkPublisherTest COMMAND test_uplink_publisher)
+
+add_executable(test_pending_event_publisher
+    test_pending_event_publisher.cpp
+    ../main/storage/event_queue_store.cpp
+    ../main/storage/nvs_store.cpp
+    ../main/core/mutex_lock.cpp
+)
+add_test(NAME PendingEventPublisherTest COMMAND test_pending_event_publisher)
