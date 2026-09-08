@@ -56,14 +56,24 @@ inline bool get_string(const std::string& json, const std::string& key, std::str
 inline bool get_long(const std::string& json, const std::string& key, long& out) {
     std::string v;
     if (!raw_value(json, key, v) || v.empty()) return false;
-    try {
-        size_t pos = 0;
-        long parsed = std::stol(v, &pos);
-        if (pos == 0) return false;
-        out = parsed;
-    } catch (...) {
-        return false;
+    // Parser manual: o ESP-IDF compila com -fno-exceptions, entao std::stol
+    // (que lanca) nao pode ser usado. Le sinal opcional e os digitos iniciais,
+    // ignorando o resto — mesmo comportamento tolerante do std::stol anterior.
+    size_t i = 0;
+    bool negative = false;
+    if (v[i] == '+' || v[i] == '-') {
+        negative = (v[i] == '-');
+        ++i;
     }
+    size_t digits = 0;
+    long parsed = 0;
+    while (i < v.size() && std::isdigit(static_cast<unsigned char>(v[i]))) {
+        parsed = parsed * 10 + (v[i] - '0');
+        ++i;
+        ++digits;
+    }
+    if (digits == 0) return false;
+    out = negative ? -parsed : parsed;
     return true;
 }
 
@@ -126,8 +136,12 @@ inline std::vector<unsigned long> uint_array(const std::string& json, const std:
         while (i < body.size() && !std::isdigit(static_cast<unsigned char>(body[i]))) ++i;
         if (i >= body.size()) break;
         size_t j = i;
-        while (j < body.size() && std::isdigit(static_cast<unsigned char>(body[j]))) ++j;
-        out.push_back(std::stoul(body.substr(i, j - i)));
+        unsigned long value = 0;
+        while (j < body.size() && std::isdigit(static_cast<unsigned char>(body[j]))) {
+            value = value * 10 + static_cast<unsigned long>(body[j] - '0');
+            ++j;
+        }
+        out.push_back(value);
         i = j;
     }
     return out;

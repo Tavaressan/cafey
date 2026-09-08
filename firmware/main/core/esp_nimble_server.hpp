@@ -6,10 +6,25 @@
 #include <string>
 #include <vector>
 
-#include "esp_err.h"
-#include "host/ble_uuid.h"
-
 #include "core/ble_server.hpp"
+
+// Os headers da NimBLE devem vir DEPOIS de todo header C++ da STL: o
+// porting layer (`os/os.h`) define macros `min`/`max` de 2 argumentos que
+// quebram <functional>/<random> se incluidos na sequencia. O #undef abaixo
+// impede que essas macros vazem para quem incluir este header.
+#include "esp_err.h"
+#include "nimble/nimble_port.h"
+#include "host/ble_hs.h"
+#include "host/ble_uuid.h"
+#include "host/ble_gap.h"
+#include "host/ble_gatt.h"
+
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
 
 namespace cafey::core {
 
