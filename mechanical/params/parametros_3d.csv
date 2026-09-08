@@ -2,14 +2,29 @@ alias,value,unit,origin
 # --- processo (impressao 3D FDM; substitui a chapa dobrada) ---
 parede,2.4,mm,minimo recomendado p/ parede estrutural FDM (3 perimetros de bico 0.4mm); chapa dobrada era 1.2 mm
 # material e' texto: ver celula material_txt no Spreadsheet
-# --- pegada e altura (mantidas da versao em chapa) ---
+# --- pegada e altura ---
 pegada_x,260,mm,catalogo cafeteira 257x198 com folga
 pegada_y,210,mm,catalogo cafeteira 257x198 com folga
-altura_externa,45,mm,empilhamento dos modulos
-altura_livre,40.2,mm,descontados tampo (parede) e fundo (parede_fundo); parede 2.4 mm > espessura de chapa 1.2 mm
+altura_externa,53,mm,45 (empilhamento) + banda de reforco reforco_delta sob o tampo; ver reforco abaixo
+altura_livre,40.2,mm,cavidade util PRESERVADA em 40.2 (o crescimento de 45->53 e' so' a banda de nervura sob o tampo; os componentes de apoio=fundo desceram junto - ver componentes_3d.csv)
 aba_fundo,14,mm,flange interna continua na base; aloja os bosses de insert M3 e apoia o fundo removivel
+# --- reforco estrutural sob o tampo (audit da carga de 3 kg) ---
+# Sem reforco a flecha de LONGO PRAZO do tampo (elastica x fator de fluencia do
+# PETG sob calor) estoura o limite L/300 - ver check_peca1_3d.py. Colunas de
+# canto = caminho de carga direto tampo->fundo->pes; nervuras = dividem o vao
+# do tampo. Tudo parametrico: coluna_qtd=0 e nervura_transversal=0 voltam ao
+# modelo do #118 sem mexer em geometria (so' rebaixar altura_externa p/ 45).
+reforco_delta,8,mm,banda extra sob o tampo p/ as nervuras (= nervura_h + folga); some da altura interna nada, cresce a externa
+nervura_h,6,mm,profundidade da nervura perimetral e da transversal, penduradas na face inferior do tampo
+nervura_w,3,mm,espessura da nervura (2 perimetros de bico 0.4 + preenchimento)
+nervura_transversal,1,,1 = nervura na linha da divisoria (y = parede + faixa_baixa) dividindo o vao do tampo; 0 = so' a perimetral
+coluna_qtd,4,,4 colunas de canto tampo->fundo (caminho de carga vertical + travam o corpo); 0 desliga
+coluna_lado,12,mm,lado do prisma quadrado da coluna de canto
+travessia_folga,6,mm,folga do rasgo da nervura transversal p/ a travessia de 5 fios (componente travessia_fios)
 # --- pes e elevacao ---
 pe_altura,10,mm,EPDM ou silicone antiderrapante
+pe_d,15,mm,diametro do pe adesivo EPDM/silicone; assento raso no fundo, coaxial com a coluna de canto (fecha o caminho de carga)
+pe_inset,20,mm,recuo do centro do pe da borda do fundo QUANDO coluna_qtd=0 (sem coluna, o pe fica onde daria mais apoio ao vao do fundo)
 apoio_altura,0,mm,0..5 conforme apoio da cafeteira
 elevacao_total,,mm,expr: altura_externa + pe_altura + apoio_altura
 # --- faixas internas (mantidas da versao em chapa) ---
@@ -48,6 +63,10 @@ insert_furo,4.0,mm,diametro do furo p/ insert termico M3x5.7 tipico (ex. Ruthex/
 insert_prof,6,mm,profundidade do furo do insert (corpo 5.7 mm + folga de entrada)
 boss_d,9,mm,diametro externo do boss que aloja o insert (>= 2x insert_furo, evita rachadura ao fundir)
 furo_passagem,3.4,mm,folga do parafuso M3 na Peca 2 (passagem, sem rosca)
+# --- carga e criterio de resistencia (audit) ---
+carga_operacao,3.0,kgf,cafeteira Britania CP30 (1.64 kg) + jarra cheia (1.2 L) arredondado p/ cima; pedido explicito "3 kg maximos"
+fator_fluencia,4.0,,multiplicador da flecha elastica p/ estimar a flecha de LONGO PRAZO (creep viscoelastico) do PETG sob carga continua + calor irradiado; faixa tipica 3-4x em termoplastico carregado por meses; inferencia de engenharia, confirmar no ensaio de bancada
+folga_comp_reforco,2,mm,folga minima exigida entre a face inferior de qualquer nervura/coluna e o topo do componente mais alto abaixo dela
 # --- margens de projeto (viram validacao) ---
 margem_parede,6,mm,minimo entre abertura e canto vertical (equivalente a margem_dobra da chapa)
 margem_extremidade,25,mm,minimo das extremidades (zona de rigidez do canto e dos bosses)

@@ -79,6 +79,21 @@ DESCRIPTIONS = {
     "flange_traseira": ("Flange de fixacao - traseira", "Ver flange_frontal."),
     "flange_esquerda": ("Flange de fixacao - esquerda", "Ver flange_frontal."),
     "flange_direita": ("Flange de fixacao - direita", "Ver flange_frontal."),
+    "nervura_perimetral_": ("Nervura perimetral sob o tampo",
+                           "Moldura de nervura_h x nervura_w pendurada na face "
+                           "inferior do tampo, junto as paredes. Enrijece a "
+                           "borda do tampo e o topo das paredes. Imprime sem "
+                           "suporte (peca de cabeca p/ baixo: a nervura cresce "
+                           "a partir do tampo)."),
+    "nervura_transversal": ("Nervura transversal (linha da divisoria)",
+                       "Nervura em y = parede + faixa_baixa, dividindo o "
+                       "vao do tampo em dois paineis apoiados - reduz a "
+                       "flecha de longo prazo do tampo sob 3 kg. Rasgo "
+                       "central p/ a travessia de 5 fios."),
+    "coluna_": ("Coluna de canto (caminho de carga tampo->fundo)",
+                "Prisma coluna_lado x coluna_lado do tampo ate o plano do "
+                "fundo. Leva a carga vertical direto aos pes e trava o corpo "
+                "contra racking. 4 colunas (coluna_qtd); some com coluna_qtd=0."),
     "boss_": ("Boss de insert termico M3",
              "Reforco cilindrico local na flange, ate insert_prof de altura, "
              "onde o insert termico M3 e' fundido a quente depois da impressao. "
@@ -130,6 +145,10 @@ DESCRIPTIONS = {
                     "FIXACAO DO FUNDO (lado Peca 2). 8 no total, coincidentes "
                     "com os bosses/inserts da Peca 1. O parafuso entra por "
                     "baixo e rosqueia no insert."),
+    "pe_": ("Assento de pe (Ø pe_d, face inferior do fundo)",
+            "Rebaixo raso p/ o pe adesivo EPDM/silicone, nos 4 cantos, "
+            "alinhado com a coluna de canto da Peca 1 - fecha o caminho de "
+            "carga tampo -> coluna -> fundo -> pe -> bancada."),
     "cant_furo_": ("Furo de cantoneira da divisoria (Ø furo_passagem, eixo Z)",
                    "SEPARACAO ELETRICA. 2 furos na linha y = parede + "
                    "faixa_baixa. Fixam as cantoneiras que seguram a divisoria "
@@ -165,18 +184,30 @@ Fixacao Peca1/Peca2
   insert nao. Mesma logica de montagem da porca-rebite da chapa: parafuso
   entra por baixo, na Peca 2, e rosqueia no insert da Peca 1.
 
-Resistencia mecanica (estimativa, NAO ensaio - ver lista de verificacao #8/#10)
-  Tampo tratado como placa retangular simplesmente apoiada nas 4 paredes,
-  carga uniforme de 2,9 kgf (~28,4 N) distribuida em 260 x 210 mm, formula de
-  flecha maxima de placa (Roark's Formulas for Stress and Strain, caso de
-  placa retangular simplesmente apoiada, carga uniforme). Resultado e memoria
-  de calculo em check_peca1_3d.py (funcao deflexao_tampo_mm). Tratar como
-  inferencia de engenharia, nao fato validado - o ensaio de bancada (item 8
-  adaptado) com a peca impressa real e' o que confirma.
+Reforco estrutural sob o tampo (audit da carga de 3 kg)
+  O modelo inicial (#118) so' checava a flecha ELASTICA sob 2,9 kg e passava
+  raspando (0,57 mm vs limite 0,70 mm). Faltava a fluencia (creep): PETG sob
+  carga continua + calor irradiado deforma 3-4x a flecha elastica ao longo de
+  meses. Com fator_fluencia = 4 e a carga de projeto de 3,0 kgf, o tampo LISO
+  estouraria o limite L/300. Reforco adicionado, todo parametrico:
+    - 4 colunas de canto (coluna_qtd) do tampo ao plano do fundo: caminho de
+      carga vertical direto aos pes, e travam o corpo contra racking.
+    - nervura perimetral sob o tampo: enrijece a borda e o topo das paredes.
+    - nervura transversal (nervura_transversal) na linha da divisoria:
+      divide o vao do tampo em dois paineis -> flecha cai ~10x.
+  coluna_qtd=0 e nervura_transversal=0 voltam ao modelo do #118 (nesse caso
+  rebaixar altura_externa de 53 p/ 45). Memoria de calculo em
+  check_peca1_3d.py. ESTIMATIVA de engenharia, nao ensaio - o ensaio de
+  bancada (item 8 adaptado) com a peca impressa e a carga real e' o que
+  confirma; a fluencia so' aparece num teste de semanas.
 
-Sem raios de dobra: nao se aplica (peca unica). Corners impressos com aresta
-viva (fillet dos cantos verticais fica como melhoria futura, nao bloqueante
-para esta issue - YAGNI: nenhum requisito de resistencia exige isso agora).
+Ordem de impressao: peca de cabeca p/ baixo (tampo na mesa, 1a camada). As
+nervuras e colunas crescem a partir do tampo -> imprimem sem suporte. A
+flange na base fica por ultimo (ponte de aba_fundo mm p/ dentro) - chanfro
+45deg da flange fica como melhoria se o ensaio de ponte reprovar.
+
+Sem raios de dobra: nao se aplica (peca unica). Fillet dos cantos verticais
+fica como melhoria futura (YAGNI - nenhum requisito atual exige).
 """
 
 NOTAS_FUROS_P1 = """\
@@ -299,26 +330,74 @@ def build_spreadsheet(doc):
     return sheet
 
 
-def deflexao_tampo_mm(g, massa_kg=2.9, e_gpa=1.8):
-    """Estimativa de flecha maxima do tampo sob carga uniforme distribuida.
+def coluna_positions(g):
+    """4 centros (x, y) das colunas de canto (dentro das paredes)."""
+    m = g["parede"] + g["coluna_lado"] / 2.0
+    return [(m, m), (g["pegada_x"] - m, m),
+            (m, g["pegada_y"] - m), (g["pegada_x"] - m, g["pegada_y"] - m)]
 
-    Placa retangular simplesmente apoiada nas 4 bordas (paredes), carga
-    uniforme q. Formula classica (Roark's Formulas for Stress and Strain,
-    caso de placa ret. simpl. apoiada, carga uniforme; forma simplificada
-    tambem em normas de projeto de plastico injetado/impresso):
 
-        w_max = alpha * q * b^4 / (E * t^3)
+def pe_positions(g):
+    """4 centros (x, y) dos assentos de pe no fundo.
 
-    com b = menor vao, a/b = razao de aspecto, alpha ~ 0.0138 para a/b ~= 1.24
-    (260x210) - tabela de Roark para placa simplesmente apoiada (interpolado
-    entre a/b=1.2 -> 0.01353 e a/b=1.4 -> 0.01432). E' uma ESTIMATIVA de
-    engenharia (apoio simples e' o pior caso realista; o encaixe com as
-    paredes de fato da mais engaste que apoio simples, entao o valor real
-    tende a ser MENOR que este). Nao substitui ensaio (item 8/10).
+    Coaxiais com as colunas de canto quando elas existem (caminho de carga
+    fechado); senao recuados pe_inset dos cantos.
     """
-    q = massa_kg * 9.81 / (g["pegada_x"] * g["pegada_y"])  # N/mm^2
-    b = min(g["pegada_x"], g["pegada_y"])
+    if g.get("coluna_qtd", 0) >= 4:
+        return coluna_positions(g)
+    m = g["pe_inset"]
+    return [(m, m), (g["pegada_x"] - m, m),
+            (m, g["pegada_y"] - m), (g["pegada_x"] - m, g["pegada_y"] - m)]
+
+
+def y_nervura_transversal(g):
+    """Linha Y da nervura transversal = plano da divisoria."""
+    return g["parede"] + g["faixa_baixa"]
+
+
+def vao_menor_tampo_mm(g, com_reforco=True):
+    """Menor vao do maior painel do tampo.
+
+    Sem reforco: o menor lado da pegada (260 x 210 -> 210). Com a nervura
+    transversal na linha da divisoria, o tampo vira dois paineis apoiados;
+    governa o mais fundo (traseiro, faixa da rede).
+    """
+    if com_reforco and g.get("nervura_transversal"):
+        yd = y_nervura_transversal(g)
+        frontal = yd - g["parede"]
+        traseiro = (g["pegada_y"] - g["parede"]) - (yd + g["nervura_w"])
+        return max(frontal, traseiro)
+    return min(g["pegada_x"], g["pegada_y"])
+
+
+def _flecha_elastica_mm(g, b, massa_kgf, e_gpa=1.8):
+    """Flecha elastica de placa ret. simplesmente apoiada, carga uniforme.
+
+        w_max = alpha * q * b^4 / (E * t^3)     (Roark's Formulas for Stress
+        and Strain, placa ret. simpl. apoiada)
+
+    alpha ~ 0.0140 cobre de a/b ~ 1.24 (260x210 sem reforco) ate a/b > 2
+    (paineis estreitos com reforco; alpha satura em ~0.0142). Apoio simples
+    e' o pior caso realista - o encaixe com as paredes da' mais engaste, o
+    que reduziria a flecha.
+    """
+    q = massa_kgf * 9.81 / (g["pegada_x"] * g["pegada_y"])  # N/mm^2
     e_mpa = e_gpa * 1000.0  # GPa -> MPa (N/mm^2); PETG ~ 1.8-2.2 GPa
     t = g["parede"]
-    alpha = 0.0140  # interpolado p/ a/b ~= 1.24 (Roark, placa simpl. apoiada)
+    alpha = 0.0140
     return alpha * q * (b ** 4) / (e_mpa * (t ** 3))
+
+
+def deflexao_tampo_mm(g, com_reforco=True):
+    """Flecha de LONGO PRAZO do tampo sob a carga de operacao.
+
+    = flecha elastica (formula de placa) x fator_fluencia. O fator de fluencia
+    (creep viscoelastico do PETG sob carga continua + calor irradiado pela
+    base da cafeteira) e' o que transforma uma flecha elastica pequena numa
+    deformacao permanente relevante ao longo de meses - e' por isso que o
+    modelo do #118 (so' elastico, so' 2.9 kg) subestimava o problema.
+
+    ESTIMATIVA DE ENGENHARIA, nao ensaio (item 8/10 da lista de verificacao).
+    """
+    b = vao_menor_tampo_mm(g, com_reforco)
+    return _flecha_elastica_mm(g, b, g["carga_operacao"]) * g["fator_fluencia"]

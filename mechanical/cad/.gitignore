@@ -1,0 +1,7 @@
+/.venv/
+/STEP/*
+!/STEP/imported/
+/STL/*
+!/STL/imported/
+/tmp/
+__pycache__/

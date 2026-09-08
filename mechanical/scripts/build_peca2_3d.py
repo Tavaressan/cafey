@@ -62,6 +62,13 @@ def build(doc):
                         P + "furo_passagem / 2", H_THRU,
                         (xe, "%sparede + %sfaixa_baixa" % (P, P), Z_FUNDO_BASE), "Z"))
 
+    # --- 4 assentos de pe (rebaixo raso na face inferior, alinhados com as
+    #     colunas de canto da Peca 1: fecham o caminho de carga ate os pes) ---
+    z_pe = "-%saltura_externa - %sparede_fundo - 0.5" % (P, P)
+    for i, (xc, yc) in enumerate(_env.pe_positions(g), 1):
+        cuts.append(cyl(doc, "pe_assento_%d" % i, P + "pe_d / 2", "1.7",
+                        ("%f" % xc, "%f" % yc, z_pe), "Z"))
+
     doc.recompute()
     tool = doc.addObject("Part::MultiFuse", "fundo_recortes")
     tool.Shapes = cuts

@@ -306,17 +306,47 @@ em **sólido cheio** — o infill real do fatiador fica abaixo disso.
 
 **Resistência mecânica: estimativa analítica, não ensaio.** O tampo foi
 tratado como uma placa retangular simplesmente apoiada nas 4 paredes (pior
-caso realista — o encaixe real com as paredes tende a se comportar mais como
-engastado, o que reduziria a flecha real), carga uniforme de 2,9 kgf
-distribuída em 260 × 210 mm, fórmula de flecha máxima de placa retangular
-sob carga uniforme (Roark's Formulas for Stress and Strain). Resultado:
-flecha estimada ≈ 0,57 mm, contra um limite de referência de `L/300` do
-menor vão (0,70 mm — critério usual de rigidez de painel/prateleira, não uma
-norma específica para pedestal de eletrodoméstico). A memória de cálculo
-está em `mechanical/scripts/_env3d.deflexao_tampo_mm`, validada por
-`check_peca1_3d.py`. **Isto não substitui o ensaio de bancada** (equivalente
-ao item 8 da lista de verificação, adaptado de "consulta à empresa" para
-"imprimir o protótipo e testar com a carga real").
+caso realista), carga uniforme distribuída, fórmula de flecha máxima de placa
+retangular (Roark's Formulas for Stress and Strain). Memória de cálculo em
+`mechanical/scripts/_env3d.deflexao_tampo_mm`, validada por
+`check_peca1_3d.py`. **Não substitui o ensaio de bancada** (item 8 adaptado:
+imprimir o protótipo e testar com a carga real por semanas — a fluência não
+aparece num teste curto).
+
+**Audit da carga de 3 kg e reforço (revisão do modelo inicial).** O modelo
+como entregue no PR #118 só checava a flecha **elástica** sob 2,9 kg e
+passava raspando (0,57 mm vs. 0,70 mm). Dois furos:
+
+1. **Fluência ignorada.** PETG sob carga contínua + calor irradiado pela base
+   da cafeteira deforma 3–4× a flecha elástica ao longo de meses. Com
+   `fator_fluencia = 4` e a carga de projeto `carga_operacao = 3,0 kgf` (o
+   pedido explícito, não 2,9), o tampo **liso** dá flecha de longo prazo
+   ≈ **2,4 mm** — estoura o `L/300`.
+2. **Sem caminho de carga definido.** A massa ia do tampo às paredes por
+   flexão, e das paredes ao fundo/pés por um caminho indireto.
+
+**Reforço adicionado** (paramétrico, `parametros_3d.csv`; `coluna_qtd = 0` +
+`nervura_transversal = 0` revertem ao modelo do #118):
+
+- **4 colunas de canto** (`coluna_lado` 12 mm) do tampo ao plano do fundo —
+  caminho de carga vertical direto, e travam o corpo contra racking.
+- **Nervura perimetral** sob o tampo (`nervura_h` 6, `nervura_w` 3 mm) —
+  enrijece a borda do tampo e o topo das paredes.
+- **Nervura transversal** na linha da divisória — divide o vão do tampo em
+  dois painéis: vão efetivo 210 → **118 mm**, flecha ÷ ~10.
+- **Assentos de pé** coaxiais com as colunas na Peça 2 — fecham o caminho
+  tampo → coluna → fundo → pé → bancada.
+
+Custo: `altura_externa` cresce de 45 para **53 mm** (banda de nervura sob o
+tampo; a cavidade útil de 40,2 mm e o arranjo interno descem juntos, sem
+mudança de folgas — `componentes_3d.csv`). Elevação total ~66 mm.
+
+Resultado (`check_peca1_3d.py`): flecha de longo prazo **com** reforço
+≈ **0,24 mm** < `L/300` = 0,70 mm; nenhuma nervura/coluna colide com os 14
+volumes internos (folga mínima 2,1 mm). **Continua estimativa, não ensaio** —
+`fator_fluencia` é arbitrado; o ensaio de fluência de semanas é o que
+confirma, e se der pior sobe-se `nervura_h`/`parede` sem retrabalho de
+geometria.
 
 **Novo entregável: STL.** `mechanical/scripts/export_stl.py` exporta
 `peca1_3d.stl` e `peca2_3d.stl` (tolerância linear 0,1 mm), além do STEP —
@@ -335,7 +365,12 @@ em chapa — medição, ensaio ou consulta, não decisão de arquitetura):
 - Ensaio de temperatura da base da cafeteira (item 10) — confirma ou invalida
   a escolha de PETG.
 - Ensaio de bancada com o protótipo impresso sob a carga real (equivalente
-  ao item 8) — confirma ou invalida a estimativa analítica de flecha.
+  ao item 8) — confirma ou invalida a estimativa analítica de flecha. Inclui
+  um **ensaio de fluência de semanas** (carga de 3 kg + calor mantidos): é o
+  que valida o `fator_fluencia` arbitrado no audit da carga.
+- Medir os pés da cafeteira (itens 2b/2c) — se caírem no meio do vão do
+  tampo em vez de perto dos cantos, alinhar o reforço (2ª nervura
+  transversal) com onde a carga de fato entra.
 - Insert térmico real comprado: confirmar `boss_d`/`insert_furo`/
   `insert_prof` contra o datasheet do insert específico (os valores atuais
   são nominais de M3×5,7, comuns no mercado).

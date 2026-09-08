@@ -70,9 +70,19 @@ def main():
                   and fb.YMin - 0.01 <= fl.YMin and fl.YMax <= fb.YMax + 0.01)
         check(dentro, "fundo cobre %s" % nm)
 
-    # elevacao total (superficie -> topo do tampo), agora com o fundo por baixo
+    # caminho de carga: cada coluna de canto da Peca 1 tem um assento de pe
+    # coaxial na Peca 2 (tampo -> coluna -> fundo -> pe -> bancada).
+    if int(g["coluna_qtd"]) >= 4:
+        col = {(round(o.Shape.BoundBox.Center.x, 1), round(o.Shape.BoundBox.Center.y, 1))
+               for o in d1.Objects if o.Name.startswith("coluna_")}
+        pes = {(round(o.Shape.BoundBox.Center.x, 1), round(o.Shape.BoundBox.Center.y, 1))
+               for o in d2.Objects if o.Name.startswith("pe_assento_")}
+        check(col == pes, "4 assentos de pe coaxiais com as 4 colunas de canto")
+
+    # elevacao total (superficie -> topo do tampo), agora com o fundo por baixo.
+    # Cresceu de ~58 (#118) porque altura_externa subiu 45->53 (banda de nervura).
     elev = g["altura_externa"] + g["parede_fundo"] + g["pe_altura"] + g["apoio_altura"]
-    check(elev <= 62.0, "elevacao total %.1f mm <= ~60-62 (doc: 55 a 60 na chapa)" % elev)
+    check(elev <= 72.0, "elevacao total %.1f mm <= 72 (doc chapa: 55-60; variante 3D cresce p/ a banda de reforco)" % elev)
     print("       elevacao com apoio_altura no maximo (5 mm): %.1f mm"
           % (elev + 5 - g["apoio_altura"]))
 

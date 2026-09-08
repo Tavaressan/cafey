@@ -157,15 +157,21 @@ Aberturas, na referência da peça dobrada (do documento), para o desenho cotado
 ## Variante para impressão 3D (FDM) — issue #116
 
 Reformulação da mecânica para impressão 3D no lugar de chapa dobrada. Mesma
-pegada (260 × 210 mm), mesma altura externa (45 mm) e mesmo arranjo interno
-(`params/componentes_3d.csv`, cópia de `componentes.csv` com os ajustes de
-z/x descritos no próprio arquivo). O que muda:
+pegada (260 × 210 mm), mesma **cavidade útil** (40,2 mm) e mesmo arranjo
+interno (`params/componentes_3d.csv`). A **altura externa cresceu de 45 para
+53 mm**: os 8 mm extras (`reforco_delta`) são uma banda de nervura sob o
+tampo — o subconjunto interno (piso + componentes de `apoio=fundo` + divisória)
+desceu junto, translação rígida, sem novo arranjo. O que muda:
 
 - **Peça 1 vira um sólido único** (tampo + 4 paredes + flange de fixação
   contínua) em vez de 8 dobras + 4 abas de canto — os 4 cantos já nascem
   fechados, sem fator K, sem linha neutra, sem planificação.
 - **Parede 2,4 mm** (3 perímetros de bico 0,4 mm), contra 1,2 mm da chapa —
   mínimo prático para uma parede que é estrutura primária em FDM.
+- **Reforço estrutural sob o tampo** (audit da carga de 3 kg): 4 colunas de
+  canto tampo→fundo + nervura perimetral + nervura transversal na linha da
+  divisória. Tudo paramétrico (`coluna_qtd`, `nervura_transversal`,
+  `nervura_h`). Ver "Reforço estrutural" abaixo.
 - **Fixação Peça 1 / Peça 2 por insert térmico rosqueado M3** (fundido a
   quente em 8 bosses da flange, `boss_d` = 9 mm, furo do insert `insert_furo`
   = 4,0 mm, profundidade `insert_prof` = 6 mm), no lugar da porca-rebite de
@@ -194,18 +200,49 @@ Ordem: `build_peca1_3d` → `build_peca2_3d` → `check_peca1_3d` → `check_pec
 `_env3d.py` é o equivalente de `_env.py` para esta variante: paths de saída
 (`peca1_3d.*`, `peca2_3d.*`, `arranjo_3d.*`), `DESCRIPTIONS`/notas de
 fabricação, `insert_holes()` (posição dos 8 bosses/insertes, mesmo layout dos
-antigos `porca_rebite_holes()`) e `deflexao_tampo_mm()` — estimativa
-analítica de flecha do tampo sob a carga de operação (~2,9 kg), formula de
-placa retangular simplesmente apoiada (Roark's Formulas for Stress and
-Strain). `_build.py` (helpers `box`/`cyl`) é reaproveitado sem mudança.
+antigos `porca_rebite_holes()`), `coluna_positions()` / `pe_positions()` /
+`y_nervura_transversal()` (geometria do reforço) e `deflexao_tampo_mm(g,
+com_reforco=)` — flecha de longo prazo do tampo (elástica × `fator_fluencia`),
+placa ret. simpl. apoiada (Roark). `_build.py` (helpers `box`/`cyl`) é
+reaproveitado sem mudança.
 
 ### Parâmetros (`params/parametros_3d.csv`)
 
 Cópia de `parametros.csv` sem os campos de dobra (`raio_dobra`, `fator_k`,
 `recuo_aba`, `alivio_canto`), com `espessura` renomeado para `parede` (2,4 mm)
 e os novos parâmetros de fixação: `boss_d`, `insert_furo`, `insert_prof`,
-`furo_passagem`. `aba_fundo` sobe de 12 para 14 mm (a flange agora também
-aloja o boss do insert, Ø 9 mm).
+`furo_passagem`. `aba_fundo` sobe de 12 para 14 mm (a flange também aloja o
+boss do insert, Ø 9 mm). Adicionados no audit da carga de 3 kg: `altura_externa`
+45→53, `reforco_delta`, `nervura_h`/`nervura_w`/`nervura_transversal`,
+`coluna_qtd`/`coluna_lado`, `travessia_folga`, `pe_d`/`pe_inset`,
+`carga_operacao` (3,0 kgf), `fator_fluencia` (4,0), `folga_comp_reforco`.
+
+### Reforço estrutural sob o tampo (audit da carga de 3 kg)
+
+O modelo inicial do #116 só validava a flecha **elástica** do tampo sob
+2,9 kg e passava raspando (0,57 mm vs. limite `L/300` = 0,70 mm). O audit
+apontou dois furos: (1) faltava a **fluência** — PETG sob carga contínua +
+calor irradiado deforma 3–4× a flecha elástica ao longo de meses; (2) o
+pedido é **3 kg**, não 2,9. Com `fator_fluencia = 4` e `carga_operacao = 3,0`,
+o tampo **liso** dá flecha de longo prazo ≈ **2,4 mm** — estoura o limite.
+
+Reforço adicionado, todo paramétrico em `parametros_3d.csv`:
+
+| Elemento | Param | Função |
+|---|---|---|
+| 4 colunas de canto (tampo → plano do fundo) | `coluna_qtd` (4), `coluna_lado` (12) | Caminho de carga vertical direto aos pés; travam o corpo contra racking |
+| Nervura perimetral sob o tampo | `nervura_h` (6), `nervura_w` (3) | Enrijece a borda do tampo e o topo das paredes |
+| Nervura transversal (linha da divisória) | `nervura_transversal` (1) | Divide o vão do tampo em 2 painéis → vão efetivo 210 → **118 mm**, flecha ÷ ~10 |
+| Assentos de pé coaxiais com as colunas | `pe_d` (15) na Peça 2 | Fecham o caminho tampo → coluna → fundo → pé → bancada |
+
+Resultado (`check_peca1_3d.py`): flecha de longo prazo **com** reforço ≈
+**0,24 mm** < `L/300` = 0,70 mm. A peça imprime de cabeça para baixo (tampo
+na mesa) — nervuras e colunas crescem a partir do tampo, **sem suporte**.
+
+`coluna_qtd = 0` e `nervura_transversal = 0` voltam ao modelo do #118 (nesse
+caso rebaixar `altura_externa` de 53 para 45). **Estimativa analítica, não
+FEA nem ensaio** — o ensaio de bancada com o protótipo impresso e a carga
+real por semanas (fluência) é o que confirma.
 
 ### Massa e resistência mecânica — decisões e premissas
 
@@ -213,15 +250,12 @@ aloja o boss do insert, Ø 9 mm).
   ensaio — ver `docs/status-modulo-fisico.md` para a justificativa e a
   ressalva. Densidade usada apenas para uma estimativa de massa em **sólido
   cheio** (limite superior; o infill parcial do fatiador reduz a massa real).
-- **Flecha do tampo sob carga de operação:** estimada analiticamente
-  (`_env3d.deflexao_tampo_mm`, placa simplesmente apoiada — pior caso; o
-  encaixe real com as paredes tende a se comportar mais como engastado, então
-  a flecha real tende a ser menor). `check_peca1_3d.py` valida contra
-  `L/300` do menor vão (referência de rigidez usual de prateleira/painel, não
-  uma norma específica de pedestal de eletrodoméstico). **Isto é uma
-  inferência de engenharia, não um ensaio** — o item equivalente ao 8/10 da
-  lista de verificação de `docs/status-modulo-fisico.md` (ensaio de bancada
-  com a peça impressa real) é o que confirma.
+- **Flecha do tampo sob carga de operação:** `_env3d.deflexao_tampo_mm(g,
+  com_reforco=)` — flecha **de longo prazo** = elástica (placa ret. simpl.
+  apoiada, Roark) × `fator_fluencia`. `check_peca1_3d.py` reporta o valor
+  **sem** reforço (≈ 2,4 mm, referência do audit) e valida o valor **com**
+  reforço (≈ 0,24 mm) contra `L/300` do menor vão. **Inferência de
+  engenharia, não ensaio** — item 8/10 da lista de verificação.
 - **Sem fillet nos cantos verticais** nesta primeira versão — decisão
   consciente (YAGNI): nenhum requisito de resistência levantado pela issue
   exige isso agora; fica como melhoria futura se o ensaio de bancada indicar
@@ -230,16 +264,21 @@ aloja o boss do insert, Ø 9 mm).
 ### Arranjo interno (`arranjo_3d.FCStd`)
 
 Mesmos 14 componentes de `componentes.csv`, mesma separação rede/baixa
-tensão. Ajuste necessário registrado em `componentes_3d.csv`: os componentes
-com `apoio=fundo` (ESP32, placa auxiliar, bornes de rede, terra, HLK-PM01,
-módulo de relé) sobem para `z=-39` (de `z=-43,8` na chapa) — em standoffs,
-para não colidir com o topo dos bosses de insert (que, para caber o furo de
-6 mm de profundidade, ficam mais altos que a flange de 2,4 mm). A divisória
-fica 2,4 mm mais estreita de cada lado (255,2 × 3 × 40, x=2,4) porque a
-parede é mais grossa que a chapa. `check_arranjo_3d.py` confirma: zero
-interferência entre os 14 volumes, zero penetração na peça impressa, e
-0,2 mm de folga sob o tampo (mesma ordem de grandeza apertada que já existia
-na versão em chapa — ver achado do 1º passe na seção anterior).
+tensão. Ajustes em `componentes_3d.csv`:
+- Componentes de `apoio=fundo` em standoffs acima do topo dos bosses de
+  insert (que ficam mais altos que a flange de 2,4 mm).
+- Todo o subconjunto interno referenciado ao piso (`apoio` ∈ fundo /
+  divisória / abraçadeira / livre / fios) **desceu 8 mm** (`reforco_delta`)
+  com o crescimento de `altura_externa` 45→53 — abre a banda de nervura sob
+  o tampo sem mexer nas folgas internas (standoff 6 mm, divisória→piso
+  2,4 mm são as mesmas do #118).
+- Divisória 2,4 mm mais estreita de cada lado (255,2 × 3 × 40) e agora com
+  topo em `z=-10,6` — 2,2 mm abaixo da nervura transversal.
+
+`check_arranjo_3d.py` confirma: zero interferência entre os 14 volumes, zero
+penetração na peça impressa, **8,1 mm** de folga sob o tampo (a banda de
+nervura); e `check_peca1_3d.py` valida que nenhuma nervura/coluna colide com
+os volumes internos (folga mínima 2,1 mm ≥ `folga_comp_reforco`).
 
 ### Entregáveis (`build/`, fora do versionamento)
 
@@ -256,5 +295,14 @@ na versão em chapa — ver achado do 1º passe na seção anterior).
   M3x5,7 comum no mercado (ex. Ruthex/Boyard) — confirmar contra o insert
   realmente comprado antes de imprimir o protótipo.
 - Sem fillet nos cantos verticais (ver acima).
+- **`fator_fluencia` (4,0) é arbitrado** — faixa típica de termoplástico
+  carregado, mas o valor real do PETG impresso sob a temperatura da base da
+  cafeteira só sai de um ensaio de fluência de semanas (item 8/10). Se o
+  ensaio der pior, subir `nervura_h` ou `parede`.
+- **Flange na base imprime como ponte** de `aba_fundo` (14 mm) para dentro,
+  sem chanfro 45° — aceitável para PETG a 14 mm, mas confirmar no protótipo;
+  chanfro fica como melhoria paramétrica se reprovar.
+- `pe_d`/`pe_inset`: assento de pé é só um rebaixo de localização (1,2 mm) —
+  o pé em si (EPDM/silicone adesivo, `pe_altura` 10 mm) é externo.
 - `arranjo_3d.FCStd` é snapshot, não assembly vivo (mesma limitação da
   versão em chapa).

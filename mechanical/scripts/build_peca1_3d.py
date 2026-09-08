@@ -81,6 +81,59 @@ def build(doc):
                         P + "boss_d / 2", P + "insert_prof",
                         ("%f" % xc, "%f" % yc, z_base), "Z"))
 
+    # --- 4b. reforco estrutural sob o tampo (audit da carga de 3 kg) ---
+    # Peca impressa de cabeca p/ baixo: nervuras e colunas crescem a partir
+    # do tampo, imprimem sem suporte. Topo das nervuras coincide com a face
+    # inferior do tampo (fundem no MultiFuse).
+    nerv_bot = "-%sparede - %snervura_h" % (P, P)
+    nerv_h = P + "nervura_h"
+    w = P + "nervura_w"
+    inner_x0 = P + "parede"
+    inner_x1 = "%spegada_x - %sparede" % (P, P)
+    span_x = "%spegada_x - 2 * %sparede" % (P, P)
+
+    # nervura perimetral: 4 barras (frontal/traseira cobrem toda a largura
+    # interna; esquerda/direita ficam entre elas).
+    adds.append(box(doc, "nervura_perimetral_f",
+                    span_x, w, nerv_h, inner_x0, P + "parede", nerv_bot))
+    adds.append(box(doc, "nervura_perimetral_t",
+                    span_x, w, nerv_h, inner_x0,
+                    "%spegada_y - %sparede - %snervura_w" % (P, P, P), nerv_bot))
+    lat_y0 = "%sparede + %snervura_w" % (P, P)
+    lat_span_y = "%spegada_y - 2 * %sparede - 2 * %snervura_w" % (P, P, P)
+    adds.append(box(doc, "nervura_perimetral_e",
+                    w, lat_span_y, nerv_h, inner_x0, lat_y0, nerv_bot))
+    adds.append(box(doc, "nervura_perimetral_d",
+                    w, lat_span_y, nerv_h,
+                    "%spegada_x - %sparede - %snervura_w" % (P, P, P),
+                    lat_y0, nerv_bot))
+
+    # nervura transversal na linha da divisoria (divide o vao do tampo)
+    if params.get("nervura_transversal"):
+        yd = _env.y_nervura_transversal(params)
+        adds.append(box(doc, "nervura_transversal",
+                        span_x, w, nerv_h, inner_x0,
+                        "%f - %snervura_w / 2" % (yd, P), nerv_bot))
+        # rasgo p/ a travessia de 5 fios (componente travessia_fios)
+        comps = {c["nome"]: c for c in _env.load_componentes()}
+        tv = comps["travessia_fios"]
+        adds_cut_slot_x0 = tv["x"] - params["travessia_folga"]
+        adds_cut_slot_w = tv["dx"] + 2 * params["travessia_folga"]
+        cuts.append(box(doc, "nervura_transv_rasgo",
+                        "%f" % adds_cut_slot_w, "%snervura_w + 2" % P,
+                        "%snervura_h / 2" % P,
+                        "%f" % adds_cut_slot_x0,
+                        "%f - %snervura_w / 2 - 1" % (yd, P), nerv_bot))
+
+    # colunas de canto: caminho de carga vertical tampo -> plano do fundo
+    if params.get("coluna_qtd", 0) >= 4:
+        col_h = "%saltura_externa - %sparede" % (P, P)
+        for i, (xc, yc) in enumerate(_env.coluna_positions(params)):
+            adds.append(box(doc, "coluna_%d" % i,
+                            P + "coluna_lado", P + "coluna_lado", col_h,
+                            "%f - %scoluna_lado / 2" % (xc, P),
+                            "%f - %scoluna_lado / 2" % (yc, P), z_base))
+
     # --- 5. aberturas frontais (Y=0, eixo de corte +Y) ---
     zc = "-" + P + "abertura_centro_z"
     thru_y = ("-1", "%sparede + 2" % P)

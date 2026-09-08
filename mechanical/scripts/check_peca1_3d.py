@@ -48,15 +48,23 @@ def main():
     check(0.1 < massa_g / 1000 < 1.5,
           "massa solido cheio %.0f g em faixa esperada (infill real reduz)" % massa_g)
 
-    # --- estimativa de flecha do tampo sob carga de operacao (~2.9 kg) ---
-    # limite adotado: L/300 do menor vao (210 mm) = 0.7 mm - criterio usual de
-    # rigidez de painel/prateleira; nao ha norma especifica para pedestal de
-    # eletrodomestico, entao e' uma referencia conservadora, nao normativa.
-    flecha = _env.deflexao_tampo_mm(g)
+    # --- flecha de LONGO PRAZO do tampo sob a carga de projeto (3.0 kgf) ---
+    # Limite: L/300 do menor vao = criterio usual de rigidez de painel; nao ha
+    # norma de pedestal de eletrodomestico, entao e' referencia conservadora.
+    # A flecha checada e' a de LONGO PRAZO (elastica x fator_fluencia): e' a
+    # fluencia do PETG sob carga continua + calor que faz a diferenca, nao a
+    # flecha instantanea. Sem reforco, o numero ESTOURA o limite - por isso as
+    # nervuras + colunas existem (ver deflexao_tampo_mm em _env3d.py).
     limite = min(g["pegada_x"], g["pegada_y"]) / 300.0
-    check(flecha < limite,
-          "flecha estimada do tampo %.3f mm < L/300 = %.3f mm (apoio simples, pior caso)"
-          % (flecha, limite))
+    flecha_lp = _env.deflexao_tampo_mm(g, com_reforco=True)
+    flecha_sem = _env.deflexao_tampo_mm(g, com_reforco=False)
+    print("       vao efetivo do tampo: %.0f mm (sem reforco %.0f mm)"
+          % (_env.vao_menor_tampo_mm(g, True), _env.vao_menor_tampo_mm(g, False)))
+    print("       flecha longo prazo SEM reforco ~ %.2f mm (referencia do audit; > limite)"
+          % flecha_sem)
+    check(flecha_lp < limite,
+          "flecha longo prazo COM reforco %.3f mm < L/300 = %.3f mm"
+          % (flecha_lp, limite))
 
     # --- margens de projeto das aberturas (a partir dos alias) ---
     mp, me = g["margem_parede"], g["margem_extremidade"]
@@ -122,6 +130,44 @@ def main():
     check(g["insert_furo"] < g["boss_d"] - 1.0,
           "insert_furo %.1f < boss_d %.1f - 1 mm (parede minima do boss)"
           % (g["insert_furo"], g["boss_d"]))
+
+    # --- reforco estrutural: geometria e folga com o arranjo interno ---
+    reforco = [o for o in doc.Objects
+               if o.Name.startswith(("nervura_perimetral_", "coluna_"))
+               or o.Name == "nervura_transversal"]
+    colunas = [o for o in doc.Objects if o.Name.startswith("coluna_")]
+    check(len(colunas) == int(g["coluna_qtd"]),
+          "colunas de canto: %d (coluna_qtd = %d)" % (len(colunas), int(g["coluna_qtd"])))
+    for o in colunas:
+        b = o.Shape.BoundBox
+        check(abs(b.ZMax - (-g["parede"])) < 0.1 and abs(b.ZMin - (-g["altura_externa"])) < 0.1,
+              "%s vai do tampo (z=%.1f) ao plano do fundo (z=%.1f)" % (o.Name, b.ZMax, b.ZMin))
+    if g.get("nervura_transversal"):
+        check(any(o.Name == "nervura_transversal" for o in doc.Objects),
+              "nervura transversal presente (nervura_transversal = 1)")
+
+    # nervuras/colunas nao podem colidir com nenhum volume de componentes_3d.csv,
+    # e onde ficam por cima de um componente precisam de folga_comp_reforco.
+    import Part as _P
+    fc = g["folga_comp_reforco"]
+    pior_inter = 0.0
+    pior_folga = 1e9
+    for c in _env.load_componentes():
+        cx0, cy0, cz0 = c["x"], c["y"], c["z"]
+        caixa = _P.makeBox(c["dx"], c["dy"], c["dz"], App.Vector(cx0, cy0, cz0))
+        for o in reforco:
+            inter = o.Shape.common(caixa).Volume
+            pior_inter = max(pior_inter, inter)
+            rb = o.Shape.BoundBox
+            plan_overlap = (rb.XMin < cx0 + c["dx"] and rb.XMax > cx0
+                            and rb.YMin < cy0 + c["dy"] and rb.YMax > cy0)
+            if plan_overlap:
+                folga = rb.ZMin - (cz0 + c["dz"])
+                pior_folga = min(pior_folga, folga)
+    check(pior_inter < 1.0,
+          "reforco x componentes: sem interferencia (max %.2f mm3)" % pior_inter)
+    check(pior_folga >= fc - 0.05,
+          "folga minima reforco -> componente %.2f mm >= %.1f mm" % (pior_folga, fc))
 
     print()
     if falhas:
