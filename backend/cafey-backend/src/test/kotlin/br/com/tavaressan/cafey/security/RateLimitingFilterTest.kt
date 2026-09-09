@@ -95,6 +95,17 @@ class RateLimitingFilterTest {
     }
 
     @Test
+    fun `mapa de buckets nao deve crescer sem limite com muitos IPs distintos`() {
+        val filter = RateLimitingFilter(properties, objectMapper)
+
+        repeat(filter.maxBuckets + 2_000) { index ->
+            performRequest(filter, "/auth/login", ip = "ip-$index")
+        }
+
+        assertTrue(filter.bucketCount() <= filter.maxBuckets)
+    }
+
+    @Test
     fun `deve ignorar rate limit quando desabilitado`() {
         properties.enabled = false
         val filter = RateLimitingFilter(properties, objectMapper)
