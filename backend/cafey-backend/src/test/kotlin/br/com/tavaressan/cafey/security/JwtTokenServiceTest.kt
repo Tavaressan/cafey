@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
+import org.springframework.mock.env.MockEnvironment
 import java.security.KeyPairGenerator
 import java.util.Base64
 import java.util.UUID
@@ -83,6 +84,15 @@ class JwtTokenServiceTest {
 
         assertThrows(IllegalArgumentException::class.java) {
             JwtTokenService(JwtKeyProperties(privateKey = privateKeyBase64, publicKey = publicKeyBase64))
+        }
+    }
+
+    @Test
+    fun `deve falhar o boot quando nenhuma chave externa e configurada no perfil prod`() {
+        val prodEnvironment = MockEnvironment().apply { setActiveProfiles("prod") }
+
+        assertThrows(IllegalStateException::class.java) {
+            JwtTokenService(JwtKeyProperties(), prodEnvironment)
         }
     }
 }
