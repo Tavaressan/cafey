@@ -28,6 +28,9 @@ mechanical/build/
 *.FCStd1
 *.FCBak
 
+# Marca — PNG/PDF derivados dos SVGs por export-assets.ps1
+docs/docs_interface/logo/assets/
+
 # Python
 __pycache__/
 *.pyc

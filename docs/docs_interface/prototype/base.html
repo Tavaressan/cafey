@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caféy · Base</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/cafey.css">
+</head>
+<body class="theme-dark">
+<div class="app" data-nav="base" data-nav-note="CFY-0A31 · firmware 1.4.2">
+  <main class="app__main">
+    <div class="shell">
+
+      <header class="screen-head">
+        <h1 class="screen-title">Base da cozinha</h1>
+        <p class="screen-lede">O módulo debaixo da sua cafeteira.</p>
+      </header>
+
+      <section class="card" style="flex-direction:row;align-items:center;gap:16px;padding:18px 20px">
+        <img src="../logo/cafey-logo.svg" alt="" width="48" height="48" style="flex:none">
+        <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+          <div style="font:600 18px var(--display);letter-spacing:-.02em">Caféy Base</div>
+          <div class="card__meta">CFY-0A31 · Britânia CP30 · 800 W</div>
+        </div>
+        <div class="device__state push" style="color:var(--blue-soft)"><span class="dot"></span>Online</div>
+      </section>
+
+      <div class="wide">
+
+        <section class="card card--flush">
+          <div class="deflist">
+            <div class="deflist__row">
+              <div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+                <span class="deflist__key">Wi-Fi</span>
+                <span class="deflist__val">Cozinha</span>
+              </div>
+              <div class="signal push">
+                <i style="height:6px"></i><i style="height:10px"></i><i style="height:14px"></i><i style="height:18px"></i>
+              </div>
+              <span class="deflist__aside deflist__aside--mono" style="margin-left:0">−52 dBm</span>
+            </div>
+            <div class="deflist__row">
+              <div style="display:flex;flex-direction:column;gap:2px">
+                <span class="deflist__key">Nuvem</span>
+                <span class="deflist__val">Conectada</span>
+              </div>
+              <span class="deflist__aside">Bluetooth reserva pronto</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" style="gap:14px">
+          <div class="row">
+            <div style="display:flex;flex-direction:column;gap:3px">
+              <span class="deflist__key">Firmware</span>
+              <span style="font:600 21px var(--display);letter-spacing:-.02em">1.4.2</span>
+            </div>
+            <span class="pill push">
+              <svg class="star star--blue star--sm" viewBox="220 220 72 72" aria-hidden="true">
+                <path d="M 256 226 Q 263 249 286 256 Q 263 263 256 286 Q 249 263 226 256 Q 249 249 256 226 Z"></path>
+              </svg>Atualizado
+            </span>
+          </div>
+          <div style="font:400 13px/1.5 var(--text);color:var(--muted)">Instalado em 12 de agosto de 2026 · nunca atualiza durante um preparo.</div>
+          <button class="btn btn--ghost" type="button" style="height:46px">Buscar atualizações</button>
+        </section>
+
+      </div>
+
+      <section class="card" style="gap:12px;padding:18px 20px">
+        <div style="font:600 16px var(--display);letter-spacing:-.015em">A luz da base</div>
+        <div class="legend">
+          <div class="legend__row">
+            <svg class="star star--blue" viewBox="220 220 72 72" aria-hidden="true"><path d="M 256 226 Q 263 249 286 256 Q 263 263 256 286 Q 249 263 226 256 Q 249 249 256 226 Z"></path></svg>
+            Azul fixo — pronta
+          </div>
+          <div class="legend__row">
+            <svg class="star" viewBox="220 220 72 72" style="fill:#C24A2B" aria-hidden="true"><path d="M 256 226 Q 263 249 286 256 Q 263 263 256 286 Q 249 263 226 256 Q 249 249 256 226 Z"></path></svg>
+            Vermelho pulsando — preparando
+          </div>
+          <div class="legend__row">
+            <svg class="star star--grey" viewBox="220 220 72 72" aria-hidden="true"><path d="M 256 226 Q 263 249 286 256 Q 263 263 256 286 Q 249 263 226 256 Q 249 249 256 226 Z"></path></svg>
+            Cinza fraco — offline, os agendamentos continuam disparando
+          </div>
+        </div>
+        <div style="font:400 12.5px/1.5 var(--text);color:var(--muted);text-wrap:pretty">O botão do pedestal prepara café sem o app.</div>
+      </section>
+
+    </div>
+  </main>
+</div>
+<script src="assets/nav.js"></script>
+</body>
+</html>
