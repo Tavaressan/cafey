@@ -20,8 +20,8 @@
   var STAR = '<svg class="star star--blue" viewBox="220 220 72 72" aria-hidden="true">' +
     '<path d="M 256 226 Q 263 249 286 256 Q 263 263 256 286 Q 249 263 226 256 Q 249 249 256 226 Z"></path></svg>';
 
-  // Marca oficial — assets/cafey-logo.svg é cópia byte a byte de docs_interface/logo.
-  var MARK = '<img src="assets/cafey-logo.svg" alt="" width="34" height="34" style="flex:none">';
+  // Marca oficial; o caminho é relativo à página que injeta o chrome, não a este arquivo.
+  var MARK = '<img src="../logo/cafey-logo.svg" alt="" width="34" height="34" style="flex:none">';
 
   function icon(paths, cls) {
     return '<svg class="' + (cls || '') + '" viewBox="0 0 24 24" aria-hidden="true">' + paths + '</svg>';

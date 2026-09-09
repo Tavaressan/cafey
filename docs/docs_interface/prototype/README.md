@@ -18,10 +18,9 @@ que caem para as do sistema se não houver rede.
 | `base.html` | 2d — Base, no fundo escuro |
 | `assets/cafey.css` | Tokens de cor, tipografia e componentes |
 | `assets/nav.js` | Barra de abas, trilho de ícones e barra lateral (equivale ao `cafey-tabs.js`) |
-| `assets/cafey-logo.svg` | Cópia de `../logo/cafey-logo.svg` |
 
-`assets/cafey-logo.svg` é cópia byte a byte da marca oficial, porque `../logo/` ainda não está
-versionado e o protótipo precisa funcionar em qualquer clone. Se a marca mudar, recopie o arquivo.
+A marca vem de `../logo/cafey-logo.svg` por caminho relativo — sem cópia. Mexer no arquivo da
+marca muda o protótipo junto.
 
 ## Pontos de quebra
 
