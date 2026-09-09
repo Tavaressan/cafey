@@ -1,4 +1,4 @@
-package br.com.cafey.security
+package br.com.tavaressan.cafey.security
 
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository

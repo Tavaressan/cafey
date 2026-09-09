@@ -1,8 +1,8 @@
-package br.com.cafey.mqtt
+package br.com.tavaressan.cafey.mqtt
 
-import br.com.cafey.device.DispositivoRepository
-import br.com.cafey.event.EventoService
-import br.com.cafey.event.IngestaoEventoRequest
+import br.com.tavaressan.cafey.device.DispositivoRepository
+import br.com.tavaressan.cafey.event.EventoService
+import br.com.tavaressan.cafey.event.IngestaoEventoRequest
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service

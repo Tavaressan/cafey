@@ -1,8 +1,8 @@
-package br.com.cafey.mqtt
+package br.com.tavaressan.cafey.mqtt
 
-import br.com.cafey.config.AwsIotProperties
-import br.com.cafey.device.Dispositivo
-import br.com.cafey.device.DispositivoRepository
+import br.com.tavaressan.cafey.config.AwsIotProperties
+import br.com.tavaressan.cafey.device.Dispositivo
+import br.com.tavaressan.cafey.device.DispositivoRepository
 import tools.jackson.databind.ObjectMapper
 import tools.jackson.module.kotlin.jacksonObjectMapper
 import org.junit.jupiter.api.Assertions.*
@@ -12,8 +12,8 @@ import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.ArgumentCaptor
 import org.mockito.Mock
 import org.mockito.Mockito.*
-import br.com.cafey.event.EventoService
-import br.com.cafey.event.IngestaoEventoRequest
+import br.com.tavaressan.cafey.event.EventoService
+import br.com.tavaressan.cafey.event.IngestaoEventoRequest
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.context.ApplicationEventPublisher
 import java.time.Instant

@@ -1,6 +1,6 @@
-package br.com.cafey.exception
+package br.com.tavaressan.cafey.exception
 
-import br.com.cafey.controller.TestController
+import br.com.tavaressan.cafey.controller.TestController
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.springframework.http.MediaType

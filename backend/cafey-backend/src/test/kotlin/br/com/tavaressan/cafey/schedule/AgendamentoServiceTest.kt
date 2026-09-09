@@ -1,15 +1,15 @@
-package br.com.cafey.schedule
+package br.com.tavaressan.cafey.schedule
 
-import br.com.cafey.config.AwsIotProperties
-import br.com.cafey.device.Dispositivo
-import br.com.cafey.device.DispositivoRepository
-import br.com.cafey.device.PapelDispositivo
-import br.com.cafey.device.UsuarioDispositivo
-import br.com.cafey.device.UsuarioDispositivoRepository
-import br.com.cafey.mqtt.AgendamentosPayload
-import br.com.cafey.mqtt.DispositivoOnlineEvent
-import br.com.cafey.mqtt.MqttClientService
-import br.com.cafey.user.Usuario
+import br.com.tavaressan.cafey.config.AwsIotProperties
+import br.com.tavaressan.cafey.device.Dispositivo
+import br.com.tavaressan.cafey.device.DispositivoRepository
+import br.com.tavaressan.cafey.device.PapelDispositivo
+import br.com.tavaressan.cafey.device.UsuarioDispositivo
+import br.com.tavaressan.cafey.device.UsuarioDispositivoRepository
+import br.com.tavaressan.cafey.mqtt.AgendamentosPayload
+import br.com.tavaressan.cafey.mqtt.DispositivoOnlineEvent
+import br.com.tavaressan.cafey.mqtt.MqttClientService
+import br.com.tavaressan.cafey.user.Usuario
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

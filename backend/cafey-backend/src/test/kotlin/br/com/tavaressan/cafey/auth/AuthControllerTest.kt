@@ -1,11 +1,11 @@
-package br.com.cafey.auth
+package br.com.tavaressan.cafey.auth
 
-import br.com.cafey.exception.GlobalExceptionHandler
-import br.com.cafey.security.JwtTokenService
-import br.com.cafey.security.RefreshToken
-import br.com.cafey.security.RefreshTokenRepository
-import br.com.cafey.user.Usuario
-import br.com.cafey.user.UsuarioRepository
+import br.com.tavaressan.cafey.exception.GlobalExceptionHandler
+import br.com.tavaressan.cafey.security.JwtTokenService
+import br.com.tavaressan.cafey.security.RefreshToken
+import br.com.tavaressan.cafey.security.RefreshTokenRepository
+import br.com.tavaressan.cafey.user.Usuario
+import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -35,7 +35,7 @@ class AuthControllerTest {
     private lateinit var refreshTokenRepository: RefreshTokenRepository
 
     @Mock
-    private lateinit var passwordResetTokenRepository: br.com.cafey.security.PasswordResetTokenRepository
+    private lateinit var passwordResetTokenRepository: br.com.tavaressan.cafey.security.PasswordResetTokenRepository
 
     private lateinit var passwordEncoder: BCryptPasswordEncoder
     private lateinit var jwtTokenService: JwtTokenService

@@ -1,6 +1,6 @@
-package br.com.cafey.schedule
+package br.com.tavaressan.cafey.schedule
 
-import br.com.cafey.device.Dispositivo
+import br.com.tavaressan.cafey.device.Dispositivo
 import jakarta.persistence.*
 import java.time.Instant
 import java.time.LocalTime

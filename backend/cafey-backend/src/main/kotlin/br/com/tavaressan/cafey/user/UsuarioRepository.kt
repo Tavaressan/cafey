@@ -1,4 +1,4 @@
-package br.com.cafey.user
+package br.com.tavaressan.cafey.user
 
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository

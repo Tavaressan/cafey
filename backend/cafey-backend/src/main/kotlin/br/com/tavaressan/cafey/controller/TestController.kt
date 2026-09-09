@@ -1,7 +1,7 @@
-package br.com.cafey.controller
+package br.com.tavaressan.cafey.controller
 
-import br.com.cafey.exception.BadCredentialsException
-import br.com.cafey.exception.ResourceNotFoundException
+import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import org.springframework.web.bind.annotation.GetMapping

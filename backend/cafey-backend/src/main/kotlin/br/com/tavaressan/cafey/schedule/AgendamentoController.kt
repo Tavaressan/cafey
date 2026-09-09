@@ -1,4 +1,4 @@
-package br.com.cafey.schedule
+package br.com.tavaressan.cafey.schedule
 
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus

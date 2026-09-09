@@ -1,4 +1,4 @@
-package br.com.cafey.auth
+package br.com.tavaressan.cafey.auth
 
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus

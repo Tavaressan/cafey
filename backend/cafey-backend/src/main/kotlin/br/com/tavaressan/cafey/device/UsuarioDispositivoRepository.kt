@@ -1,4 +1,4 @@
-package br.com.cafey.device
+package br.com.tavaressan.cafey.device
 
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query

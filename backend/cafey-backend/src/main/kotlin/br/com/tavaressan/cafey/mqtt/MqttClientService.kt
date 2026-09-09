@@ -1,6 +1,6 @@
-package br.com.cafey.mqtt
+package br.com.tavaressan.cafey.mqtt
 
-import br.com.cafey.config.AwsIotProperties
+import br.com.tavaressan.cafey.config.AwsIotProperties
 import tools.jackson.databind.ObjectMapper
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy

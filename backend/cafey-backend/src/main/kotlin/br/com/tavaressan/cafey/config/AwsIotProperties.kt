@@ -1,4 +1,4 @@
-package br.com.cafey.config
+package br.com.tavaressan.cafey.config
 
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Configuration

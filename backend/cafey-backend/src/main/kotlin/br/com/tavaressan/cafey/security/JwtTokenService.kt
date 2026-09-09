@@ -1,4 +1,4 @@
-package br.com.cafey.security
+package br.com.tavaressan.cafey.security
 
 import com.nimbusds.jose.jwk.JWKSet
 import com.nimbusds.jose.jwk.RSAKey

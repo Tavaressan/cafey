@@ -1,4 +1,4 @@
-package br.com.cafey.event
+package br.com.tavaressan.cafey.event
 
 import jakarta.validation.Valid
 import org.springframework.data.domain.Page

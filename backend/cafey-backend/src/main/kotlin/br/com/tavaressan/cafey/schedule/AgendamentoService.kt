@@ -1,10 +1,10 @@
-package br.com.cafey.schedule
+package br.com.tavaressan.cafey.schedule
 
-import br.com.cafey.device.DispositivoRepository
-import br.com.cafey.device.PapelDispositivo
-import br.com.cafey.device.UsuarioDispositivoRepository
-import br.com.cafey.exception.BadCredentialsException
-import br.com.cafey.exception.ResourceNotFoundException
+import br.com.tavaressan.cafey.device.DispositivoRepository
+import br.com.tavaressan.cafey.device.PapelDispositivo
+import br.com.tavaressan.cafey.device.UsuarioDispositivoRepository
+import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional

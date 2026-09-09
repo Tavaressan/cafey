@@ -1,12 +1,12 @@
-package br.com.cafey.event
+package br.com.tavaressan.cafey.event
 
-import br.com.cafey.device.Dispositivo
-import br.com.cafey.device.DispositivoRepository
-import br.com.cafey.device.PapelDispositivo
-import br.com.cafey.device.UsuarioDispositivo
-import br.com.cafey.device.UsuarioDispositivoRepository
-import br.com.cafey.exception.BadCredentialsException
-import br.com.cafey.user.Usuario
+import br.com.tavaressan.cafey.device.Dispositivo
+import br.com.tavaressan.cafey.device.DispositivoRepository
+import br.com.tavaressan.cafey.device.PapelDispositivo
+import br.com.tavaressan.cafey.device.UsuarioDispositivo
+import br.com.tavaressan.cafey.device.UsuarioDispositivoRepository
+import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.user.Usuario
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

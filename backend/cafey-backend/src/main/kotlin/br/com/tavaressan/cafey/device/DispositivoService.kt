@@ -1,8 +1,8 @@
-package br.com.cafey.device
+package br.com.tavaressan.cafey.device
 
-import br.com.cafey.exception.BadCredentialsException
-import br.com.cafey.exception.ResourceNotFoundException
-import br.com.cafey.user.UsuarioRepository
+import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.exception.ResourceNotFoundException
+import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant

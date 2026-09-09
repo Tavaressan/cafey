@@ -1,11 +1,11 @@
-package br.com.cafey.schedule
+package br.com.tavaressan.cafey.schedule
 
-import br.com.cafey.config.AwsIotProperties
-import br.com.cafey.device.DispositivoRepository
-import br.com.cafey.mqtt.AgendamentoItemPayload
-import br.com.cafey.mqtt.AgendamentosPayload
-import br.com.cafey.mqtt.DispositivoOnlineEvent
-import br.com.cafey.mqtt.MqttClientService
+import br.com.tavaressan.cafey.config.AwsIotProperties
+import br.com.tavaressan.cafey.device.DispositivoRepository
+import br.com.tavaressan.cafey.mqtt.AgendamentoItemPayload
+import br.com.tavaressan.cafey.mqtt.AgendamentosPayload
+import br.com.tavaressan.cafey.mqtt.DispositivoOnlineEvent
+import br.com.tavaressan.cafey.mqtt.MqttClientService
 import org.slf4j.LoggerFactory
 import org.springframework.context.event.EventListener
 import org.springframework.stereotype.Component

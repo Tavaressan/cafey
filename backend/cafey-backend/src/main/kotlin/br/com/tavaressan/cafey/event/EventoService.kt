@@ -1,10 +1,10 @@
-package br.com.cafey.event
+package br.com.tavaressan.cafey.event
 
-import br.com.cafey.device.DispositivoRepository
-import br.com.cafey.device.PapelDispositivo
-import br.com.cafey.device.UsuarioDispositivoRepository
-import br.com.cafey.exception.BadCredentialsException
-import br.com.cafey.exception.ResourceNotFoundException
+import br.com.tavaressan.cafey.device.DispositivoRepository
+import br.com.tavaressan.cafey.device.PapelDispositivo
+import br.com.tavaressan.cafey.device.UsuarioDispositivoRepository
+import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
