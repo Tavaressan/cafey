@@ -7,6 +7,7 @@ spring:
     password: cafey_password
     driver-class-name: org.postgresql.Driver
   jpa:
+    open-in-view: false
     hibernate:
       ddl-auto: validate
     show-sql: true
