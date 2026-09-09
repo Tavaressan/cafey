@@ -1,6 +1,6 @@
-package br.com.cafey.event
+package br.com.tavaressan.cafey.event
 
-import br.com.cafey.device.Dispositivo
+import br.com.tavaressan.cafey.device.Dispositivo
 import jakarta.persistence.*
 import java.time.Instant
 import java.util.UUID

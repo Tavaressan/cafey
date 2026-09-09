@@ -1,12 +1,12 @@
-package br.com.cafey.auth
+package br.com.tavaressan.cafey.auth
 
-import br.com.cafey.exception.BadCredentialsException
-import br.com.cafey.security.JwtTokenService
-import br.com.cafey.security.PasswordResetToken
-import br.com.cafey.security.PasswordResetTokenRepository
-import br.com.cafey.security.RefreshTokenRepository
-import br.com.cafey.user.Usuario
-import br.com.cafey.user.UsuarioRepository
+import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.security.JwtTokenService
+import br.com.tavaressan.cafey.security.PasswordResetToken
+import br.com.tavaressan.cafey.security.PasswordResetTokenRepository
+import br.com.tavaressan.cafey.security.RefreshTokenRepository
+import br.com.tavaressan.cafey.user.Usuario
+import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

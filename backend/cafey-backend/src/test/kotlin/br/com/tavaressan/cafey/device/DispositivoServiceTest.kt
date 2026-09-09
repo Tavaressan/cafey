@@ -1,9 +1,9 @@
-package br.com.cafey.device
+package br.com.tavaressan.cafey.device
 
-import br.com.cafey.exception.BadCredentialsException
-import br.com.cafey.exception.ResourceNotFoundException
-import br.com.cafey.user.Usuario
-import br.com.cafey.user.UsuarioRepository
+import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.exception.ResourceNotFoundException
+import br.com.tavaressan.cafey.user.Usuario
+import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test

@@ -1,4 +1,4 @@
-package br.com.cafey.config
+package br.com.tavaressan.cafey.config
 
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test

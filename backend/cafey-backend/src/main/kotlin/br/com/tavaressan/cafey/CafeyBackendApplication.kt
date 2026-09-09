@@ -1,4 +1,4 @@
-package br.com.cafey
+package br.com.tavaressan.cafey
 
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication

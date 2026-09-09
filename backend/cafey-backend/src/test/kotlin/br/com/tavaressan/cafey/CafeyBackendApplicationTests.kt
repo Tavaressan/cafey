@@ -1,4 +1,4 @@
-package br.com.cafey
+package br.com.tavaressan.cafey
 
 import org.junit.jupiter.api.Test
 import org.springframework.boot.test.context.SpringBootTest

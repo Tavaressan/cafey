@@ -1,4 +1,4 @@
-package br.com.cafey.exception
+package br.com.tavaressan.cafey.exception
 
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail

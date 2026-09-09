@@ -1,6 +1,6 @@
-package br.com.cafey.device
+package br.com.tavaressan.cafey.device
 
-import br.com.cafey.user.Usuario
+import br.com.tavaressan.cafey.user.Usuario
 import jakarta.persistence.*
 import java.io.Serializable
 import java.time.Instant

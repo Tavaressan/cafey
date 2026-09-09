@@ -1,6 +1,6 @@
-package br.com.cafey.security
+package br.com.tavaressan.cafey.security
 
-import br.com.cafey.user.Usuario
+import br.com.tavaressan.cafey.user.Usuario
 import jakarta.persistence.*
 import java.time.Instant
 import java.util.UUID

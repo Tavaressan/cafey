@@ -1,4 +1,4 @@
-package br.com.cafey.security
+package br.com.tavaressan.cafey.security
 
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration

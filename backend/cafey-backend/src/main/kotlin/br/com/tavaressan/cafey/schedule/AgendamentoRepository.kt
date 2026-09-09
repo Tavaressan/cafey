@@ -1,4 +1,4 @@
-package br.com.cafey.schedule
+package br.com.tavaressan.cafey.schedule
 
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
