@@ -13,16 +13,28 @@ on:
       - '.github/workflows/ci-apps.yml'
 
 jobs:
-  validate:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate Apps exist
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: apps
+
+      - name: Build apps (shared + android + desktop + web)
+        working-directory: apps
         run: |
-          if [ -d "apps" ]; then
-            echo "Apps directory exists."
-          else
-            echo "Apps directory not found yet, skipping validation."
-          fi
+          chmod +x gradlew
+          ./gradlew build
