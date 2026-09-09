@@ -1,14 +1,21 @@
 # Especificação Técnica — Backend Cafey
 
 **Projeto Integrador — 6º Semestre**
-**Versão:** 1.1
-**Data:** 01/09/2026
+**Versão:** 1.2
+**Data:** 08/09/2026
 **Complementa:** `spec-cafeteira-conectada.md` §7 (Backend e Modelo de Dados)
 
 > **Revisão 1.1.** Fecha o contrato do evento de preparo, que a v1.0 deixara em
 > suspenso. A restrição que motiva a maior parte das mudanças: o dispositivo
 > apenas chaveia energia, sem sensor de nível, corrente ou temperatura. O
 > sistema não observa a conclusão da extração — ele a temporiza.
+
+> **Revisão 1.2 (DOC-05).** Revisão das premissas §2 contra as decisões tomadas
+> e contra o código já implementado em `backend/cafey-backend/` e no firmware.
+> P1 e P8 confirmadas; P4 e P5 corrigidas para o que foi implementado; P2
+> reescrita separando provisionamento de Wi-Fi e de certificado; P9 permanece
+> aberta (pendência 7). §3 (`eventos_preparo`), §8 e §9 alinhadas ao esquema
+> real das migrações.
 
 ---
 
@@ -96,22 +103,25 @@ montado à mão a partir do certificado — mais código, sem dependência nativ
 
 ## 2. Premissas assumidas
 
-Nenhuma destas foi decidida explicitamente. Todas são reversíveis; estão aqui
-para serem contestadas antes de virarem código.
+Revisadas em 08/09/2026 (DOC-05). A coluna **Situação** registra o desfecho:
+*confirmada* (decidida e coerente com o código), *corrigida* (o texto abaixo já
+reflete a decisão nova) ou *aberta* (ainda depende de pendência).
 
-| # | Premissa | Impacto se estiver errada |
-|---|---|---|
-| P1 | Group `br.com.tavaressan`, pacote `br.com.tavaressan.cafey` | Renomear pacote |
-| P2 | Um único dispositivo no protótipo; certificado X.509 gravado manualmente no NVS ao flashar | UC-04 ganharia provisionamento de frota |
-| P3 | O fuso do agendamento é atributo do dispositivo, não do usuário | Coluna muda de tabela |
-| P4 | Access token de 15 min + refresh token opaco de 30 dias | Ver §4.3 |
-| P5 | `duracao` não é coluna; é calculada (`fim - inicio`) | Reintroduzir coluna |
-| P6 | O backend tem sua própria "thing" e certificado no AWS IoT, distinto do dispositivo | Política IAM diferente |
-| P7 | O dispositivo apenas chaveia energia; a conclusão do preparo é temporizada, não observada | Entra estado terminal novo em `resultado` e telemetria em `saude` |
-| P8 | `evento_id` no formato `bootId:seq`, com `seq` persistido em NVS | Chave de deduplicação repete entre boots |
-| P9 | `duracao_preparo_s` padrão de 300 s, ajustável pelo dono | Muda apenas o default da coluna |
+| # | Premissa | Situação | Impacto se estiver errada |
+|---|---|---|---|
+| P1 | Group `br.com.tavaressan`, pacote `br.com.tavaressan.cafey` | **Confirmada.** O código diverge (`group = br.com.cafey`, pacotes `br.com.cafey.*`, pasta `main` em `br/com/tavaressan/cafey`) e será corrigido — issue própria | Renomear pacote |
+| P2 | Wi-Fi provisionado via BLE/app (UC-04); certificado X.509 + chave + CA pré-gravados no NVS por etapa de provisioning de bancada, fora do fluxo do app — a chave privada nunca trafega por BLE | **Corrigida** | UC-04 ganharia provisionamento de frota; cert no app exigiria característica BLE nova |
+| P3 | O fuso do agendamento é atributo do dispositivo, não do usuário. A hora do agendamento é sempre interpretada no `timezone` do dispositivo, para qualquer usuário — quem toma o café está no local da cafeteira | **Confirmada** | Coluna muda de tabela |
+| P4 | Access token de 15 min + refresh token opaco **rotativo de 7 dias** | **Corrigida** (era 30 dias) — ver §4.3 | Ver §4.3 |
+| P5 | `eventos_preparo` grava `duracao_s` e um único `timestamp`; não há colunas `inicio`/`fim` separadas | **Corrigida** (a v1.1 previa `duracao` calculada de `fim - inicio`) — ver §3 | Reintroduzir `inicio`/`fim` |
+| P6 | O backend tem sua própria "thing" e certificado no AWS IoT, distinto do dispositivo | **Confirmada** (`aws-iot-backend-policy.json`) | Política IAM diferente |
+| P7 | O dispositivo apenas chaveia energia; a conclusão do preparo é temporizada, não observada | **Confirmada** | Entra estado terminal novo em `resultado` e telemetria em `saude` |
+| P8 | `evento_id` no formato `bootId:seq` (`%08x:%u`), com `seq` persistido em NVS e incrementado a cada geração | **Confirmada** — implementada em `firmware/main/storage/event_id_generator.cpp` | Chave de deduplicação repete entre boots |
+| P9 | `duracao_preparo_s` padrão de 300 s, ajustável pelo dono | **Aberta** — estimativa não medida; depende da pendência 7, que bloqueia `V3` | Muda apenas o default da coluna |
 
-P9 é estimativa não confirmada — ver pendência 7.
+P9 é estimativa não confirmada — ver pendência 7 (issue #134). O `DEFAULT 300` já
+presente em `V3__dispositivos.sql` é provisório até o ensaio de extração da
+Britânia CP30.
 
 ---
 
@@ -187,31 +197,38 @@ em SQL cru; o ganho é não escrever `AttributeConverter`.
 | id | uuid | PK |
 | dispositivo_id | uuid | FK |
 | evento_id | text | **Novo.** `bootId:seq` gerado no dispositivo |
-| inicio | timestamptz | |
-| fim | timestamptz | **Mudou.** Não nulo: instante do corte de energia |
+| tipo | text | `default 'PREPARO'` |
 | resultado | text | **Novo.** `CONCLUIDO` \| `CANCELADO` |
 | origem | text | `APP` \| `AGENDAMENTO` \| `BOTAO` |
-| recebido_em | timestamptz | Distinguir evento atrasado de evento ao vivo |
+| duracao_s | int | **Mudou (P5).** Gravada, não calculada: é a duração que o temporizador local aplicou |
+| timestamp | timestamptz | Instante de referência do evento (início do acionamento) |
+| detalhe_erro | text | Nulo salvo falha reportada pelo dispositivo |
+| criado_em | timestamptz | `default now()`. Distingue evento atrasado de evento ao vivo |
 
 ```sql
-CONSTRAINT uq_evento_dedupe UNIQUE (dispositivo_id, evento_id)
+CONSTRAINT uq_evento_dispositivo UNIQUE (dispositivo_id, evento_id)
 ```
 
-A deduplicação usa `evento_id`, não `inicio`. O preparo pode ocorrer antes da
+A deduplicação usa `evento_id`, não `timestamp`. O preparo pode ocorrer antes da
 sincronização NTP — justamente o cenário offline que motiva o proxy BLE — e
-nesse caso o timestamp é revisado pelo próprio dispositivo depois. Chave de
+nesse caso o `timestamp` é revisado pelo próprio dispositivo depois. Chave de
 identidade não pode depender de dado que a origem corrige. Dois preparos
 anteriores à sincronização também receberiam o mesmo instante de época e
-colidiriam sob a restrição antiga.
+colidiriam sob uma restrição baseada em tempo. O backend não trata `timestamp`
+como imutável.
 
-O evento é publicado uma única vez, em estado terminal, e por isso `fim` é não
-nulo. `CONCLUIDO` é o corte pelo temporizador local; `CANCELADO` é o corte por
-comando (UC-09). Sem sensor, não existe terceiro desfecho detectável: queda de
-energia no meio do preparo não gera evento, e isso é limitação declarada, não
-lacuna de implementação.
+O evento é publicado uma única vez, em estado terminal. `CONCLUIDO` é o corte
+pelo temporizador local; `CANCELADO` é o corte por comando (UC-09). Sem sensor,
+não existe terceiro desfecho detectável: queda de energia no meio do preparo não
+gera evento, e isso é limitação declarada, não lacuna de implementação.
 
-A ingestão usa `ON CONFLICT (dispositivo_id, evento_id) DO NOTHING`. `duracao`
-continua calculada (`fim - inicio`), agora sempre definida.
+**P5 — `duracao_s` gravada, não calculada.** A v1.1 previa remover a coluna e
+calcular `fim - inicio`. A implementação (`V5__eventos.sql`) guarda um único
+`timestamp` e a `duracao_s` que o dispositivo aplicou. Isso combina melhor com
+P7/P8: o evento chega uma vez, em estado terminal, já com a duração efetiva do
+temporizador — não há dois instantes observados para subtrair.
+
+A ingestão usa `ON CONFLICT (dispositivo_id, evento_id) DO NOTHING`.
 
 ### refresh_tokens
 
@@ -265,13 +282,16 @@ autorização consulta `usuario_dispositivo` na requisição.
 ### 4.3 Janela de revogação
 
 O JWT stateless não é revogável. Isso colide com o UC-05: ao remover um
-convidado, o token dele continua aceito até expirar. O par 15 min / 30 dias
-limita a janela a 15 minutos e mantém a sessão viva em mobile sem login
-repetido. Refresh é rotativo — cada uso revoga o anterior.
+convidado, o token dele continua aceito até expirar. O par 15 min / 7 dias
+limita a janela de revogação a 15 minutos e mantém a sessão viva em mobile sem
+login repetido. Refresh é rotativo — cada uso revoga o anterior.
 
-*Alternativa mais simples, se o prazo apertar:* access token de 7 dias sem
-refresh token, aceitando janela de revogação de 7 dias e descartando a tabela
-`refresh_tokens`. Documentar a escolha para a banca em qualquer um dos casos.
+**P4 — refresh token de 7 dias (era 30).** A implementação
+(`AuthService.kt`, `JwtTokenService.kt`) usa access token de 15 min e refresh
+token opaco rotativo de 7 dias, com hash SHA-256 e detecção de reuso. Não é a
+premissa original (30 dias) nem a alternativa "7 dias sem refresh token": é o
+meio-termo, mantendo a janela de revogação em 15 min e reduzindo a superfície de
+um refresh token vazado. Documentar a escolha para a banca.
 
 A rotação de refresh token exige detecção de reuso: ao receber um token já
 revogado, revogar toda a família (`familia_id`) do usuário. Sem isso, um token
@@ -497,28 +517,33 @@ serviço e controller próprios.
 | `V2__auth.sql` | `refresh_tokens`, incluindo `familia_id` |
 | `V3__dispositivos.sql` | `dispositivos` (com `duracao_preparo_s int NOT NULL DEFAULT 300`), `usuario_dispositivo` |
 | `V4__agendamentos.sql` | `agendamentos` |
-| `V5__eventos.sql` | `eventos_preparo`, restrições e índice |
+| `V5__eventos.sql` | `eventos_preparo`, restrições e índices |
+| `V6__password_reset.sql` | `password_reset_tokens` (UC-03; pendência 6 resolvida a favor de incluir) |
 
 ```sql
 -- V5__eventos.sql
 CREATE TABLE eventos_preparo (
-  id             uuid        PRIMARY KEY,
-  dispositivo_id uuid        NOT NULL REFERENCES dispositivos (id),
-  evento_id      text        NOT NULL,
-  inicio         timestamptz NOT NULL,
-  fim            timestamptz NOT NULL,
-  resultado      text        NOT NULL,
-  origem         text        NOT NULL,
-  recebido_em    timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT uq_evento_dedupe UNIQUE (dispositivo_id, evento_id),
-  CONSTRAINT ck_evento_resultado CHECK (resultado IN ('CONCLUIDO', 'CANCELADO')),
-  CONSTRAINT ck_evento_origem    CHECK (origem IN ('APP', 'AGENDAMENTO', 'BOTAO')),
-  CONSTRAINT ck_evento_intervalo CHECK (fim >= inicio)
+  id             uuid         PRIMARY KEY DEFAULT gen_random_uuid(),
+  evento_id      varchar(100) NOT NULL,
+  dispositivo_id uuid         NOT NULL REFERENCES dispositivos(id) ON DELETE CASCADE,
+  tipo           varchar(50)  NOT NULL DEFAULT 'PREPARO',
+  resultado      varchar(50)  NOT NULL,
+  origem         varchar(50)  NOT NULL,
+  duracao_s      integer      NOT NULL,
+  timestamp      timestamptz  NOT NULL,
+  detalhe_erro   varchar(255),
+  criado_em      timestamptz  NOT NULL DEFAULT now(),
+  CONSTRAINT uq_evento_dispositivo UNIQUE (dispositivo_id, evento_id)
 );
 
-CREATE INDEX ix_eventos_dispositivo_inicio
-  ON eventos_preparo (dispositivo_id, inicio DESC);
+CREATE INDEX ix_eventos_dispositivo_timestamp ON eventos_preparo (dispositivo_id, timestamp DESC);
+CREATE INDEX ix_eventos_origem ON eventos_preparo (origem);
 ```
+
+> As restrições `CHECK` de `resultado`/`origem` previstas na v1.1 não estão em
+> `V5`. Reconciliar esquema × spec fora das premissas (`resultado`/`origem` sem
+> `CHECK`, `refresh_tokens.revogado` em vez de `revogado_em`, campos de
+> `dispositivos`) é escopo de DOC-04, não de DOC-05.
 
 `spring.jpa.hibernate.ddl-auto=validate`. O Flyway é a única autoridade sobre o
 esquema; o Hibernate apenas confere se as entidades batem.
@@ -530,12 +555,13 @@ esquema; o Hibernate apenas confere se as entidades batem.
 Requerem atualização de `spec-cafeteira-conectada.md` antes da banca:
 
 1. `agendamentos.dias_semana`: conjunto → `smallint` bitmask
-2. `eventos_preparo.duracao`: removida, passa a ser calculada
-3. `eventos_preparo`: adicionadas `recebido_em` e restrição de deduplicação
+2. `eventos_preparo`: sem colunas `inicio`/`fim`; um único `timestamp` e a coluna `duracao_s` **gravada** (P5, revisão 1.2)
+3. `eventos_preparo`: adicionadas `criado_em`, `tipo`, `detalhe_erro` e restrição de deduplicação
 4. `dispositivos`: adicionadas `timezone`, `estado`, `limiar_descalcificacao`, `versao_agendamentos`
 5. Nova tabela `refresh_tokens`
-6. `eventos_preparo`: identidade passa a ser `evento_id` gerado no dispositivo; `fim` não nulo; nova coluna `resultado`
+6. `eventos_preparo`: identidade passa a ser `evento_id` (`bootId:seq`) gerado no dispositivo; nova coluna `resultado`
 7. `dispositivos`: adicionada `duracao_preparo_s` — o fim do preparo é temporizado, não observado
+8. Nova tabela `password_reset_tokens` (UC-03)
 
 Registrado também na especificação principal:
 
@@ -571,10 +597,11 @@ pertencem a esse marco; MQTT é Fase 2.
 
 | # | Item | Estado |
 |---|---|---|
-| 1 | Confirmar as premissas P1 a P9 (§2) | Aberta |
-| 2 | Fechar payloads MQTT com o firmware | **Reduzida.** Resta o formato de `bootId:seq` e o comportamento quando o preparo termina antes da sincronização NTP |
+| 1 | Confirmar as premissas P1 a P9 (§2) | **Fechada** (DOC-05, revisão 1.2). P1, P3, P6, P7, P8 confirmadas; P2, P4, P5 corrigidas; P9 continua na pendência 7 |
+| 2 | Fechar payloads MQTT com o firmware | **Reduzida.** `bootId:seq` fechado (`%08x:%u`, `event_id_generator.cpp`). Resta o comportamento quando o preparo termina antes da sincronização NTP |
 | 3 | `iot:RetainPublish` | **Fechada** (§6.3) |
 | 4 | Criar thing e certificado do backend no AWS IoT Core | Aberta |
 | 5 | Fixar a versão do `aws-iot-device-sdk` | Aberta |
-| 6 | Decidir se `/auth/senha/*` entra ou é cortado | Aberta. Se entrar, falta tabela de token de redefinição e uma `V6` |
-| 7 | Confirmar `duracao_preparo_s` com o tempo real de extração da Britânia CP30 | **Nova.** Bloqueia `V3` |
+| 6 | Decidir se `/auth/senha/*` entra ou é cortado | **Fechada.** Entrou: `V6__password_reset.sql`, UC-03 |
+| 7 | Confirmar `duracao_preparo_s` com o tempo real de extração da Britânia CP30 | **Nova.** Bloqueia `V3`. Issue #134 (P9) |
+| 8 | Corrigir o código para `br.com.tavaressan.cafey` (P1): `group`, `package` dos fontes `main`, pasta de teste | **Nova.** Issue #132 |
