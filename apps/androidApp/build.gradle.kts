@@ -31,6 +31,10 @@ android {
 dependencies {
     implementation(project(":shared"))
     implementation(compose.preview)
+    implementation(compose.runtime)
+    implementation(compose.foundation)
+    implementation(compose.material3)
+    implementation(compose.ui)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)

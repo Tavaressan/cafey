@@ -15,7 +15,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -186,7 +185,7 @@ private fun StageCard(
                 OutlinedButton(
                     onClick = onTurnOff,
                     enabled = !commandInFlight,
-                    colors = OutlinedButtonDefaults.outlinedButtonColors(contentColor = CafeyTheme.colors.ink3),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = CafeyTheme.colors.ink3),
                     shape = CafeyTheme.shapes.small,
                     modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                 ) {
