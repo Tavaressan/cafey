@@ -11,18 +11,26 @@ enum class AcaoComando {
 }
 
 /**
- * **Contrato assumido, não confirmado no backend.** `EventoController`/`DispositivoController`
- * hoje só expõem leitura de estado (`GET /dispositivos/{id}`, que devolve o campo `estado`) — não
- * há, até este ponto do backlog, um endpoint REST que publique no tópico MQTT `.../comando`
- * descrito na spec §6.2 (só existe o payload `ComandoPayload` e o publish de agendamentos).
- * UC-06/07/09 (ligar, desligar, cancelar) dependem desse endpoint existir.
- *
- * Modelei o corpo espelhando `ComandoPayload` porque é o formato mais provável dado o que já
- * existe, mas o endpoint em si (`POST /dispositivos/{id}/comando`) precisa ser confirmado ou
- * criado no backend antes deste código funcionar contra o servidor real.
+ * Corpo de `POST /dispositivos/{id}/comando` (BE-27). `duracaoS` só é considerado em
+ * [AcaoComando.LIGAR]; quando nulo, o backend usa a duração configurada no dispositivo.
  */
 @Serializable
 data class ComandoRequest(
     val acao: AcaoComando,
     val duracaoS: Int? = null,
+)
+
+/**
+ * Resposta de `POST /dispositivos/{id}/comando`, devolvida com 202: o comando foi publicado no
+ * tópico MQTT, não executado. O estado do dispositivo só muda quando a base reporta de volta —
+ * por isso aqui não vem [DispositivoResponse].
+ *
+ * `comandoId` é gerado pelo backend para o firmware deduplicar entregas repetidas do QoS 1.
+ */
+@Serializable
+data class ComandoResponse(
+    val comandoId: String,
+    val acao: AcaoComando,
+    val duracaoS: Int,
+    val emitidoEm: String,
 )

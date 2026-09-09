@@ -2,6 +2,7 @@ package br.com.tavaressan.cafey.android.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.tavaressan.cafey.shared.domain.model.ComandoResponse
 import br.com.tavaressan.cafey.shared.domain.model.DeviceState
 import br.com.tavaressan.cafey.shared.domain.model.DispositivoResponse
 import br.com.tavaressan.cafey.shared.network.ApiError
@@ -63,13 +64,16 @@ class HomeViewModel(
 
     fun cancelar() = runCommand { commandApi.cancelar(it) }
 
-    private fun runCommand(action: suspend (deviceId: String) -> DispositivoResponse) {
+    // O backend responde 202 sem o estado novo: ele só publicou o comando no MQTT. Por isso
+    // relemos o dispositivo em vez de aproveitar a resposta — o estado muda quando a base reporta.
+    private fun runCommand(action: suspend (deviceId: String) -> ComandoResponse) {
         val deviceId = _uiState.value.device?.id ?: return
         _uiState.update { it.copy(commandInFlight = true, errorMessage = null) }
         viewModelScope.launch {
             try {
-                val updated = action(deviceId)
-                _uiState.update { it.copy(commandInFlight = false, device = updated) }
+                action(deviceId)
+                refresh()
+                _uiState.update { it.copy(commandInFlight = false) }
             } catch (e: ApiError) {
                 _uiState.update { it.copy(commandInFlight = false, errorMessage = e.message) }
             }
