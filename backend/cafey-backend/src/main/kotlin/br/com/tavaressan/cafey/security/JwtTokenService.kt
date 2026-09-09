@@ -6,6 +6,8 @@ import com.nimbusds.jose.jwk.RSAKey
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet
 import org.slf4j.LoggerFactory
 import org.springframework.boot.context.properties.EnableConfigurationProperties
+import org.springframework.core.env.Environment
+import org.springframework.core.env.StandardEnvironment
 import org.springframework.security.oauth2.jwt.*
 import org.springframework.stereotype.Service
 import java.security.KeyFactory
@@ -25,12 +27,13 @@ import java.util.UUID
 @Service
 @EnableConfigurationProperties(JwtKeyProperties::class)
 class JwtTokenService(
-    keyProperties: JwtKeyProperties = JwtKeyProperties()
+    keyProperties: JwtKeyProperties = JwtKeyProperties(),
+    environment: Environment = StandardEnvironment()
 ) {
 
     private val logger = LoggerFactory.getLogger(JwtTokenService::class.java)
 
-    private val keyPair: KeyPair = resolveKeyPair(keyProperties)
+    private val keyPair: KeyPair = resolveKeyPair(keyProperties, environment)
     private val rsaKey: RSAKey = RSAKey.Builder(keyPair.public as RSAPublicKey)
         .privateKey(keyPair.private as RSAPrivateKey)
         .keyID(UUID.randomUUID().toString())
@@ -65,15 +68,24 @@ class JwtTokenService(
     /**
      * Decide a origem do par de chaves RSA: externa (via [JwtKeyProperties]) ou efêmera.
      *
-     * Ambas ausentes -> gera par efêmero (fallback local/testes). Apenas uma presente -> erro de
-     * configuração, falha o boot. Ambas presentes -> carrega e valida o par externo.
+     * Ambas ausentes fora do perfil `prod` -> gera par efêmero (fallback local/testes). Ambas
+     * ausentes em `prod` -> falha o boot, pois um par efêmero em produção invalidaria todos os
+     * tokens a cada restart silenciosamente. Apenas uma presente -> erro de configuração, falha o
+     * boot. Ambas presentes -> carrega e valida o par externo.
      */
-    private fun resolveKeyPair(keyProperties: JwtKeyProperties): KeyPair {
+    private fun resolveKeyPair(keyProperties: JwtKeyProperties, environment: Environment): KeyPair {
         val privateKeyValue = keyProperties.privateKey?.takeIf { it.isNotBlank() }
         val publicKeyValue = keyProperties.publicKey?.takeIf { it.isNotBlank() }
 
         return when {
             privateKeyValue == null && publicKeyValue == null -> {
+                if (environment.activeProfiles.contains("prod")) {
+                    throw IllegalStateException(
+                        "Nenhuma chave RSA externa configurada em perfil 'prod'. Defina as variáveis de " +
+                            "ambiente CAFEY_JWT_PRIVATE_KEY e CAFEY_JWT_PUBLIC_KEY antes de subir em produção; " +
+                            "o fallback de chave efêmera só é permitido fora de produção."
+                    )
+                }
                 logger.warn(
                     "Nenhuma chave RSA externa configurada (cafey.jwt.private-key / cafey.jwt.public-key). " +
                         "Gerando par efêmero: tokens emitidos NÃO sobrevivem a um restart e instâncias " +
