@@ -17,3 +17,8 @@ spring:
   flyway:
     enabled: true
     locations: classpath:db/migration
+
+cafey:
+  jwt:
+    private-key: ${CAFEY_JWT_PRIVATE_KEY:}
+    public-key: ${CAFEY_JWT_PUBLIC_KEY:}
