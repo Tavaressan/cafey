@@ -70,6 +70,11 @@ kotlin {
             implementation(libs.androidx.datastore.preferences)
             implementation(libs.androidx.security.crypto)
         }
+        androidUnitTest.dependencies {
+            // Mesmo motivo do desktopTest: o alvo Android tambem precisa do mapeamento
+            // explicito de kotlin.test.Test para JUnit no source set de teste unitario.
+            implementation(kotlin("test-junit"))
+        }
         val desktopMain by getting {
             dependencies {
                 implementation(libs.ktor.client.cio)
