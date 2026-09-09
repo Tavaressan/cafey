@@ -2,7 +2,6 @@ package br.com.tavaressan.cafey.shared.ui.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
@@ -10,6 +9,7 @@ import br.com.tavaressan.cafey.shared.generated.resources.Res
 import br.com.tavaressan.cafey.shared.generated.resources.instrument_sans_variable
 import br.com.tavaressan.cafey.shared.generated.resources.jetbrains_mono_variable
 import br.com.tavaressan.cafey.shared.generated.resources.space_grotesk_variable
+import org.jetbrains.compose.resources.Font
 
 /**
  * Estilos de texto do design system Caféy, espelhando as famílias `--display`, `--text` e `--mono`

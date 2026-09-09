@@ -15,7 +15,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.contentType
 import io.ktor.http.path
 
-/** `/auth/*` — espelha `br.com.tavaressan.cafey.auth.AuthController`. */
+/** Endpoints em `/auth` — espelha `br.com.tavaressan.cafey.auth.AuthController`. */
 class AuthApi(
     private val apiClient: ApiClient,
     private val tokenStorage: TokenStorage,
