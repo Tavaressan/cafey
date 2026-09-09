@@ -75,6 +75,13 @@ kotlin {
                 implementation(libs.ktor.client.cio)
             }
         }
+        val desktopTest by getting {
+            dependencies {
+                // kotlin.test.Test em alvos jvm() customizados (nao o plugin kotlin("jvm") simples)
+                // nao ganha o mapeamento automatico para JUnit; precisa da dependencia explicita.
+                implementation(kotlin("test-junit"))
+            }
+        }
         val wasmJsMain by getting {
             dependencies {
                 implementation(libs.ktor.client.js)
