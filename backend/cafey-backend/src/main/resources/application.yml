@@ -22,3 +22,11 @@ cafey:
   jwt:
     private-key: ${CAFEY_JWT_PRIVATE_KEY:}
     public-key: ${CAFEY_JWT_PUBLIC_KEY:}
+  rate-limit:
+    enabled: true
+    login-capacity: 5
+    login-period-seconds: 60
+    registrar-capacity: 10
+    registrar-period-seconds: 60
+    recuperar-senha-capacity: 5
+    recuperar-senha-period-seconds: 60
