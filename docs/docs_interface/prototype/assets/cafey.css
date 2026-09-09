@@ -1,0 +1,668 @@
+/* Caféy — tokens e componentes do protótipo de interface.
+   Extraídos do projeto de design "Caféy coffee machine control UI" (Cafey App.dc.html). */
+
+:root {
+  /* Marca */
+  --brand: #A33A21;
+  --brand-hover: #8C3018;
+  --brand-deep: #7E2B18;
+  --brand-tint: #F6E1D9;
+  --brand-ink: #96513C;
+  --brand-on: #FEF3EE;
+
+  /* Estrela / estado conectado */
+  --blue: #6E8FBC;
+  --blue-deep: #4A6A93;
+  --blue-tint: #EDF1F7;
+  --blue-ink: #3F587A;
+  --blue-soft: #8FA3BC;
+  --blue-off: #D5DCE7;
+
+  /* Superfícies */
+  --ground: #FBF8F4;
+  --surface: #FFFFFF;
+  --sunken: #F3EEE7;
+  --line: #EDE5DA;
+  --line-2: #E7DFD4;
+  --line-3: #E1D8CD;
+
+  /* Texto */
+  --ink: #1B1D1F;
+  --ink-2: #2E3338;
+  --ink-3: #4C5257;
+  --ink-4: #5C6368;
+  --muted: #7C848B;
+  --muted-2: #868C92;
+  --muted-3: #9AA0A6;
+  --muted-4: #A9AFB5;
+  --dim: #B3A99F;
+  --dim-2: #A9A099;
+  --dim-3: #8A8079;
+
+  /* Gráficos */
+  --chart-hi: #A33A21;
+  --chart-mid: #D9C4BA;
+  --chart-lo: #E9E1D8;
+  --chart-flat: #E4DAD3;
+
+  /* Tipografia */
+  --display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --text: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", ui-monospace, monospace;
+
+  /* Raios */
+  --r-xl: 22px;
+  --r-lg: 20px;
+  --r-md: 17px;
+  --r-sm: 15px;
+
+  --shell-pad: 22px;
+}
+
+/* Base escura da tela "Base" — mesma gramática, invertida. */
+.theme-dark {
+  --ground: #17191B;
+  --surface: #1F2225;
+  --sunken: #23272A;
+  --line: #2C3033;
+  --line-2: #2A2E31;
+  --line-3: #363B40;
+  --ink: #F1EDE9;
+  --ink-2: #E6E1DC;
+  --ink-3: #D7D2CD;
+  --ink-4: #C7C2BD;
+  --muted: #8B9298;
+  --muted-2: #8B9298;
+  --muted-3: #6B7278;
+  --blue-soft: #9FB4CF;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--text);
+  -webkit-font-smoothing: antialiased;
+}
+
+@keyframes cafeyPulse { 0%, 100% { transform: scale(1); opacity: .92 } 50% { transform: scale(1.07); opacity: 1 } }
+@keyframes cafeyBrew  { 0%, 100% { transform: scale(.96); opacity: .85 } 50% { transform: scale(1.1); opacity: 1 } }
+
+/* ─── Layout: abas (mobile) → trilho de ícones (tablet) → barra lateral (desktop) ─── */
+
+.app { display: flex; min-height: 100vh; }
+
+.app__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 96px; /* espaço da barra de abas fixa */
+}
+
+.shell {
+  width: 100%;
+  max-width: 390px;
+  margin: 0 auto;
+  padding: 0 var(--shell-pad);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.screen-head { padding: 28px 0 0; }
+.screen-title { margin: 0; font: 600 27px var(--display); letter-spacing: -.03em; }
+.screen-lede { margin: 6px 0 10px; font: 400 14px/1.5 var(--text); color: var(--muted); text-wrap: pretty; }
+.screen-foot { font: 400 12px/1.5 var(--text); color: var(--muted-3); padding: 2px 4px; text-wrap: pretty; }
+
+/* No celular o conteúdo é uma coluna só. `.wide` abre em duas faixas já no tablet;
+   `.wide--late` só abre no desktop, para blocos que ficariam apertados em 834. */
+.wide { display: flex; flex-direction: column; gap: 12px; }
+.col-stack { display: flex; flex-direction: column; gap: 12px; }
+
+/* Utilitários de visibilidade: `!important` porque competem com o display do
+   próprio componente (.card, .btn, .banner), de mesma especificidade. */
+.only-wide { display: none !important; }
+.only-narrow { display: flex; }
+
+/* ─── Cartões ─── */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.card--accent { border: 1.5px solid var(--brand); }
+.card--muted { background: var(--sunken); border-color: transparent; }
+.card--flush { padding: 4px 20px; gap: 0; }
+
+.card__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font: 600 10.5px var(--text);
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: var(--blue-soft);
+}
+/* "Pular" mora dentro da sobrancelha, mas não herda o caixa-alta dela. */
+.card__eyebrow .link { text-transform: none; letter-spacing: 0; }
+
+.card__eyebrow--brand { color: var(--brand); }
+.card__eyebrow--off { color: var(--muted-4); }
+.card__eyebrow--dim { color: var(--dim); }
+
+.card__title { font: 600 19px var(--display); letter-spacing: -.02em; }
+.card__hero { font: 600 26px var(--display); letter-spacing: -.03em; }
+.card__meta { font: 500 12.5px var(--text); color: var(--muted-2); }
+.card__body { font: 400 14px/1.55 var(--text); color: var(--ink-3); text-wrap: pretty; }
+
+.is-paused .card__title,
+.is-paused .card__hero { color: var(--dim-3); }
+.is-paused .card__meta,
+.is-paused .card__body { color: var(--dim-2); }
+
+.sentence { font: 400 19px/1.4 var(--text); color: var(--ink-2); text-wrap: pretty; }
+.sentence strong { font-weight: 600; }
+.sentence em { font-style: normal; font-weight: 600; color: var(--brand); }
+
+/* Nota azul — o que a base garante mesmo sem rede. */
+.note {
+  margin: 0;
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  padding: 15px 17px;
+  border-radius: var(--r-md);
+  background: var(--blue-tint);
+  font: 500 12.5px/1.5 var(--text);
+  color: var(--blue-ink);
+  text-wrap: pretty;
+}
+.note .star { margin-top: 2px; }
+
+/* ─── Estrela: o mesmo símbolo do LED da base ─── */
+
+.star { width: 15px; height: 15px; flex: none; }
+.star--sm { width: 11px; height: 11px; }
+.star--blue { fill: var(--blue); }
+.star--brand { fill: var(--brand); }
+.star--deep { fill: var(--blue-deep); }
+.star--off { fill: var(--blue-off); }
+.star--grey { fill: var(--muted-3); }
+.star--tint { fill: #EFC6B7; }
+
+/* ─── Botões ─── */
+
+.btn {
+  height: 48px;
+  border: 0;
+  border-radius: var(--r-sm);
+  font: 600 14.5px var(--display);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn--primary { background: var(--brand); color: var(--brand-on); }
+.btn--primary:hover { background: var(--brand-hover); }
+.btn--ghost {
+  background: transparent;
+  border: 1.5px solid var(--line-3);
+  color: var(--ink-3);
+  font: 500 14px var(--text);
+}
+.btn--ghost:hover { background: var(--sunken); }
+.btn--lg { height: 58px; border-radius: var(--r-md); font-size: 16.5px; }
+.btn--block { width: 100%; }
+.btn--grow { flex: 1; }
+.btn--primary.btn--lg { box-shadow: 0 12px 26px rgba(163, 58, 33, .26); }
+
+.link { font: 600 12.5px var(--text); color: var(--blue-deep); cursor: pointer; }
+.link--brand { color: var(--brand); }
+
+/* ─── Interruptor ─── */
+
+.switch {
+  width: 46px;
+  height: 27px;
+  border-radius: 999px;
+  background: var(--brand);
+  display: flex;
+  align-items: center;
+  padding: 3px;
+  justify-content: flex-end;
+  flex: none;
+}
+.switch__knob { width: 21px; height: 21px; border-radius: 50%; background: #FFFFFF; }
+.switch--off { background: #DFD5C9; justify-content: flex-start; }
+.switch--off .switch__knob { background: var(--ground); }
+
+/* ─── Dias da semana ─── */
+
+.days { display: flex; gap: 5px; }
+.days__dot {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--brand-tint);
+  color: var(--brand-hover);
+  font: 600 12px var(--text);
+  display: grid;
+  place-items: center;
+}
+.days__dot--off { background: var(--sunken); color: var(--dim); }
+
+.daypick { display: flex; gap: 7px; }
+.daypick__cell {
+  flex: 1;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--brand);
+  color: var(--brand-on);
+  font: 600 14px var(--text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  border: 0;
+}
+.daypick__cell--off { background: var(--sunken); color: var(--dim); }
+
+/* ─── Seletor de hora (formato 24 h) ─── */
+
+.wheel {
+  position: relative;
+  height: 170px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.wheel__band { position: absolute; left: 14px; right: 14px; height: 56px; border-radius: 14px; background: var(--brand-tint); }
+.wheel__col { position: relative; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 76px; }
+.wheel__off { font: 500 20px var(--display); color: #C9BFB6; }
+.wheel__on { font: 600 34px var(--display); letter-spacing: -.03em; color: var(--brand-deep); }
+.wheel__sep { position: relative; font: 600 30px var(--display); color: var(--brand-deep); padding-bottom: 4px; }
+
+/* ─── Controle segmentado ─── */
+
+.seg { display: flex; background: var(--sunken); border-radius: 14px; padding: 4px; }
+.seg__opt {
+  flex: 1;
+  height: 38px;
+  border-radius: 11px;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font: 500 13.5px var(--text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.seg__opt--on {
+  background: var(--surface);
+  box-shadow: 0 2px 6px rgba(27, 29, 31, .08);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ─── Barra de progresso ─── */
+
+.progress { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.progress__fill { height: 100%; border-radius: 3px; background: var(--brand); }
+.progress__fill--blue { background: var(--blue); }
+.progress__fill--dim { background: var(--dim); }
+.progress--slim { height: 4px; background: var(--line-3); }
+.progress--slim .progress__fill { border-radius: 2px; }
+
+/* ─── Gráficos de barra ─── */
+
+.bars { display: flex; align-items: flex-end; gap: 3px; height: 96px; }
+.bars--week { gap: 8px; height: 64px; }
+.bars__bar { flex: 1; background: var(--chart-lo); border-radius: 3px; }
+.bars__bar--mid { background: var(--chart-mid); }
+.bars__bar--hi { background: var(--chart-hi); }
+.bars--week .bars__bar { border-radius: 4px; }
+
+.bars-axis {
+  display: flex;
+  justify-content: space-between;
+  font: 500 11.5px var(--text);
+  color: var(--muted-4);
+}
+.bars-axis--split { gap: 8px; }
+.bars-axis--split span { flex: 1; text-align: center; }
+.bars-axis .is-on { color: var(--brand); font-weight: 600; }
+
+/* ─── Estágio de estado (Início) ─── */
+
+/* No celular o mostrador fica solto sobre o fundo; no desktop ele ganha o cartão. */
+.stage-card { background: transparent; border: 0; border-radius: 0; padding: 0; gap: 0; }
+
+.stage { display: flex; flex-direction: column; align-items: center; padding-top: 14px; }
+.stage__dial { position: relative; width: 236px; height: 236px; display: grid; place-items: center; }
+.stage__ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stage__face {
+  width: 176px; height: 176px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 14px 34px rgba(27, 29, 31, .09);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.stage__star { width: 44px; height: 44px; animation: cafeyPulse 4.2s ease-in-out infinite; }
+.stage__star--brewing { animation: cafeyBrew 1.7s ease-in-out infinite; }
+.stage__state { font: 600 22px var(--display); letter-spacing: -.02em; }
+.stage__sub { font: 500 12px var(--text); color: var(--muted-2); }
+.stage__sub--mono { font-family: var(--mono); }
+.stage__aside {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-top: 13px;
+  padding: 0 4px;
+  font: 500 12.5px var(--text);
+  color: var(--muted);
+}
+.stage__aside b { color: var(--ink); font-weight: 600; }
+
+.stage__copy { flex-direction: column; gap: 14px; min-width: 0; }
+.stage__actions { display: flex; flex-direction: column; align-items: center; width: 100%; margin-top: 24px; }
+
+/* Faixa de aviso de cuidado — mesmo tom da tinta da marca. */
+.banner {
+  background: var(--brand-tint);
+  border-radius: var(--r-lg);
+  padding: 18px 22px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.banner b { font: 600 14.5px var(--display); color: var(--brand-deep); }
+.banner small { font: 500 12.5px var(--text); color: var(--brand-ink); }
+.banner .link { color: var(--brand-deep); white-space: nowrap; }
+
+/* Ajuste da hora no cabeçalho do desktop. */
+.chip {
+  display: none;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 15px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  font: 500 13px var(--text);
+  color: var(--ink-4);
+}
+.chip b { color: var(--ink); font-weight: 600; }
+
+/* ─── Cabeçalho do aparelho ─── */
+
+.device {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 26px 0 10px;
+}
+.device__name { font: 600 15px var(--display); letter-spacing: -.01em; }
+.device__state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 11.5px var(--text);
+  color: var(--muted);
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--blue); flex: none; }
+.dot--brand { background: var(--brand); }
+
+/* ─── Grade de dois blocos ─── */
+
+.duo { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tile {
+  background: var(--sunken);
+  border-radius: var(--r-sm);
+  padding: 14px 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.tile__label { font: 500 11.5px var(--text); color: var(--muted); }
+.tile__value { font: 600 19px var(--display); letter-spacing: -.02em; }
+
+.row { display: flex; align-items: center; gap: 10px; }
+.row--baseline { align-items: baseline; gap: 8px; }
+.row--wrap { flex-wrap: wrap; gap: 6px; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.push { margin-left: auto; }
+
+/* ─── Linhas de definição (Base) ─── */
+
+.deflist { display: flex; flex-direction: column; }
+.deflist__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--line-2);
+}
+.deflist__row:last-child { border-bottom: 0; }
+.deflist__key { font: 500 12.5px var(--text); color: var(--muted); }
+.deflist__val { font: 600 15px var(--text); }
+.deflist__aside { margin-left: auto; font: 500 12.5px var(--text); color: var(--muted); text-align: right; }
+.deflist__aside--mono { font-family: var(--mono); }
+
+.signal { display: flex; align-items: flex-end; gap: 3px; height: 18px; }
+.signal i { width: 4px; border-radius: 2px; background: var(--blue); display: block; }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  background: #22303F;
+  color: #A8C4E4;
+  font: 600 12px var(--text);
+}
+
+.legend { display: flex; flex-direction: column; gap: 9px; }
+.legend__row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font: 500 13px var(--text);
+  color: var(--ink-3);
+}
+
+/* ─── Roda de contagem (Cuidados, tablet+) ─── */
+
+.gauge { width: 150px; height: 150px; flex: none; position: relative; display: none; place-items: center; }
+.gauge svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.gauge__value { font: 600 30px var(--display); letter-spacing: -.03em; }
+.gauge__unit { font: 500 12px var(--text); color: var(--muted-2); }
+
+/* ─── Chrome: barra de abas (mobile) ─── */
+
+.tabbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  padding: 12px 10px 28px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  z-index: 10;
+}
+.tabbar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+  color: var(--muted-3);
+}
+.tabbar__item svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.tabbar__item span { font: 500 10.5px var(--text); color: currentColor; }
+.tabbar__item.is-on { color: var(--brand); }
+.tabbar__item.is-on span { font-weight: 600; }
+.theme-dark .tabbar { background: #1B1E21; border-top-color: #2A2E32; }
+.theme-dark .tabbar__item { color: #6B7278; }
+.theme-dark .tabbar__item.is-on { color: #D9603F; }
+
+/* ─── Chrome: trilho e barra lateral ─── */
+
+.rail, .sidebar { display: none; }
+
+.sidebar__brand { display: flex; align-items: center; gap: 11px; padding: 0 8px 26px; }
+.sidebar__brand span { font: 600 19px var(--display); letter-spacing: -.02em; }
+.sidebar__nav { display: flex; flex-direction: column; gap: 3px; }
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 12px;
+  border-radius: 12px;
+  text-decoration: none;
+}
+.sidebar__item svg { width: 19px; height: 19px; stroke: #8A9096; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.sidebar__item span { font: 500 14px var(--text); color: var(--ink-4); }
+.sidebar__item:hover { background: var(--line); }
+.sidebar__item.is-on { background: var(--surface); box-shadow: 0 2px 8px rgba(27, 29, 31, .05); }
+.sidebar__item.is-on svg { stroke: var(--brand); }
+.sidebar__item.is-on span { font-weight: 600; color: var(--ink); }
+/* Vence `.sidebar__item span`, que senão pinta o número com a cor do rótulo. */
+.sidebar__item .sidebar__badge {
+  margin-left: auto;
+  min-width: 20px; height: 20px;
+  border-radius: 10px;
+  background: var(--brand-tint);
+  color: var(--brand-hover);
+  font: 600 11px var(--text);
+  display: grid;
+  place-items: center;
+  padding: 0 6px;
+}
+.sidebar__card {
+  margin-top: auto;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  padding: 13px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sidebar__card b { font: 600 13.5px var(--display); }
+.sidebar__card small { font: 500 11.5px var(--text); color: var(--muted-3); }
+
+/* ─── Tablet: trilho de ícones (834) ─── */
+
+@media (min-width: 768px) {
+  .tabbar { display: none; }
+  .app__main { padding-bottom: 40px; }
+  .rail {
+    display: flex;
+    width: 82px;
+    flex: none;
+    background: var(--sunken);
+    border-right: 1px solid var(--line-2);
+    flex-direction: column;
+    align-items: center;
+    padding: 26px 0 22px;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .rail__item {
+    width: 52px; height: 44px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    position: relative;
+  }
+  .rail__item svg { width: 21px; height: 21px; stroke: #8A9096; fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .rail__item.is-on { background: var(--surface); box-shadow: 0 2px 8px rgba(27, 29, 31, .06); }
+  .rail__item.is-on svg { stroke: var(--brand); }
+  .rail__item .star { position: absolute; bottom: 5px; right: 6px; width: 10px; height: 10px; }
+  .rail__dot { margin-top: auto; width: 10px; height: 10px; border-radius: 50%; background: var(--blue); }
+
+  .shell { max-width: 754px; padding: 0 40px; gap: 20px; }
+  .screen-head { padding: 38px 0 0; }
+  .screen-title { font-size: 32px; }
+  .screen-lede { font-size: 15.5px; }
+  .card { border-radius: var(--r-xl); padding: 26px; }
+  .duo { gap: 20px; }
+  .gauge { display: grid; }
+  .sentence { font-size: 21px; }
+  .only-narrow { display: none !important; }
+
+  .wide { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .wide--late { display: flex; grid-template-columns: none; }
+}
+
+/* ─── Desktop: barra lateral (1180) ─── */
+
+@media (min-width: 1024px) {
+  .rail { display: none; }
+  .sidebar {
+    display: flex;
+    width: 238px;
+    flex: none;
+    background: var(--sunken);
+    border-right: 1px solid var(--line-2);
+    flex-direction: column;
+    padding: 26px 18px 22px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+  }
+  .shell { max-width: 1018px; padding: 0 38px; gap: 22px; }
+  .screen-head { padding: 34px 0 0; }
+  .screen-title { font-size: 30px; letter-spacing: -.025em; }
+  .screen-lede { font-size: 14.5px; }
+  .wide, .wide--late { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+  .wide--home { grid-template-columns: 1.22fr .78fr; }
+  .col-stack { gap: 16px; }
+  .card { padding: 24px 26px; }
+
+  .only-mobile { display: none !important; }
+  .only-wide { display: flex !important; }
+
+  .stage-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-xl);
+    padding: 30px;
+    gap: 26px;
+  }
+  .stage { flex-direction: row; align-items: center; gap: 30px; padding-top: 0; }
+  .stage__dial { width: 196px; height: 196px; flex: none; }
+  .stage__face { width: 146px; height: 146px; background: var(--ground); box-shadow: none; }
+  .stage__star { width: 38px; height: 38px; }
+  .stage__state { font-size: 20px; }
+  .bars { height: 150px; gap: 6px; }
+  .bars--week { height: 86px; gap: 10px; }
+  .bars__bar { border-radius: 4px; }
+  .bars-axis { font-size: 12px; }
+  .row--wrap .star { width: 17px; height: 17px; }
+
+  .stage__actions { flex-direction: row; gap: 14px; margin-top: auto; }
+  .stage__actions .btn--lg { height: 60px; font-size: 17px; }
+  .chip { display: inline-flex; }
+}
