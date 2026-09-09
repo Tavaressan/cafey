@@ -115,6 +115,10 @@ class AgendamentoService(
     private fun toResponse(agendamento: Agendamento): AgendamentoResponse {
         return AgendamentoResponse(
             id = agendamento.id!!,
+            // Seguro sem JOIN FETCH: o Hibernate resolve @Id a partir da FK já carregada na entidade
+            // dona (agendamento), sem precisar inicializar o proxy de "dispositivo". Isso vale para o
+            // proxy padrão baseado em subclasse; deixaria de valer sob bytecode enhancement, que
+            // intercepta o getter e forçaria a inicialização completa do proxy.
             dispositivoId = agendamento.dispositivo.id!!,
             hora = agendamento.hora.format(timeFormatter),
             diasSemana = agendamento.diasSemana,
