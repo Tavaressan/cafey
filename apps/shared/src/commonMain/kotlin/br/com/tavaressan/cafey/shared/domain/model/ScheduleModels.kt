@@ -28,3 +28,17 @@ data class AgendamentoResponse(
     val criadoEm: String,
     val atualizadoEm: String,
 )
+
+/** Rótulos curtos dos 7 dias, na mesma ordem da máscara de bits (índice 0 = domingo). */
+val DIAS_SEMANA_LABELS = listOf("D", "S", "T", "Q", "Q", "S", "S")
+
+/** Lê o bit do dia `indice` (0 = domingo … 6 = sábado) da máscara `diasSemana`. */
+fun Short.diaAtivo(indice: Int): Boolean = (this.toInt() shr indice) and 1 == 1
+
+/** Codifica a lista de 7 booleanos (índice 0 = domingo … 6 = sábado) na máscara de bits do backend. */
+fun diasSemanaMask(diasAtivos: List<Boolean>): Short {
+    require(diasAtivos.size == 7) { "diasAtivos deve ter exatamente 7 posições (domingo a sábado)" }
+    return diasAtivos.foldIndexed(0) { indice, acc, ativo ->
+        if (ativo) acc or (1 shl indice) else acc
+    }.toShort()
+}

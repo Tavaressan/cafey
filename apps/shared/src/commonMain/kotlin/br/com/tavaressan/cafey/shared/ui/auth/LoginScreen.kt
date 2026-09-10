@@ -33,6 +33,8 @@ internal fun fieldErrorMessage(error: FieldError?): String? = when (error) {
     FieldError.Required -> "Campo obrigatório"
     FieldError.InvalidEmail -> "Email inválido"
     FieldError.PasswordTooShort -> "Senha deve ter no mínimo 6 caracteres"
+    FieldError.InvalidTime -> "Hora deve estar no formato HH:mm"
+    FieldError.NoDaySelected -> "Selecione pelo menos um dia"
 }
 
 /** UC-02 — tela de login. */
