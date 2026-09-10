@@ -67,6 +67,34 @@ class DispositivoController(
         return ResponseEntity.ok(dispositivo)
     }
 
+    @Operation(summary = "Envia um comando (ligar, desligar ou cancelar) para o dispositivo")
+    @ApiResponse(responseCode = "202", description = "Comando aceito e publicado para o dispositivo")
+    @ApiResponse(
+        responseCode = "400",
+        description = "Ação inválida",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
+    @ApiResponse(
+        responseCode = "404",
+        description = "Dispositivo não encontrado ou usuário sem vínculo",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
+    @ApiResponse(
+        responseCode = "503",
+        description = "Conexão MQTT indisponível",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
+    @PostMapping("/{id}/comando")
+    fun comandar(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable id: UUID,
+        @Valid @RequestBody request: ComandoRequest
+    ): ResponseEntity<ComandoResponse> {
+        val usuarioId = UUID.fromString(jwt.subject)
+        val comando = dispositivoService.comandar(id, request, usuarioId)
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(comando)
+    }
+
     @Operation(summary = "Atualiza dados de um dispositivo")
     @ApiResponse(
         responseCode = "404",

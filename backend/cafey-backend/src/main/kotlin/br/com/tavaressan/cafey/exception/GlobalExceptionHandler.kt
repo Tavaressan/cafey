@@ -27,6 +27,22 @@ class GlobalExceptionHandler {
         return problemDetail
     }
 
+    @ExceptionHandler(RequisicaoInvalidaException::class)
+    fun handleRequisicaoInvalida(ex: RequisicaoInvalidaException, request: WebRequest): ProblemDetail {
+        val problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.message ?: "Invalid request")
+        problemDetail.title = "Bad Request"
+        problemDetail.type = URI.create("about:blank")
+        return problemDetail
+    }
+
+    @ExceptionHandler(ServicoIndisponivelException::class)
+    fun handleServicoIndisponivel(ex: ServicoIndisponivelException, request: WebRequest): ProblemDetail {
+        val problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.message ?: "Service unavailable")
+        problemDetail.title = "Service Unavailable"
+        problemDetail.type = URI.create("about:blank")
+        return problemDetail
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidationExceptions(ex: MethodArgumentNotValidException, request: WebRequest): ProblemDetail {
         val errors = ex.bindingResult.fieldErrors.joinToString(", ") { "${it.field}: ${it.defaultMessage}" }
