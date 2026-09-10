@@ -1,9 +1,9 @@
-package br.com.tavaressan.cafey.android.ui.auth
+package br.com.tavaressan.cafey.shared.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import br.com.tavaressan.cafey.shared.domain.model.LoginRequest
-import br.com.tavaressan.cafey.shared.domain.validation.LoginFormErrors
+import br.com.tavaressan.cafey.shared.domain.model.RegisterRequest
+import br.com.tavaressan.cafey.shared.domain.validation.RegisterFormErrors
 import br.com.tavaressan.cafey.shared.network.ApiError
 import br.com.tavaressan.cafey.shared.network.AuthApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,20 +12,24 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-data class LoginUiState(
+data class RegisterUiState(
+    val nome: String = "",
     val email: String = "",
     val senha: String = "",
-    val errors: LoginFormErrors = LoginFormErrors(),
+    val errors: RegisterFormErrors = RegisterFormErrors(),
     val loading: Boolean = false,
     val errorMessage: String? = null,
     val success: Boolean = false,
 )
 
-/** UC-02 (autenticar). A regra de validação vem de `shared` (`LoginFormErrors`) — este ViewModel
- * só orquestra estado de UI e a chamada de rede. */
-class LoginViewModel(private val authApi: AuthApi) : ViewModel() {
-    private val _uiState = MutableStateFlow(LoginUiState())
-    val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+/** UC-01 (cadastrar usuário). Mesma regra de UI fina que `LoginViewModel`. */
+class RegisterViewModel(private val authApi: AuthApi) : ViewModel() {
+    private val _uiState = MutableStateFlow(RegisterUiState())
+    val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
+
+    fun onNomeChange(value: String) {
+        _uiState.update { it.copy(nome = value, errorMessage = null) }
+    }
 
     fun onEmailChange(value: String) {
         _uiState.update { it.copy(email = value, errorMessage = null) }
@@ -37,14 +41,14 @@ class LoginViewModel(private val authApi: AuthApi) : ViewModel() {
 
     fun submit() {
         val state = _uiState.value
-        val errors = LoginFormErrors.validate(state.email, state.senha)
+        val errors = RegisterFormErrors.validate(state.nome, state.email, state.senha)
         _uiState.update { it.copy(errors = errors) }
         if (!errors.isValid) return
 
         _uiState.update { it.copy(loading = true, errorMessage = null) }
         viewModelScope.launch {
             try {
-                authApi.login(LoginRequest(email = state.email, senha = state.senha))
+                authApi.registrar(RegisterRequest(nome = state.nome, email = state.email, senha = state.senha))
                 _uiState.update { it.copy(loading = false, success = true) }
             } catch (e: ApiError) {
                 _uiState.update { it.copy(loading = false, errorMessage = e.message) }

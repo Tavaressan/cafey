@@ -5,6 +5,7 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.request
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.SerializationException
 
 /**
@@ -24,6 +25,9 @@ suspend inline fun <reified T> HttpClient.apiRequest(block: HttpRequestBuilder.(
     } catch (e: SerializationException) {
         throw ApiError.Serialization(e)
     } catch (e: ApiError) {
+        throw e
+    } catch (e: CancellationException) {
+        // Cancelamento de corrotina nao e falha de rede: propaga sem virar ApiError.
         throw e
     } catch (e: Exception) {
         throw ApiError.Network(e)

@@ -21,6 +21,7 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.takeFrom
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 
 /**
@@ -61,6 +62,10 @@ fun sharedHttpClientConfig(baseUrl: String, tokenStorage: TokenStorage): HttpCli
                     }.body()
                     tokenStorage.save(StoredTokens(response.accessToken, response.refreshToken))
                     BearerTokens(response.accessToken, response.refreshToken)
+                } catch (e: CancellationException) {
+                    // Cancelamento (navegacao, app em background) nao significa sessao invalida:
+                    // limpar o token aqui deslogaria o usuario sem motivo.
+                    throw e
                 } catch (e: Exception) {
                     // Refresh token inválido, expirado ou reuso detectado (BE-05): a sessão
                     // acabou, não há como continuar autenticado sem novo login.

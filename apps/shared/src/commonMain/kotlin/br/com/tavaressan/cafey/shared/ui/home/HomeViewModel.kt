@@ -1,4 +1,4 @@
-package br.com.tavaressan.cafey.android.ui.home
+package br.com.tavaressan.cafey.shared.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope

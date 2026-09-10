@@ -1,4 +1,4 @@
-package br.com.tavaressan.cafey.android.ui.home
+package br.com.tavaressan.cafey.shared.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

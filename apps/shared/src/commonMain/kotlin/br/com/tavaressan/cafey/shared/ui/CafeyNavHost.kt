@@ -1,4 +1,4 @@
-package br.com.tavaressan.cafey.android.ui
+package br.com.tavaressan.cafey.shared.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -15,9 +15,9 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import br.com.tavaressan.cafey.android.ui.auth.LoginScreen
-import br.com.tavaressan.cafey.android.ui.auth.RegisterScreen
-import br.com.tavaressan.cafey.android.ui.home.HomeScreen
+import br.com.tavaressan.cafey.shared.ui.auth.LoginScreen
+import br.com.tavaressan.cafey.shared.ui.auth.RegisterScreen
+import br.com.tavaressan.cafey.shared.ui.home.HomeScreen
 import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
