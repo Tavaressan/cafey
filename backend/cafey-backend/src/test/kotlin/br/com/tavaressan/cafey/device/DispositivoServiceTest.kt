@@ -1,7 +1,11 @@
 package br.com.tavaressan.cafey.device
 
 import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
 import br.com.tavaressan.cafey.exception.ResourceNotFoundException
+import br.com.tavaressan.cafey.exception.ServicoIndisponivelException
+import br.com.tavaressan.cafey.mqtt.ComandoPayload
+import br.com.tavaressan.cafey.mqtt.MqttClientService
 import br.com.tavaressan.cafey.user.Usuario
 import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.junit.jupiter.api.Assertions.*
@@ -9,10 +13,15 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.anyBoolean
+import org.mockito.ArgumentMatchers.anyString
+import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
+import software.amazon.awssdk.crt.mqtt.QualityOfService
 import java.util.Optional
 import java.util.UUID
 
@@ -28,6 +37,9 @@ class DispositivoServiceTest {
     @Mock
     private lateinit var usuarioRepository: UsuarioRepository
 
+    @Mock
+    private lateinit var mqttClientService: MqttClientService
+
     private lateinit var service: DispositivoService
 
     private val ownerId = UUID.randomUUID()
@@ -42,7 +54,7 @@ class DispositivoServiceTest {
 
     @BeforeEach
     fun setUp() {
-        service = DispositivoService(dispositivoRepository, usuarioDispositivoRepository, usuarioRepository)
+        service = DispositivoService(dispositivoRepository, usuarioDispositivoRepository, usuarioRepository, mqttClientService)
 
         ownerUser = Usuario(id = ownerId, nome = "Owner", email = "owner@cafey.com", senhaHash = "hash")
         guestUser = Usuario(id = guestId, nome = "Guest", email = "guest@cafey.com", senhaHash = "hash")
@@ -141,5 +153,94 @@ class DispositivoServiceTest {
 
         service.removerCompartilhamento(deviceId, guestId, ownerId)
         verify(usuarioDispositivoRepository).delete(guestLink)
+    }
+
+    @Test
+    fun `should publish ligar command with qos1 and no retain`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
+        `when`(
+            mqttClientService.publish(
+                anyString() ?: "",
+                any() ?: Any(),
+                any() ?: QualityOfService.AT_LEAST_ONCE,
+                anyBoolean()
+            )
+        ).thenReturn(true)
+
+        val res = service.comandar(deviceId, ComandoRequest(acao = "ligar"), ownerId)
+
+        assertEquals(AcaoComando.LIGAR, res.acao)
+        assertEquals(device.duracaoPreparoS, res.duracaoS)
+
+        val captor = ArgumentCaptor.forClass(ComandoPayload::class.java)
+        verify(mqttClientService).publish(
+            eq("dispositivos/$deviceId/comando") ?: "",
+            captor.capture() ?: ComandoPayload("", "", 0),
+            any() ?: QualityOfService.AT_LEAST_ONCE,
+            eq(false)
+        )
+        assertEquals("LIGAR", captor.value.acao)
+        assertEquals(device.duracaoPreparoS, captor.value.duracaoS)
+    }
+
+    @Test
+    fun `should allow guest to command device`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(guestId, deviceId)).thenReturn(guestLink)
+        `when`(
+            mqttClientService.publish(
+                anyString() ?: "",
+                any() ?: Any(),
+                any() ?: QualityOfService.AT_LEAST_ONCE,
+                anyBoolean()
+            )
+        ).thenReturn(true)
+
+        val res = service.comandar(deviceId, ComandoRequest(acao = "DESLIGAR"), guestId)
+
+        assertEquals(AcaoComando.DESLIGAR, res.acao)
+    }
+
+    @Test
+    fun `should reject command for non-existing device with 404`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(null)
+
+        assertThrows<ResourceNotFoundException> {
+            service.comandar(deviceId, ComandoRequest(acao = "LIGAR"), ownerId)
+        }
+    }
+
+    @Test
+    fun `should reject command from user without link with 404`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(null)
+
+        assertThrows<ResourceNotFoundException> {
+            service.comandar(deviceId, ComandoRequest(acao = "LIGAR"), ownerId)
+        }
+    }
+
+    @Test
+    fun `should reject invalid action with 400`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
+
+        assertThrows<RequisicaoInvalidaException> {
+            service.comandar(deviceId, ComandoRequest(acao = "FLUTUAR"), ownerId)
+        }
+    }
+
+    @Test
+    fun `should reject command when mqtt is unavailable`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
+        `when`(
+            mqttClientService.publish(
+                anyString() ?: "",
+                any() ?: Any(),
+                any() ?: QualityOfService.AT_LEAST_ONCE,
+                anyBoolean()
+            )
+        ).thenReturn(false)
+
+        assertThrows<ServicoIndisponivelException> {
+            service.comandar(deviceId, ComandoRequest(acao = "CANCELAR"), ownerId)
+        }
     }
 }
