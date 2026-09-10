@@ -106,14 +106,15 @@ class ComandoControllerTest @Autowired constructor(
     }
 
     @Test
-    fun `deve recusar comando de usuario sem vinculo com 403`() {
+    fun `deve recusar comando de usuario sem vinculo com 404`() {
         mockMvc.perform(
             post("/dispositivos/${dispositivo.id}/comando")
                 .header(HttpHeaders.AUTHORIZATION, bearerTokenPara(estranho))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""{"acao":"LIGAR"}""")
         )
-            .andExpect(status().isForbidden)
+            // Mesmo 404 do dispositivo inexistente: sem vinculo, o usuario nao descobre que ele existe.
+            .andExpect(status().isNotFound)
     }
 
     @Test

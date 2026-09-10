@@ -1,7 +1,6 @@
 package br.com.tavaressan.cafey.device
 
 import br.com.tavaressan.cafey.config.AwsIotProperties
-import br.com.tavaressan.cafey.exception.AcessoNegadoException
 import br.com.tavaressan.cafey.exception.BadCredentialsException
 import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
 import br.com.tavaressan.cafey.exception.ResourceNotFoundException
@@ -38,14 +37,11 @@ class DispositivoService(
 
     @Transactional(readOnly = true)
     fun comandar(dispositivoId: UUID, request: ComandoRequest, usuarioId: UUID): ComandoResponse {
-        // Busca o dispositivo primeiro para distinguir 404 (dispositivo inexistente) de 403
-        // (dispositivo existe, mas o usuário não tem vínculo com ele).
-        val dispositivo = dispositivoRepository.findById(dispositivoId).orElseThrow {
-            ResourceNotFoundException("Dispositivo não encontrado")
-        }
-
-        usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)
-            ?: throw AcessoNegadoException("Você não tem acesso a este dispositivo")
+        // Mesmo mascaramento dos demais métodos deste serviço: quem não tem vínculo não descobre
+        // se o dispositivo existe.
+        val vinculo = usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)
+            ?: throw ResourceNotFoundException("Dispositivo não encontrado ou você não tem acesso")
+        val dispositivo = vinculo.dispositivo
 
         val acao = AcaoComando.entries.find { it.name == request.acao.trim().uppercase() }
             ?: throw RequisicaoInvalidaException(

@@ -1,6 +1,5 @@
 package br.com.tavaressan.cafey.device
 
-import br.com.tavaressan.cafey.exception.AcessoNegadoException
 import br.com.tavaressan.cafey.exception.BadCredentialsException
 import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
 import br.com.tavaressan.cafey.exception.ResourceNotFoundException
@@ -158,7 +157,6 @@ class DispositivoServiceTest {
 
     @Test
     fun `should publish ligar command with qos1 and no retain`() {
-        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
         `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
         `when`(
             mqttClientService.publish(
@@ -187,7 +185,6 @@ class DispositivoServiceTest {
 
     @Test
     fun `should allow guest to command device`() {
-        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
         `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(guestId, deviceId)).thenReturn(guestLink)
         `when`(
             mqttClientService.publish(
@@ -205,7 +202,7 @@ class DispositivoServiceTest {
 
     @Test
     fun `should reject command for non-existing device with 404`() {
-        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.empty())
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(null)
 
         assertThrows<ResourceNotFoundException> {
             service.comandar(deviceId, ComandoRequest(acao = "LIGAR"), ownerId)
@@ -213,18 +210,16 @@ class DispositivoServiceTest {
     }
 
     @Test
-    fun `should reject command from user without link with 403`() {
-        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
+    fun `should reject command from user without link with 404`() {
         `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(null)
 
-        assertThrows<AcessoNegadoException> {
+        assertThrows<ResourceNotFoundException> {
             service.comandar(deviceId, ComandoRequest(acao = "LIGAR"), ownerId)
         }
     }
 
     @Test
     fun `should reject invalid action with 400`() {
-        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
         `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
 
         assertThrows<RequisicaoInvalidaException> {
@@ -234,7 +229,6 @@ class DispositivoServiceTest {
 
     @Test
     fun `should reject command when mqtt is unavailable`() {
-        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
         `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
         `when`(
             mqttClientService.publish(

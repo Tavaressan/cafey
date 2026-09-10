@@ -27,14 +27,6 @@ class GlobalExceptionHandler {
         return problemDetail
     }
 
-    @ExceptionHandler(AcessoNegadoException::class)
-    fun handleAcessoNegado(ex: AcessoNegadoException, request: WebRequest): ProblemDetail {
-        val problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.message ?: "Access denied")
-        problemDetail.title = "Forbidden"
-        problemDetail.type = URI.create("about:blank")
-        return problemDetail
-    }
-
     @ExceptionHandler(RequisicaoInvalidaException::class)
     fun handleRequisicaoInvalida(ex: RequisicaoInvalidaException, request: WebRequest): ProblemDetail {
         val problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.message ?: "Invalid request")

@@ -75,13 +75,8 @@ class DispositivoController(
         content = [Content(schema = Schema(implementation = ProblemDetail::class))]
     )
     @ApiResponse(
-        responseCode = "403",
-        description = "Usuário sem vínculo com o dispositivo",
-        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
-    )
-    @ApiResponse(
         responseCode = "404",
-        description = "Dispositivo não encontrado",
+        description = "Dispositivo não encontrado ou usuário sem vínculo",
         content = [Content(schema = Schema(implementation = ProblemDetail::class))]
     )
     @ApiResponse(
