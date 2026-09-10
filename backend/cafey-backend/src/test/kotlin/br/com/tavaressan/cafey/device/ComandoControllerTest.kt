@@ -139,6 +139,17 @@ class ComandoControllerTest @Autowired constructor(
     }
 
     @Test
+    fun `deve recusar duracao acima do teto de seguranca com 400`() {
+        mockMvc.perform(
+            post("/dispositivos/${dispositivo.id}/comando")
+                .header(HttpHeaders.AUTHORIZATION, bearerTokenPara(proprietario))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"acao":"LIGAR","duracaoS":2147483647}""")
+        )
+            .andExpect(status().isBadRequest)
+    }
+
+    @Test
     fun `deve recusar comando quando mqtt esta indisponivel`() {
         `when`(
             mqttClientService.publish(
