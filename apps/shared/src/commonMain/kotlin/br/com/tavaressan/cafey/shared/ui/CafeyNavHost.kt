@@ -27,6 +27,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import br.com.tavaressan.cafey.shared.ui.auth.LoginScreen
 import br.com.tavaressan.cafey.shared.ui.auth.RegisterScreen
+import br.com.tavaressan.cafey.shared.ui.care.CareScreen
 import br.com.tavaressan.cafey.shared.ui.history.HistoryScreen
 import br.com.tavaressan.cafey.shared.ui.home.HomeScreen
 import br.com.tavaressan.cafey.shared.ui.schedule.ScheduleScreen
@@ -38,20 +39,21 @@ private const val ROUTE_REGISTER = "register"
 private const val ROUTE_HOME = "home"
 private const val ROUTE_SCHEDULE = "schedule"
 private const val ROUTE_HISTORY = "history"
+private const val ROUTE_CARE = "care"
 
-/** Abas do rodapé principal — espelha `assets/nav.js` do protótipo. "Cuidados" e "Base" entram
- * conforme as telas correspondentes forem implementadas (APP-07); "Base" (detalhes de hardware)
- * não tem issue própria ainda. */
+/** Abas do rodapé principal — espelha `assets/nav.js` do protótipo, exceto "Base" (detalhes de
+ * hardware do dispositivo), que não tem issue nem tela correspondente ainda. */
 private data class BottomTab(val route: String, val label: String)
 
 private val BOTTOM_TABS = listOf(
     BottomTab(ROUTE_HOME, "Início"),
     BottomTab(ROUTE_SCHEDULE, "Agenda"),
     BottomTab(ROUTE_HISTORY, "Ritmo"),
+    BottomTab(ROUTE_CARE, "Cuidados"),
 )
 
 /**
- * Navegação entre login, cadastro e as telas principais do app (APP-03 a APP-06). Antes de decidir
+ * Navegação entre login, cadastro e as telas principais do app (APP-03 a APP-07). Antes de decidir
  * a tela inicial, checa se já existe uma sessão válida (token persistido) — "ao reabrir o app com
  * token válido, entra direto".
  */
@@ -110,6 +112,7 @@ fun CafeyNavHost() {
             composable(ROUTE_HOME) { HomeScreen() }
             composable(ROUTE_SCHEDULE) { ScheduleScreen() }
             composable(ROUTE_HISTORY) { HistoryScreen() }
+            composable(ROUTE_CARE) { CareScreen() }
         }
     }
 }
