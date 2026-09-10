@@ -91,7 +91,11 @@ fun HistoryScreen() {
                         }
                         // Carrega a próxima página assim que este item aparece — simples "load more"
                         // sem depender de um listener de scroll dedicado (fora de escopo aqui).
-                        LaunchedEffect(state.page) { viewModel.loadMore() }
+                        // A chave é Unit, e não state.page: loadMore() avança page, então usar page
+                        // como chave relançava o efeito a cada sucesso e encadeava todas as páginas
+                        // de uma vez enquanto o sentinela seguisse composto. Com Unit, dispara uma
+                        // vez por entrada em composição — a LazyColumn recompõe o item ao reaparecer.
+                        LaunchedEffect(Unit) { viewModel.loadMore() }
                     }
                 }
             }

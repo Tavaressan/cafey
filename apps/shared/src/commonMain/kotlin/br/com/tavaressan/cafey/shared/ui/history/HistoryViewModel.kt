@@ -72,14 +72,18 @@ class HistoryViewModel(
                 val proximaPagina = eventApi.listarEventos(deviceId, page = state.page + 1, size = PAGE_SIZE)
                 _uiState.update {
                     it.copy(
-                        loadingMore = false,
                         eventos = it.eventos + proximaPagina.content,
                         page = proximaPagina.number,
                         hasMore = !proximaPagina.last,
                     )
                 }
             } catch (e: ApiError) {
-                _uiState.update { it.copy(loadingMore = false, errorMessage = e.message) }
+                _uiState.update { it.copy(errorMessage = e.message) }
+            } finally {
+                // Em finally, e não nos dois ramos: qualquer exceção fora de ApiError deixaria
+                // loadingMore travado em true, e a guarda no topo de loadMore() bloquearia a
+                // paginação em definitivo até a tela ser reaberta.
+                _uiState.update { it.copy(loadingMore = false) }
             }
         }
     }
