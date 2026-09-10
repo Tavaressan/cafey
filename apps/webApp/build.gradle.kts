@@ -15,6 +15,10 @@ kotlin {
                 outputFileName = "cafeyWeb.js"
                 devServer = (devServer ?: KotlinWebpackConfig.DevServer()).apply {
                     open = false
+                    // Porta padrão (8080) colide com o backend Spring Boot (APP-08/#67): o app
+                    // Web precisa ser servido de outra origem para o preflight de CORS fazer
+                    // sentido. Mantida em sincronia com CorsProperties.allowedOrigins (backend).
+                    port = 8081
                 }
             }
         }

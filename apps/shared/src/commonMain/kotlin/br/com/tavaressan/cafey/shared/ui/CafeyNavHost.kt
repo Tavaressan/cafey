@@ -2,8 +2,10 @@ package br.com.tavaressan.cafey.shared.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -18,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -52,6 +55,11 @@ private val BOTTOM_TABS = listOf(
     BottomTab(ROUTE_CARE, "Cuidados"),
 )
 
+/** Mesmo limite do `.shell` do protótipo HTML (`docs/docs_interface/prototype/assets/cafey.css`):
+ * as telas foram desenhadas em largura mobile, então em viewports largas (Web/Desktop) o conteúdo
+ * fica centralizado com essa largura máxima em vez de esticar (APP-08). */
+private val MAX_CONTENT_WIDTH = 390.dp
+
 /**
  * Navegação entre login, cadastro e as telas principais do app (APP-03 a APP-07). Antes de decidir
  * a tela inicial, checa se já existe uma sessão válida (token persistido) — "ao reabrir o app com
@@ -84,35 +92,41 @@ fun CafeyNavHost() {
         BOTTOM_TABS.any { it.route == dest.route }
     }?.route
 
-    Scaffold(
-        containerColor = CafeyTheme.colors.ground,
-        bottomBar = {
-            if (currentRoute != null) {
-                CafeyBottomBar(currentRoute = currentRoute, onSelect = { route -> navigateToTab(navController, route) })
+    Box(
+        modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        Scaffold(
+            modifier = Modifier.widthIn(max = MAX_CONTENT_WIDTH).fillMaxHeight(),
+            containerColor = CafeyTheme.colors.ground,
+            bottomBar = {
+                if (currentRoute != null) {
+                    CafeyBottomBar(currentRoute = currentRoute, onSelect = { route -> navigateToTab(navController, route) })
+                }
+            },
+        ) { padding ->
+            NavHost(
+                navController = navController,
+                startDestination = startRoute,
+                modifier = Modifier.padding(padding),
+            ) {
+                composable(ROUTE_LOGIN) {
+                    LoginScreen(
+                        onLoggedIn = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
+                        onGoToRegister = { navController.navigate(ROUTE_REGISTER) },
+                    )
+                }
+                composable(ROUTE_REGISTER) {
+                    RegisterScreen(
+                        onRegistered = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
+                        onGoToLogin = { navController.popBackStack() },
+                    )
+                }
+                composable(ROUTE_HOME) { HomeScreen() }
+                composable(ROUTE_SCHEDULE) { ScheduleScreen() }
+                composable(ROUTE_HISTORY) { HistoryScreen() }
+                composable(ROUTE_CARE) { CareScreen() }
             }
-        },
-    ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = startRoute,
-            modifier = Modifier.padding(padding),
-        ) {
-            composable(ROUTE_LOGIN) {
-                LoginScreen(
-                    onLoggedIn = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
-                    onGoToRegister = { navController.navigate(ROUTE_REGISTER) },
-                )
-            }
-            composable(ROUTE_REGISTER) {
-                RegisterScreen(
-                    onRegistered = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
-                    onGoToLogin = { navController.popBackStack() },
-                )
-            }
-            composable(ROUTE_HOME) { HomeScreen() }
-            composable(ROUTE_SCHEDULE) { ScheduleScreen() }
-            composable(ROUTE_HISTORY) { HistoryScreen() }
-            composable(ROUTE_CARE) { CareScreen() }
         }
     }
 }
