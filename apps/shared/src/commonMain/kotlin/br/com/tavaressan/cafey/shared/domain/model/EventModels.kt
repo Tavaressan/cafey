@@ -16,6 +16,30 @@ data class EventoResponse(
     val criadoEm: String,
 )
 
+/** Rótulo legível de `resultado` para a lista de histórico (UC-14). Cai no valor bruto para
+ * qualquer coisa que o backend venha a mandar além dos três valores documentados. */
+fun EventoResponse.resultadoLabel(): String = when (resultado.uppercase()) {
+    "CONCLUIDO" -> "Concluído"
+    "CANCELADO" -> "Cancelado"
+    "ERRO" -> "Erro"
+    else -> resultado
+}
+
+/** Rótulo legível de `origem` para a lista de histórico (UC-14). */
+fun EventoResponse.origemLabel(): String = when (origem.uppercase()) {
+    "APP" -> "App"
+    "AGENDAMENTO" -> "Agendamento"
+    "BOTAO" -> "Botão"
+    else -> origem
+}
+
+/** Duração do preparo no formato `m:ss`, para a lista de histórico (UC-14). */
+fun EventoResponse.duracaoFormatada(): String {
+    val minutos = duracaoS / 60
+    val segundos = duracaoS % 60
+    return "$minutos:${segundos.toString().padStart(2, '0')}"
+}
+
 @Serializable
 data class EstatisticasConsumoResponse(
     val totalPreparosConcluidos: Long,
