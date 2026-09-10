@@ -20,7 +20,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -54,11 +53,6 @@ private val BOTTOM_TABS = listOf(
     BottomTab(ROUTE_HISTORY, "Ritmo"),
     BottomTab(ROUTE_CARE, "Cuidados"),
 )
-
-/** Mesmo limite do `.shell` do protótipo HTML (`docs/docs_interface/prototype/assets/cafey.css`):
- * as telas foram desenhadas em largura mobile, então em viewports largas (Web/Desktop) o conteúdo
- * fica centralizado com essa largura máxima em vez de esticar (APP-08). */
-private val MAX_CONTENT_WIDTH = 390.dp
 
 /**
  * Navegação entre login, cadastro e as telas principais do app (APP-03 a APP-07). Antes de decidir
@@ -97,7 +91,7 @@ fun CafeyNavHost() {
         contentAlignment = Alignment.TopCenter,
     ) {
         Scaffold(
-            modifier = Modifier.widthIn(max = MAX_CONTENT_WIDTH).fillMaxHeight(),
+            modifier = Modifier.widthIn(max = maxContentWidth).fillMaxHeight(),
             containerColor = CafeyTheme.colors.ground,
             bottomBar = {
                 if (currentRoute != null) {
