@@ -11,6 +11,10 @@ sealed interface FieldError {
     data object Required : FieldError
     data object InvalidEmail : FieldError
     data object PasswordTooShort : FieldError
+    /** Hora fora do formato HH:mm (mesmo regex de `CriarAgendamentoRequest.hora` no backend). */
+    data object InvalidTime : FieldError
+    /** Máscara `diasSemana` sem nenhum bit ligado (backend exige 1..127). */
+    data object NoDaySelected : FieldError
 }
 
 object AuthValidation {
