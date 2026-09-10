@@ -2,8 +2,10 @@ package br.com.tavaressan.cafey.shared.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -84,35 +86,41 @@ fun CafeyNavHost() {
         BOTTOM_TABS.any { it.route == dest.route }
     }?.route
 
-    Scaffold(
-        containerColor = CafeyTheme.colors.ground,
-        bottomBar = {
-            if (currentRoute != null) {
-                CafeyBottomBar(currentRoute = currentRoute, onSelect = { route -> navigateToTab(navController, route) })
+    Box(
+        modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        Scaffold(
+            modifier = Modifier.widthIn(max = maxContentWidth).fillMaxHeight(),
+            containerColor = CafeyTheme.colors.ground,
+            bottomBar = {
+                if (currentRoute != null) {
+                    CafeyBottomBar(currentRoute = currentRoute, onSelect = { route -> navigateToTab(navController, route) })
+                }
+            },
+        ) { padding ->
+            NavHost(
+                navController = navController,
+                startDestination = startRoute,
+                modifier = Modifier.padding(padding),
+            ) {
+                composable(ROUTE_LOGIN) {
+                    LoginScreen(
+                        onLoggedIn = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
+                        onGoToRegister = { navController.navigate(ROUTE_REGISTER) },
+                    )
+                }
+                composable(ROUTE_REGISTER) {
+                    RegisterScreen(
+                        onRegistered = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
+                        onGoToLogin = { navController.popBackStack() },
+                    )
+                }
+                composable(ROUTE_HOME) { HomeScreen() }
+                composable(ROUTE_SCHEDULE) { ScheduleScreen() }
+                composable(ROUTE_HISTORY) { HistoryScreen() }
+                composable(ROUTE_CARE) { CareScreen() }
             }
-        },
-    ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = startRoute,
-            modifier = Modifier.padding(padding),
-        ) {
-            composable(ROUTE_LOGIN) {
-                LoginScreen(
-                    onLoggedIn = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
-                    onGoToRegister = { navController.navigate(ROUTE_REGISTER) },
-                )
-            }
-            composable(ROUTE_REGISTER) {
-                RegisterScreen(
-                    onRegistered = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
-                    onGoToLogin = { navController.popBackStack() },
-                )
-            }
-            composable(ROUTE_HOME) { HomeScreen() }
-            composable(ROUTE_SCHEDULE) { ScheduleScreen() }
-            composable(ROUTE_HISTORY) { HistoryScreen() }
-            composable(ROUTE_CARE) { CareScreen() }
         }
     }
 }

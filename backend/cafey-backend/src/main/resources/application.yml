@@ -20,6 +20,11 @@ spring:
     locations: classpath:db/migration
 
 cafey:
+  cors:
+    # Origens do app Web autorizadas a chamar a API (APP-08). Padrão: dev server do Kotlin/Wasm
+    # (apps/webApp) em desenvolvimento local. Em produção, sobrescreva com o(s) domínio(s)
+    # publicado(s) via CAFEY_CORS_ALLOWED_ORIGINS (lista separada por vírgula).
+    allowed-origins: ${CAFEY_CORS_ALLOWED_ORIGINS:http://localhost:8081}
   jwt:
     private-key: ${CAFEY_JWT_PRIVATE_KEY:}
     public-key: ${CAFEY_JWT_PUBLIC_KEY:}
