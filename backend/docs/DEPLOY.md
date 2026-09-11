@@ -247,28 +247,65 @@ aws lightsail create-bucket \
 
 ## 8. Publicação (manual vs. GitHub Actions)
 
-**Recomendação:** primeira publicação manual (via SSH, passo 5 do §6) para validar o ambiente antes
-de 16/10; GitHub Actions como evolução depois disso — um workflow simples que conecta via SSH
-(chave privada como GitHub Secret) e roda `git pull && docker compose up -d --build` na instância.
-Fica para a próxima rodada, depois da primeira publicação manual validada.
+**Implementado: GitHub Actions.** `.github/workflows/deploy-backend.yml`, disparado em push em
+`main` que toque `backend/**`: builda a imagem no runner do GitHub (evita compilar na instância —
+ver nota sobre OOM no §9) e publica em `ghcr.io/tavaressan/cafey-backend:latest`. Em seguida conecta
+via SSH (chave dedicada, GitHub Secret `DEPLOY_SSH_KEY`) e dispara `/opt/cafey/deploy.sh` na
+instância (`git pull` + `docker compose pull` + `up -d`) — a instância nunca builda a imagem.
 
-## Status e bloqueio
+A chave SSH usada pela Action é restrita via `command="/opt/cafey/deploy.sh"` em
+`~/.ssh/authorized_keys` na instância: qualquer sessão aberta com essa chave só pode rodar esse
+script, nada mais (sem shell interativo, sem port-forwarding).
 
-Os itens abaixo **exigem** aprovação humana explícita antes de qualquer execução, por envolverem
-custo real e recursos fora do repositório na conta AWS `076248672901` e numa conta DuckDNS pessoal:
+Acompanhamento: issue #158 (INFRA-08), aberta para reavaliar a necessidade do swap de 2GB (§9) uma
+vez que a instância deixe de fazer qualquer build.
 
-- Autorização para criar os recursos do §6 (instância, IP estático, portas, bucket opcional).
-- Criar a conta DuckDNS e registrar o subdomínio (ação fora da AWS, precisa de decisão de qual
-  conta/login usar).
-- Decidir se a cópia externa de backup (§5, +$1/mês) entra ou não.
-- Senha do usuário do banco de produção e o par de chaves RSA de produção
-  (`CAFEY_JWT_PRIVATE_KEY`/`PUBLIC_KEY`) — a gerar fora deste repositório, para o `.env` da
-  instância (§4).
-- Região Lightsail a usar (runbook assume `us-east-1` como placeholder).
+## 9. Status — implantado
 
-**Recomendação técnica (resumo):** Lightsail Instance (1 GB, $7/mês) + Docker Compose (reaproveita
-a #149) + Caddy com HTTPS automático via HTTP-01 (mais simples que DNS-01, sem plugin/token no
-Caddy) + DuckDNS gratuito para o domínio + cron de `pg_dump` a cada 6h (7 dias de retenção),
-com cópia externa opcional para Lightsail Object Storage (+$1/mês) dado o caráter crítico da
-issue. Total: **≈US$7–8/mês**. Nenhum recurso foi criado — aguardando autorização para executar
-o §6.
+Execução concluída em 2026-09-11, autorizada explicitamente pelo usuário. Recursos reais criados na
+conta AWS `076248672901`, região `sa-east-1`:
+
+| Recurso | Valor |
+|---|---|
+| Instância Lightsail | `cafey-backend-vps`, bundle `micro_3_1` (1GB/40GB), Ubuntu 24.04 |
+| IP estático | `18.229.69.120` |
+| Domínio | `cafey-backend.duckdns.org` → HTTPS válido (Let's Encrypt via Caddy, HTTP-01) |
+| Bucket de backup | `cafey-backend-backups` (Lightsail Object Storage, bundle `small_1_0`) |
+| Backup local | cron `/etc/cron.d/cafey-backup`, `pg_dump` a cada 6h, retenção 7 dias |
+| Backup externo | mesmo cron, cópia para o bucket via credencial nativa do bucket (`aws lightsail create-bucket-access-key` — **não** IAM genérico, ver nota abaixo) |
+| Deploy automático | GitHub Actions (`deploy-backend.yml`) → GHCR → SSH restrito |
+
+**Validado ao vivo:** `/auth/login` responde 401 com credenciais inválidas (API funcional),
+`/swagger-ui/index.html` e `/v3/api-docs` respondem 200, Flyway aplicou as 6 migrations no boot,
+certificado TLS emitido com sucesso (confirmado por scanners públicos batendo no domínio minutos
+após o deploy).
+
+### Incidente durante a execução: OOM na instância
+
+A tentativa inicial de `docker compose up --build` **na própria instância** (1GB RAM) travou o host
+por esgotamento de memória — o build do Gradle (JDK + compilador Kotlin) sozinho excede a RAM
+disponível. A instância ficou inacessível via SSH e precisou de `stop`/`start` forçado (reboot
+sozinho não foi suficiente) para recuperar. Mitigação imediata: 2GB de swap via arquivo
+(`/swapfile`, persistente em `/etc/fstab`). Correção definitiva: mover o build para o GitHub
+Actions (§8) — a instância nunca mais compila nada. Ver issue #158.
+
+### Nota: acesso ao bucket via credencial nativa do Lightsail, não IAM
+
+Uma política/usuário IAM comum com `s3:PutObject` no ARN do bucket **não funciona** para buckets do
+Lightsail Object Storage (`AccessDenied`, confirmado empiricamente) — é necessário
+`aws lightsail create-bucket-access-key`, que gera uma credencial vinculada ao bucket via o modelo
+de permissões nativo do Lightsail, não uma policy IAM arbitrária.
+
+### Pendências restantes (não bloqueiam a issue, follow-up)
+
+- `CAFEY_CORS_ALLOWED_ORIGINS` ainda aponta para `http://localhost:8081` — atualizar quando o
+  frontend Web (Vercel, em avaliação separada pelo usuário) tiver uma URL pública.
+- Perfil `prod` do Spring **não foi ativado** nesta implantação: `application-prod.yml` referencia
+  `${AWS_IOT_ENDPOINT}`/`${AWS_IOT_CERTIFICATE_PATH}`/etc. sem valor default, o que quebraria o
+  boot se o profile `prod` for ativado sem essas 4 variáveis (integração AWS IoT do backend, BE-11,
+  ainda não implementada). As chaves JWT de produção são carregadas de qualquer forma (o código
+  verifica a presença das chaves independente do profile ativo) — não há perda de segurança por
+  não ativar `prod`, mas vale abrir uma issue separada para adicionar defaults (`${VAR:}`) a esses
+  4 placeholders antes de alguém tentar ativar `prod` no futuro.
+- Validação completa do cenário retain-exato-vs-wildcard (#123 §6.3) segue pendente, sem
+  `mosquitto-clients` disponível neste ambiente.
