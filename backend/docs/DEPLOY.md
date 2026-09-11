@@ -4,7 +4,16 @@
 > em vez de um provedor com free tier (Render foi descartado: o Postgres gratuito expira 30 dias
 > após criação — nasceria morto antes da banca de 16/10 se criado agora — e o Web Service dorme
 > após 15 min de inatividade sem tráfego, confirmado na fonte oficial
-> [render.com/docs/free](https://render.com/docs/free), consultada nesta análise).
+> [render.com/docs/free](https://render.com/docs/free)).
+>
+> **Revisão desta rodada:** o plano anterior (App Runner + RDS) foi descartado — confirmado em
+> [docs.aws.amazon.com/apprunner/.../apprunner-availability-change.html](https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html)
+> que **"AWS App Runner is no longer open to new customers"**; como esta conta nunca usou o
+> serviço, o plano anterior provavelmente não executaria. A própria AWS recomenda o Amazon ECS
+> Express Mode como sucessor, mas ele usa Fargate+ALB por baixo — mesmo perfil de custo da opção
+> "ECS Fargate + ALB" já descartada por preço na rodada anterior (~US$90/mês). **Decisão do
+> usuário: usar AWS Lightsail**, priorizando custo mínimo e aproveitando os créditos iniciais já
+> confirmados na conta (billing habilitado, sem risco de fechamento automático).
 >
 > Este documento é o plano/runbook para revisão humana. **Nenhum recurso AWS real foi criado** —
 > ver [Status e bloqueio](#status-e-bloqueio) no final. Segue o mesmo formato do runbook de
@@ -25,236 +34,234 @@
 
 ## 1. Decisão de arquitetura
 
-### Achado que muda a decisão: App Runner não existe em `sa-east-1`
+### O ponto crítico: persistência de dados do Postgres
 
-INFRA-05/#123 escolheu `sa-east-1` (São Paulo) para o AWS IoT Core por latência entre o dispositivo
-físico/app e o broker MQTT — critério que não se aplica aqui (o backend já fala com o IoT Core pela
-internet pública via TLS, não numa rede privada; a região do backend não afeta essa latência de
-forma relevante para uma demo). Ao avaliar as opções, confirmei na
-[lista de regiões do AWS App Runner](https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AWSAppRunner/current/region_index.json)
-(API pública de pricing da AWS, consultada nesta análise, publicação de 2026-08-31) que o App
-Runner **não está disponível em `sa-east-1`** — apenas em `us-east-1`, `us-east-2`, `us-west-2`,
-`eu-central-1`, `eu-west-1/2/3`, `ap-south-1`, `ap-southeast-1/2`, `ap-northeast-1` (e mais algumas
-não citadas). ECS, RDS e ELB/ALB, por outro lado, **estão** disponíveis em `sa-east-1` (confirmado
-na mesma API de pricing).
+Assim como o App Runner, o **Lightsail Container Service** não documenta em nenhuma página do seu
+guia oficial (Container services, Deployments, Deployment versions, Pushing images, Metrics) uma
+opção de disco/volume persistente anexável aos containers — ao contrário da página de
+[Lightsail Instances](https://aws.amazon.com/lightsail/pricing/), que lista "Highly available SSD
+storage" como característica central do produto. Não encontrei uma afirmação textual explícita do
+tipo "os containers são efêmeros", mas a ausência completa de qualquer menção a volume/disco/estado
+persistente nas páginas de Container Service, tratada em conjunto com o padrão dos concorrentes
+gerenciados equivalentes (App Runner, ECS Fargate sem EFS), é evidência forte o suficiente para
+**não arriscar rodar o Postgres dentro do Container Service**. Por isso as duas variantes abaixo
+mantêm o Postgres fora do Container Service (ou fora de qualquer container efêmero):
 
-Isso muda a decisão: para usar App Runner (a opção mais simples) é preciso sair de `sa-east-1`.
-Como a região do backend/banco não tem o mesmo peso de latência que teve a decisão do IoT Core,
-avaliei o custo/simplicidade de cada opção nas regiões onde cada serviço existe.
+| Variante | O que roda onde | HTTPS | Persistência dos dados |
+|---|---|---|---|
+| **A — Container Service + Managed Database** | App no Lightsail Container Service (Nano); Postgres no Lightsail Managed Database (plano Standard) | Automático no domínio default do Container Service, sem custo/config extra (confirmado em [docs.aws.amazon.com/.../amazon-lightsail-container-services.html](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-container-services.html): *"The public endpoint of Lightsail container services supports HTTPS only"*, domínio `https://<ServiceName>.<RandomGUID>.<AWSRegion>.cs.amazonlightsail.com`) | Alta — banco gerenciado, com snapshot/backup e *point-in-time restore* documentados ([amazon-lightsail-databases.html](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-databases.html)), independente do ciclo de vida/redeploy do container da API |
+| **B — Instance (VPS) + Docker Compose** | App e Postgres no mesmo Lightsail Instance (bundle Linux/Unix), reaproveitando `backend/compose.yaml` da #149 quase sem alteração | **Não automático** — precisa de reverse proxy com Let's Encrypt (ex.: Caddy) na frente do Compose, e de um nome DNS público para o Let's Encrypt validar o domínio (Lightsail Instance não tem um domínio HTTPS gerenciado por padrão como o Container Service) | Alta na prática (volume nomeado do Compose sobre o SSD persistente da instância, que não é recriado em redeploys de container — só some se a instância for deletada), mas depende de disciplina operacional (não rodar `docker compose down -v` por engano; sem backup automático como o Managed Database) |
 
-### Opções comparadas
+### Decisão: Variante A — Container Service (Nano) + Managed Database (Standard)
 
-| Opção | Região viável | HTTPS | A favor | Contra |
-|---|---|---|---|---|
-| **App Runner + RDS** | `us-east-1` (App Runner não existe em `sa-east-1`) | Automático no domínio default `*.awsapprunner.com`, **sem precisar de domínio próprio nem ACM** | Mais simples: sobe direto de uma imagem no ECR, sem ALB/VPC para configurar à mão; mais barato (sem ALB) | Backend fica em região diferente da instância de IoT Core (não crítico — ver acima); precisa de VPC Connector para o App Runner alcançar o RDS numa subnet privada |
-| **ECS Fargate + ALB + RDS** | `sa-east-1` (mesma região do IoT Core) | ALB + certificado ACM — **exige domínio próprio** validado no Route 53/ACM para emitir certificado; sem domínio, não há HTTPS válido | Mesma região do IoT Core; mais controle de infra | Mais caro (ALB cobra por hora + por LCU, ver §2); mais peças para montar (VPC, subnets, security groups, target group, listener HTTPS) |
-| **EC2 + Docker Compose** | `sa-east-1` | Precisa de reverse proxy com Let's Encrypt (ex.: Caddy) apontado para um nome DNS público estável — o hostname público default do EC2 muda se a instância for recriada, então precisa de Elastic IP para manter o nome estável | Reaproveita quase o `compose.yaml` da #149 sem alterar; menor custo bruto de compute | Mais operação manual (patch do SO, renovação de certificado, restart do serviço), menos gerenciado; sem auto-healing como App Runner/ECS |
+Critério decisivo, na mesma linha da rodada anterior (App Runner): **HTTPS válido sem precisar de
+domínio próprio** é um requisito de aceite da issue, e só a Variante A entrega isso de graça. A
+Variante B — mais barata (§2) — reintroduziria o mesmo problema que descartou a opção "ECS
+Fargate + ALB": precisaria de um domínio público real para o Let's Encrypt emitir um certificado
+válido (um IP puro ou o hostname público padrão de uma Lightsail Instance não server para isso sem
+um nome DNS estável apontando para ele; a alternativa seria um serviço de DNS curinga gratuito de
+terceiros como `sslip.io`, que funciona tecnicamente mas não é um domínio "próprio" nem um recurso
+gerenciado pela AWS — troca robustez por economia).
 
-**Decisão: App Runner + RDS, em `us-east-1`.** Critério decisivo: satisfaz "HTTPS com certificado
-válido em domínio público" (critério de aceite da issue) **sem precisar comprar/gerenciar um
-domínio** — o domínio default do serviço já vem com certificado válido emitido pela AWS. As outras
-duas opções exigem providenciar um domínio próprio para ter HTTPS válido (ALB+ACM) ou configurar
-renovação de certificado manualmente (EC2+Let's Encrypt). Combinado com o menor custo mensal (§2),
-App Runner é a opção mais adequada para uma demo de banca acadêmica, não operação de longo prazo.
+Também pesa a favor da Variante A: banco com snapshot/backup gerenciado pela AWS elimina o risco de
+perder os dados da demo por um erro operacional no host (ex.: `docker compose down -v`), que é
+justamente o tipo de risco que motivou descartar o Postgres free do Render (dados podem sumir antes
+de 16/10). Dado que o marco de 16/10 é crítico e não há margem para redo, a Variante A troca
+~US$15/mês a mais (§2) por menos risco operacional numa janela de tempo curta — troca que considero
+adequada para este caso.
 
-Banco: **RDS gerenciado** (`db.t4g.micro`, Single-AZ, Postgres), não container ao lado da app —
-para não perder os dados da demo a cada redeploy/reinício do App Runner (App Runner não tem
-armazenamento persistente entre implantações) e para poder simplesmente **parar** a instância RDS
-(`aws rds stop-db-instance`, até 7 dias por vez, reinicia automaticamente depois) entre sessões de
-uso e economizar durante os dias sem demo, sem perder os dados.
+**Registrado para o usuário decidir se discordar:** se o custo mínimo (Variante B, ~US$5–7/mês)
+for mais importante do que o risco operacional acima, ou se preferir usar `sslip.io`/um domínio já
+possuído para o Let's Encrypt, a Variante B está descrita nesta seção e pode ser escolhida no lugar.
 
 ## 2. Estimativa de custo mensal
 
-Fonte: [AWS Price List API](https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/index.json)
-(catálogo oficial de preços, mesma fonte usada pela AWS Pricing Calculator), consultada nesta
-análise (publicação `AWSAppRunner`/`AmazonECS`/`AWSELB`: 2026-08-31; `AmazonRDS`: 2026-09-09).
-**Confirme os valores na [AWS Pricing Calculator](https://calculator.aws) antes de provisionar** —
-preços da AWS mudam com o tempo e variam por SKU/promoção.
+Fonte: [aws.amazon.com/lightsail/pricing](https://aws.amazon.com/lightsail/pricing/) (página oficial
+de preços do Lightsail, consultada nesta análise). Lightsail cobra por bundle fixo mensal (não por
+hora como App Runner/ECS/RDS), então os valores abaixo já são o teto — não há economia por pausar o
+recurso fora dos dias de demo (diferente da alternativa AWS "clássica" avaliada na rodada anterior).
 
-Todos os valores assumem operação **24/7** (720h/mês) como teto conservador — na prática, para uma
-demo pontual, o custo real fica bem abaixo disso se os recursos forem parados fora dos dias de uso
-(App Runner pausa cobrança de vCPU quando ocioso; RDS pode ser parado).
+### Variante A (recomendada) — Container Service + Managed Database
 
-### Opção escolhida — App Runner + RDS (`us-east-1`)
-
-| Item | Preço unitário (fonte AWS) | Estimativa 24/7 |
+| Item | Plano | Preço (fonte oficial) |
 |---|---|---|
-| App Runner — vCPU (0,25 vCPU) | $0,064/vCPU-hora | 0,25 × 0,064 × 720 ≈ **$11,52** |
-| App Runner — memória (0,5 GB) | $0,007/GB-hora | 0,5 × 0,007 × 720 ≈ **$2,52** |
-| RDS `db.t4g.micro` Single-AZ Postgres | $0,016/instância-hora | 0,016 × 720 ≈ **$11,52** |
-| RDS storage 20 GB gp3 | $0,115/GB-mês | 20 × 0,115 ≈ **$2,30** |
-| **Total (24/7)** | | **≈ $27,86/mês** |
+| Lightsail Container Service | Nano — 0,25 vCPU (compartilhado), 512 MB RAM, 500 GB transferência/mês | **$7 USD/mês** |
+| Lightsail Managed Database | Standard — 1 GB memória, 1 core, 40 GB SSD, 100 GB transferência/mês, sem criptografia de dados | **$15 USD/mês** |
+| **Total** | | **$22 USD/mês** |
 
-Sem ALB (App Runner já entrega HTTPS). Data transfer/build minutes não incluídos (marginais para o
-volume de uma demo).
+Observação: o plano Standard de banco listado acima é **sem criptografia de dados** — o próximo
+degrau ($30/mês, 2 GB memória) já inclui "Data encrypted". Para uma demo acadêmica, considero o
+plano sem criptografia em repouso aceitável (segredos de aplicação continuam fora do banco, via
+variável de ambiente — §4), mas registro a opção para o usuário decidir se prefere pagar o degrau
+seguinte por criptografia em repouso.
 
-### Alternativa descartada — ECS Fargate + ALB + RDS (`sa-east-1`)
+### Variante B (alternativa mais barata, com as ressalvas do §1) — Instance + Compose
 
-| Item | Preço unitário (fonte AWS, `sa-east-1`) | Estimativa 24/7 |
+| Item | Plano | Preço (fonte oficial) |
 |---|---|---|
-| Fargate — 0,5 vCPU | $0,0696/vCPU-hora | 0,5 × 0,0696 × 720 ≈ **$25,06** |
-| Fargate — 1 GB memória | $0,0076/GB-hora | 1 × 0,0076 × 720 ≈ **$5,47** |
-| ALB — horas do balanceador | $0,034/hora | 0,034 × 720 ≈ **$24,48** |
-| ALB — 1 LCU (mínimo) | $0,011/LCU-hora | 0,011 × 720 ≈ **$7,92** |
-| RDS `db.t4g.micro` Single-AZ Postgres (`sa-east-1`) | $0,034/instância-hora | 0,034 × 720 ≈ **$24,48** |
-| RDS storage 20 GB gp3 (`sa-east-1`) | $0,219/GB-mês | 20 × 0,219 ≈ **$4,38** |
-| **Total (24/7)** | | **≈ $91,79/mês** |
+| Lightsail Instance (Linux/Unix) | Menor bundle — 0,5 GB memória, 2 vCPUs compartilhadas, 20 GB SSD, 1 TB transferência/mês | **$5 USD/mês** |
+| Lightsail Instance (Linux/Unix), alternativa mais folgada | 1 GB memória, 2 vCPUs compartilhadas, 40 GB SSD, 2 TB transferência/mês | **$7 USD/mês** |
+| **Total** | | **$5–7 USD/mês** |
 
-Cerca de **3,3× mais caro** que a opção escolhida, majoritariamente pelo ALB — e ainda exigiria
-domínio próprio para o certificado ser válido. Descartada por esses dois motivos.
+0,5 GB de memória é pouco para JVM (Spring Boot) + Postgres no mesmo host rodando ao mesmo tempo —
+recomendo o bundle de $7/mês (1 GB) se a Variante B for a escolhida, para não arriscar OOM na
+demo.
 
-**Custo mensal declarado (critério de aceite):** ≈ **US$ 28/mês** rodando 24/7 (App Runner + RDS,
-`us-east-1`); menor na prática se os recursos forem pausados entre sessões de demonstração.
+**Custo mensal declarado (critério de aceite):** **US$ 22/mês** (Variante A, recomendada) ou
+**US$ 7/mês** (Variante B, alternativa mais barata com HTTPS manual). Ambos os valores devem ser
+confirmados na [página oficial de preços](https://aws.amazon.com/lightsail/pricing/) no momento da
+criação dos recursos, já que preços podem mudar.
 
 ## 3. Domínio e HTTPS
 
-**Decisão padrão: usar o endpoint HTTPS default do App Runner**
-(`https://<id-gerado>.us-east-1.awsapprunner.com`), como autorizado pelo usuário caso o contrário
-não seja dito. Certificado é emitido e renovado automaticamente pela AWS, sem custo adicional e sem
-comprar/gerenciar domínio. Satisfaz o critério "HTTPS com certificado válido em domínio público" sem
-trabalho extra.
+**Variante A (recomendada):** usar o domínio default do Container Service
+(`https://<ServiceName>.<RandomGUID>.<AWSRegion>.cs.amazonlightsail.com`), com certificado emitido
+automaticamente pela AWS — confirmado na documentação oficial (§1). Nenhuma ação extra, nenhum
+custo de domínio. Consistente com a autorização padrão do usuário ("aceitável para a banca, a menos
+que eu diga o contrário").
 
-Se no futuro for necessário um domínio próprio (ex.: para o app mobile/web citar uma URL mais
-memorável), App Runner suporta domínio customizado com certificado ACM validado por DNS — fica como
-extensão possível, não necessária para a banca.
+**Variante B (se escolhida):** precisa de um nome DNS público estável apontando para o IP estático
+da instância — via domínio próprio (registro + apontamento de DNS) ou via um serviço de DNS
+curinga gratuito de terceiro (`sslip.io`/`nip.io`), e um reverse proxy com renovação automática de
+certificado (Caddy é a opção mais simples — renova Let's Encrypt sozinho). Este documento não
+detalha o passo a passo dessa variante porque não é a recomendação — se o usuário optar por ela,
+detalho na próxima rodada.
 
 ## 4. Segredos
 
-Nenhum segredo entra no repositório nem na imagem Docker. Usar **AWS Systems Manager Parameter
-Store** (`SecureString`, sem custo adicional para parâmetros padrão) e referenciá-los no App Runner
-via `RuntimeEnvironmentSecrets` (App Runner busca o valor em runtime, não fica em texto plano na
-definição do serviço):
+Nenhum segredo entra no repositório nem na imagem Docker. O Lightsail Container Service aceita
+variáveis de ambiente por container na definição do deployment (`containers.<nome>.environment`),
+mas **não tem um mecanismo nativo equivalente ao `RuntimeEnvironmentSecrets` do App Runner** para
+buscar segredos do Secrets Manager/SSM em runtime — as variáveis de ambiente do deployment ficam
+armazenadas como texto na definição do serviço (visível a quem tiver acesso de leitura ao recurso
+Lightsail, não ao público). Para manter o mesmo nível de higiene dos demais módulos (chaves nunca
+em texto no repositório/imagem), a prática recomendada é:
 
-- `/cafey/prod/jwt/private-key`, `/cafey/prod/jwt/public-key` → `CAFEY_JWT_PRIVATE_KEY` /
-  `CAFEY_JWT_PUBLIC_KEY` (obrigatórias com `SPRING_PROFILES_ACTIVE=prod`, ver
-  `JwtTokenService.resolveKeyPair` — o boot falha sem elas em `prod`, por design da #104).
-- `/cafey/prod/db/password` → `SPRING_DATASOURCE_PASSWORD`.
-- Certificados X.509 do AWS IoT (thing `cafey-backend`, criada em INFRA-05/#123) como
-  `SecureString` separados, se a integração MQTT for ativada no ambiente remoto.
+- Gerar o par de chaves RSA de produção (`CAFEY_JWT_PRIVATE_KEY`/`PUBLIC_KEY`, distinto do par
+  efêmero de dev) e a senha do banco **fora do repositório**, e colá-los diretamente no console/CLI
+  do Lightsail ao criar o deployment — nunca commitados, nunca na imagem Docker.
+- Restringir o acesso IAM à conta `076248672901` (ou ao usuário/role que gerencia o Lightsail) a
+  quem precisa ver a definição do deployment.
+- Documentar aqui (sem os valores) que as variáveis abaixo são preenchidas manualmente no console
+  no momento do deploy: `CAFEY_JWT_PRIVATE_KEY`, `CAFEY_JWT_PUBLIC_KEY`,
+  `SPRING_DATASOURCE_PASSWORD`.
 
-Variáveis não sensíveis (`SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`,
-`CAFEY_CORS_ALLOWED_ORIGINS`, `SPRING_PROFILES_ACTIVE=prod`) vão como `RuntimeEnvironmentVariables`
-normais do App Runner.
+Se essa limitação for um problema (ex.: mais pessoas precisarem gerenciar o deployment sem ver os
+segredos), a alternativa é usar AWS Secrets Manager/SSM Parameter Store e buscar o valor no boot da
+aplicação (via um pequeno *entrypoint* que popula a variável de ambiente antes de iniciar o jar) —
+mais trabalho de implementação, fica registrado como opção futura, não necessária para a banca.
 
 ## 5. Runbook — recursos a criar
 
-**Nada abaixo foi executado.** Comandos de referência para quando o usuário autorizar.
+**Nada abaixo foi executado.** Comandos de referência para quando o usuário autorizar (Variante A).
 
 ```bash
-REGION=us-east-1
-ACCOUNT_ID=076248672901
+REGION=us-east-1   # ou a região Lightsail preferida — confirmar disponibilidade de Container
+                    # Service e Managed Database na região escolhida antes de criar
 
-# 1) Repositório de imagem
-aws ecr create-repository --repository-name cafey-backend --region "$REGION"
-
-# 2) Build + push da imagem (reaproveita o Dockerfile da #149)
-aws ecr get-login-password --region "$REGION" \
-  | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
-docker build -t cafey-backend backend/cafey-backend
-docker tag cafey-backend:latest "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/cafey-backend:latest"
-docker push "$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/cafey-backend:latest"
-
-# 3) VPC + subnets privadas para o RDS (pode reaproveitar a VPC default da conta,
-#    criando só as subnets/security group necessários — detalhar ao executar)
-SG_ID=$(aws ec2 create-security-group \
-  --group-name cafey-rds-sg --description "RDS Postgres cafey-backend" \
-  --vpc-id <vpc-id> --region "$REGION" --query GroupId --output text)
-
-# 4) Instância RDS (Postgres, db.t4g.micro, Single-AZ, não publicamente acessível)
-aws rds create-db-instance \
-  --db-instance-identifier cafey-backend-prod \
-  --engine postgres \
-  --db-instance-class db.t4g.micro \
-  --allocated-storage 20 \
-  --storage-type gp3 \
+# 1) Banco gerenciado (Postgres, plano Standard 1GB/1 core/40GB)
+aws lightsail create-relational-database \
+  --relational-database-name cafey-backend-db \
+  --relational-database-blueprint-id postgres_16 \
+  --relational-database-bundle-id micro_2_0 \
+  --master-database-name cafey_db \
   --master-username cafey_user \
-  --master-user-password "<gerar e guardar no Parameter Store>" \
-  --db-name cafey_db \
-  --vpc-security-group-ids "$SG_ID" \
-  --no-publicly-accessible \
-  --backup-retention-period 1 \
+  --master-user-password "<gerar e guardar fora do repositório>" \
   --region "$REGION"
 
-# 5) VPC Connector do App Runner, para alcançar o RDS na VPC privada
-aws apprunner create-vpc-connector \
-  --vpc-connector-name cafey-backend-vpc-connector \
-  --subnets <subnet-id-1> <subnet-id-2> \
-  --security-groups "$SG_ID" \
-  --region "$REGION"
-
-# 6) Parâmetros de segredo (SecureString) — valores reais preenchidos na hora, nunca no repo
-aws ssm put-parameter --name /cafey/prod/jwt/private-key --type SecureString --value "<...>" --region "$REGION"
-aws ssm put-parameter --name /cafey/prod/jwt/public-key  --type SecureString --value "<...>" --region "$REGION"
-aws ssm put-parameter --name /cafey/prod/db/password      --type SecureString --value "<...>" --region "$REGION"
-
-# 7) IAM: role de acesso à ECR (build) + role de instância com permissão ssm:GetParameters
-#    nos parâmetros acima (detalhar policy mínima ao executar)
-
-# 8) Serviço App Runner
-aws apprunner create-service \
+# 2) Container service (Nano)
+aws lightsail create-container-service \
   --service-name cafey-backend \
-  --source-configuration '{
-    "ImageRepository": {
-      "ImageIdentifier": "'"$ACCOUNT_ID"'.dkr.ecr.'"$REGION"'.amazonaws.com/cafey-backend:latest",
-      "ImageRepositoryType": "ECR",
-      "ImageConfiguration": {
-        "Port": "8080",
-        "RuntimeEnvironmentVariables": {
-          "SPRING_PROFILES_ACTIVE": "prod",
-          "SPRING_DATASOURCE_URL": "jdbc:postgresql://<endpoint-rds>:5432/cafey_db",
-          "SPRING_DATASOURCE_USERNAME": "cafey_user",
-          "CAFEY_CORS_ALLOWED_ORIGINS": "<origem real do app Web publicado>"
-        },
-        "RuntimeEnvironmentSecrets": {
-          "CAFEY_JWT_PRIVATE_KEY": "arn:aws:ssm:'"$REGION"':'"$ACCOUNT_ID"':parameter/cafey/prod/jwt/private-key",
-          "CAFEY_JWT_PUBLIC_KEY": "arn:aws:ssm:'"$REGION"':'"$ACCOUNT_ID"':parameter/cafey/prod/jwt/public-key",
-          "SPRING_DATASOURCE_PASSWORD": "arn:aws:ssm:'"$REGION"':'"$ACCOUNT_ID"':parameter/cafey/prod/db/password"
-        }
-      }
-    },
-    "AuthenticationConfiguration": { "AccessRoleArn": "<arn-role-acesso-ecr>" }
-  }' \
-  --instance-configuration '{"Cpu": "0.25 vCPU", "Memory": "0.5 GB"}' \
-  --network-configuration '{"EgressConfiguration": {"EgressType": "VPC", "VpcConnectorArn": "<arn-vpc-connector>"}}' \
+  --power nano \
+  --scale 1 \
   --region "$REGION"
 
-# 9) Obter a URL pública do serviço
-aws apprunner describe-service --service-arn <arn-do-servico> --region "$REGION" \
-  --query 'Service.ServiceUrl'
+# 3) Build + push da imagem para o registro do próprio Container Service
+#    (reaproveita o Dockerfile da #149; não precisa de ECR separado)
+docker build -t cafey-backend backend/cafey-backend
+aws lightsail push-container-image \
+  --service-name cafey-backend \
+  --label app \
+  --image cafey-backend:latest \
+  --region "$REGION"
+
+# 4) Endpoint do banco, para a variável SPRING_DATASOURCE_URL
+aws lightsail get-relational-database \
+  --relational-database-name cafey-backend-db \
+  --region "$REGION" \
+  --query 'relationalDatabase.masterEndpoint'
+
+# 5) Deployment do container, com as variáveis de ambiente (segredos preenchidos manualmente,
+#    nunca neste arquivo/commit — ver §4)
+aws lightsail create-container-service-deployment \
+  --service-name cafey-backend \
+  --containers '{
+    "app": {
+      "image": ":cafey-backend.app.latest",
+      "ports": {"8080": "HTTP"},
+      "environment": {
+        "SPRING_PROFILES_ACTIVE": "prod",
+        "SPRING_DATASOURCE_URL": "jdbc:postgresql://<endpoint-do-banco>:5432/cafey_db",
+        "SPRING_DATASOURCE_USERNAME": "cafey_user",
+        "SPRING_DATASOURCE_PASSWORD": "<preencher na hora, não versionar>",
+        "CAFEY_JWT_PRIVATE_KEY": "<preencher na hora, não versionar>",
+        "CAFEY_JWT_PUBLIC_KEY": "<preencher na hora, não versionar>",
+        "CAFEY_CORS_ALLOWED_ORIGINS": "<origem real do app Web publicado>"
+      }
+    }
+  }' \
+  --public-endpoint '{"containerName": "app", "containerPort": 8080, "healthCheck": {"path": "/actuator/health", "healthyThreshold": 2}}' \
+  --region "$REGION"
+
+# 6) Obter a URL pública HTTPS do serviço
+aws lightsail get-container-services --service-name cafey-backend --region "$REGION" \
+  --query 'containerServices[0].url'
 ```
+
+**Pendências a confirmar durante a execução (não bloqueiam o plano, mas precisam de atenção na
+hora):**
+- Expor um endpoint de health check em `/actuator/health` (verificar se o `spring-boot-starter-
+  actuator` está entre as dependências do backend; se não estiver, ajustar o `healthCheck.path` do
+  passo 5 para um endpoint existente, ex. `/` ou um endpoint público do `AuthController`).
+- Confirmar a forma exata pela qual o Container Service alcança o Managed Database (mesma conta,
+  possivelmente rede privada do Lightsail vs. endpoint público do banco protegido por firewall) —
+  a documentação consultada nesta análise não detalhou esse ponto explicitamente; validar ao
+  provisionar e, se necessário, habilitar o modo público do banco com a lista de IPs permitidos
+  restrita.
 
 ## 6. Migrations e CORS
 
-- **Flyway** já roda no boot da aplicação (`ddl-auto: validate`, mesmo mecanismo usado localmente
-  no Compose da #149) — não é um passo separado no deploy, basta a `SPRING_DATASOURCE_URL` apontar
-  para o RDS e o boot aplica as migrations pendentes automaticamente.
-- **`CAFEY_CORS_ALLOWED_ORIGINS`**: definir com a origem real do app Web publicado assim que ela
-  existir (não `http://localhost:8081`) — hoje ainda não há URL pública do app Web no repositório;
-  atualizar este valor quando o deploy do app Web (fora do escopo desta issue) estiver definido.
+- **Flyway** roda no boot da aplicação (`ddl-auto: validate`), mesmo mecanismo já validado
+  localmente no Compose da #149 — não é um passo separado, só depende de
+  `SPRING_DATASOURCE_URL` apontar para o Managed Database.
+- **`CAFEY_CORS_ALLOWED_ORIGINS`**: ainda não há URL pública do app Web no repositório — atualizar
+  este valor assim que o deploy do app Web (fora do escopo desta issue) existir.
 
 ## 7. Publicação (manual vs. GitHub Actions)
 
-**Recomendação:** GitHub Actions a partir de `main`, para ser reproduzível e não depender de rodar
-os comandos do §5 manualmente a cada mudança — mas a criação do workflow (`.github/workflows/`) com
-credenciais AWS (`AWS_ROLE_ARN` via OIDC, sem chave de longo prazo no repo) fica para depois da
-aprovação da arquitetura e da criação do App Runner/ECR/RDS, já que o workflow depende dos ARNs
-gerados no §5. Registrar aqui o passo a passo assim que a primeira publicação manual for validada.
+**Recomendação:** GitHub Actions a partir de `main`, mas a criação do workflow fica para depois da
+primeira publicação manual validada (§5) — o workflow reaproveita os mesmos comandos
+`aws lightsail push-container-image` / `create-container-service-deployment`, com credenciais AWS
+via OIDC (sem chave de longo prazo no repositório).
 
 ## Status e bloqueio
 
 Os itens abaixo **exigem** aprovação humana explícita antes de qualquer execução, por envolverem
 custo real e recursos fora do repositório na conta AWS `076248672901`:
 
-- Autorização para criar os recursos do §5 (ECR, VPC Connector, RDS, SSM Parameters, App Runner) —
+- Autorização para criar os recursos do §5 (Managed Database, Container Service, deployment) —
   aguardando.
-- Senha do usuário do banco de produção e geração/obtenção das chaves RSA de produção
-  (`CAFEY_JWT_PRIVATE_KEY`/`PUBLIC_KEY` — podem ser um par novo, gerado especificamente para
-  produção, distinto do par efêmero de dev).
-- Confirmação de que `us-east-1` (região diferente da `sa-east-1` do IoT Core) é aceitável — ver
-  justificativa em [§1](#1-decisão-de-arquitetura).
+- Confirmação da Variante A (recomendada, ~US$22/mês) vs. Variante B (~US$7/mês, HTTPS manual) —
+  ver trade-off no §1.
+- Senha do usuário do banco de produção e o par de chaves RSA de produção
+  (`CAFEY_JWT_PRIVATE_KEY`/`PUBLIC_KEY`) — a gerar fora deste repositório.
+- Região Lightsail a usar (este runbook assume `us-east-1` como placeholder — confirmar
+  disponibilidade de Container Service e Managed Database na região preferida antes de criar).
 
-**Recomendação técnica (resumo):** App Runner + RDS `db.t4g.micro` em `us-east-1`, domínio HTTPS
-default do App Runner (sem domínio próprio), segredos via SSM Parameter Store `SecureString`,
-custo estimado ≈ US$ 28/mês rodando 24/7 (menor se pausado entre demos). Publicação inicial manual
-(§5), GitHub Actions como evolução após a primeira publicação validada. Nenhum recurso foi criado —
-aguardando autorização para executar o §5.
+**Recomendação técnica (resumo):** Lightsail Container Service (Nano, $7/mês) + Lightsail Managed
+Database (Standard, $15/mês) = **≈US$22/mês**, domínio HTTPS default do Container Service (sem
+domínio próprio, sem custo/configuração extra), dados do Postgres protegidos por backup/snapshot
+gerenciado (não sujeitos ao risco operacional de perder o volume de um host único). Alternativa
+mais barata (Instance + Compose, ~US$7/mês) documentada no §1/§2 caso o usuário prefira priorizar
+custo sobre o risco operacional. Nenhum recurso foi criado — aguardando autorização para executar
+o §5.
