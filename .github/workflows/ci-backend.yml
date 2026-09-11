@@ -48,6 +48,13 @@ jobs:
       - name: Build and test backend
         if: steps.check-backend.outputs.exists == 'true'
         working-directory: backend/cafey-backend
+        # `./gradlew test` também executa os testes de integração com
+        # PostgreSQL real via Testcontainers (issue #102), que sobem um
+        # container Docker em tempo de execução do teste — não durante a
+        # fase de configuração do Gradle — por isso permanecem compatíveis
+        # com o configuration cache habilitado em gradle.properties (#101).
+        # Runners ubuntu-latest hospedados pelo GitHub já vêm com Docker
+        # Engine disponível, sem necessidade de configuração adicional.
         run: |
           chmod +x gradlew
           ./gradlew test
