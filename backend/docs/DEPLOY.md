@@ -6,262 +6,269 @@
 > após 15 min de inatividade sem tráfego, confirmado na fonte oficial
 > [render.com/docs/free](https://render.com/docs/free)).
 >
-> **Revisão desta rodada:** o plano anterior (App Runner + RDS) foi descartado — confirmado em
+> **1ª revisão:** o plano App Runner + RDS foi descartado — confirmado em
 > [docs.aws.amazon.com/apprunner/.../apprunner-availability-change.html](https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html)
-> que **"AWS App Runner is no longer open to new customers"**; como esta conta nunca usou o
-> serviço, o plano anterior provavelmente não executaria. A própria AWS recomenda o Amazon ECS
-> Express Mode como sucessor, mas ele usa Fargate+ALB por baixo — mesmo perfil de custo da opção
-> "ECS Fargate + ALB" já descartada por preço na rodada anterior (~US$90/mês). **Decisão do
-> usuário: usar AWS Lightsail**, priorizando custo mínimo e aproveitando os créditos iniciais já
-> confirmados na conta (billing habilitado, sem risco de fechamento automático).
+> que **"AWS App Runner is no longer open to new customers"**. Decisão: usar **AWS Lightsail**.
 >
-> Este documento é o plano/runbook para revisão humana. **Nenhum recurso AWS real foi criado** —
-> ver [Status e bloqueio](#status-e-bloqueio) no final. Segue o mesmo formato do runbook de
-> INFRA-05 (`docs/docs_arquitetura/aws-iot-core-provisioning.md`, branch `feat/123-provisionar-aws-iot`).
+> **2ª revisão (decisão final do usuário):** **Variante B — Lightsail Instance + Docker Compose**,
+> com **DuckDNS** (DNS dinâmico gratuito) resolvendo o domínio, eliminando a objeção "precisa de
+> domínio próprio" que pesava contra essa variante na rodada anterior. Custo final: **≈US$7/mês**
+> (só a instância — sem custo de banco gerenciado, sem custo de domínio).
+>
+> Este documento é o plano/runbook para revisão humana. **Nenhum recurso AWS/DuckDNS real foi
+> criado** — ver [Status e bloqueio](#status-e-bloqueio) no final. Segue o mesmo formato do runbook
+> de INFRA-05 (`docs/docs_arquitetura/aws-iot-core-provisioning.md`, branch
+> `feat/123-provisionar-aws-iot`).
 
 ## Sumário
 
 1. [Decisão de arquitetura](#1-decisão-de-arquitetura)
 2. [Estimativa de custo mensal](#2-estimativa-de-custo-mensal)
-3. [Domínio e HTTPS](#3-domínio-e-https)
+3. [Domínio e HTTPS (DuckDNS + Caddy)](#3-domínio-e-https-duckdns--caddy)
 4. [Segredos](#4-segredos)
-5. [Runbook — recursos a criar](#5-runbook--recursos-a-criar)
-6. [Migrations e CORS](#6-migrations-e-cors)
-7. [Publicação (manual vs. GitHub Actions)](#7-publicação-manual-vs-github-actions)
-8. [Status e bloqueio](#status-e-bloqueio)
+5. [Backup do Postgres](#5-backup-do-postgres)
+6. [Runbook — recursos a criar](#6-runbook--recursos-a-criar)
+7. [Migrations e CORS](#7-migrations-e-cors)
+8. [Publicação (manual vs. GitHub Actions)](#8-publicação-manual-vs-github-actions)
+9. [Status e bloqueio](#status-e-bloqueio)
 
 ---
 
 ## 1. Decisão de arquitetura
 
-### O ponto crítico: persistência de dados do Postgres
+**Variante escolhida: Lightsail Instance (VPS) rodando `backend/compose.yaml` da #149** (app +
+Postgres no mesmo host), na frente um Caddy fazendo HTTPS automático para um subdomínio DuckDNS.
 
-Assim como o App Runner, o **Lightsail Container Service** não documenta em nenhuma página do seu
-guia oficial (Container services, Deployments, Deployment versions, Pushing images, Metrics) uma
-opção de disco/volume persistente anexável aos containers — ao contrário da página de
-[Lightsail Instances](https://aws.amazon.com/lightsail/pricing/), que lista "Highly available SSD
-storage" como característica central do produto. Não encontrei uma afirmação textual explícita do
-tipo "os containers são efêmeros", mas a ausência completa de qualquer menção a volume/disco/estado
-persistente nas páginas de Container Service, tratada em conjunto com o padrão dos concorrentes
-gerenciados equivalentes (App Runner, ECS Fargate sem EFS), é evidência forte o suficiente para
-**não arriscar rodar o Postgres dentro do Container Service**. Por isso as duas variantes abaixo
-mantêm o Postgres fora do Container Service (ou fora de qualquer container efêmero):
+Histórico da decisão (rodada anterior comparou duas variantes — ver commits anteriores deste
+arquivo): a Variante A (Container Service + Managed Database gerenciado, ~US$22/mês) foi
+inicialmente recomendada por eliminar dois riscos — precisar de domínio próprio para HTTPS válido,
+e backup dos dados. O usuário decidiu pela **Variante B** (mais barata, ~US$7/mês) resolvendo os
+dois pontos diretamente:
 
-| Variante | O que roda onde | HTTPS | Persistência dos dados |
-|---|---|---|---|
-| **A — Container Service + Managed Database** | App no Lightsail Container Service (Nano); Postgres no Lightsail Managed Database (plano Standard) | Automático no domínio default do Container Service, sem custo/config extra (confirmado em [docs.aws.amazon.com/.../amazon-lightsail-container-services.html](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-container-services.html): *"The public endpoint of Lightsail container services supports HTTPS only"*, domínio `https://<ServiceName>.<RandomGUID>.<AWSRegion>.cs.amazonlightsail.com`) | Alta — banco gerenciado, com snapshot/backup e *point-in-time restore* documentados ([amazon-lightsail-databases.html](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-databases.html)), independente do ciclo de vida/redeploy do container da API |
-| **B — Instance (VPS) + Docker Compose** | App e Postgres no mesmo Lightsail Instance (bundle Linux/Unix), reaproveitando `backend/compose.yaml` da #149 quase sem alteração | **Não automático** — precisa de reverse proxy com Let's Encrypt (ex.: Caddy) na frente do Compose, e de um nome DNS público para o Let's Encrypt validar o domínio (Lightsail Instance não tem um domínio HTTPS gerenciado por padrão como o Container Service) | Alta na prática (volume nomeado do Compose sobre o SSD persistente da instância, que não é recriado em redeploys de container — só some se a instância for deletada), mas depende de disciplina operacional (não rodar `docker compose down -v` por engano; sem backup automático como o Managed Database) |
+1. **Domínio sem custo:** DuckDNS (DNS dinâmico gratuito) resolve a necessidade de um nome DNS
+   público estável apontando para o IP da instância, sem comprar domínio — ver §3.
+2. **Backup dos dados:** um mecanismo simples de `pg_dump` periódico, coberto no §5, já que a
+   instância não tem snapshot automático do banco como o Managed Database teria.
 
-### Decisão: Variante A — Container Service (Nano) + Managed Database (Standard)
-
-Critério decisivo, na mesma linha da rodada anterior (App Runner): **HTTPS válido sem precisar de
-domínio próprio** é um requisito de aceite da issue, e só a Variante A entrega isso de graça. A
-Variante B — mais barata (§2) — reintroduziria o mesmo problema que descartou a opção "ECS
-Fargate + ALB": precisaria de um domínio público real para o Let's Encrypt emitir um certificado
-válido (um IP puro ou o hostname público padrão de uma Lightsail Instance não server para isso sem
-um nome DNS estável apontando para ele; a alternativa seria um serviço de DNS curinga gratuito de
-terceiros como `sslip.io`, que funciona tecnicamente mas não é um domínio "próprio" nem um recurso
-gerenciado pela AWS — troca robustez por economia).
-
-Também pesa a favor da Variante A: banco com snapshot/backup gerenciado pela AWS elimina o risco de
-perder os dados da demo por um erro operacional no host (ex.: `docker compose down -v`), que é
-justamente o tipo de risco que motivou descartar o Postgres free do Render (dados podem sumir antes
-de 16/10). Dado que o marco de 16/10 é crítico e não há margem para redo, a Variante A troca
-~US$15/mês a mais (§2) por menos risco operacional numa janela de tempo curta — troca que considero
-adequada para este caso.
-
-**Registrado para o usuário decidir se discordar:** se o custo mínimo (Variante B, ~US$5–7/mês)
-for mais importante do que o risco operacional acima, ou se preferir usar `sslip.io`/um domínio já
-possuído para o Let's Encrypt, a Variante B está descrita nesta seção e pode ser escolhida no lugar.
+Com os dois riscos endereçados, a Variante B reaproveita o `Dockerfile`/`compose.yaml` já entregues
+na #149 quase sem alteração (só adicionando o serviço do Caddy), o que reduz o trabalho de
+implementação antes de 16/10 — critério que também pesa a favor desta escolha.
 
 ## 2. Estimativa de custo mensal
 
-Fonte: [aws.amazon.com/lightsail/pricing](https://aws.amazon.com/lightsail/pricing/) (página oficial
-de preços do Lightsail, consultada nesta análise). Lightsail cobra por bundle fixo mensal (não por
-hora como App Runner/ECS/RDS), então os valores abaixo já são o teto — não há economia por pausar o
-recurso fora dos dias de demo (diferente da alternativa AWS "clássica" avaliada na rodada anterior).
-
-### Variante A (recomendada) — Container Service + Managed Database
+Fonte: [aws.amazon.com/lightsail/pricing](https://aws.amazon.com/lightsail/pricing/) (consultada
+nesta análise). DuckDNS é gratuito (sem tier pago).
 
 | Item | Plano | Preço (fonte oficial) |
 |---|---|---|
-| Lightsail Container Service | Nano — 0,25 vCPU (compartilhado), 512 MB RAM, 500 GB transferência/mês | **$7 USD/mês** |
-| Lightsail Managed Database | Standard — 1 GB memória, 1 core, 40 GB SSD, 100 GB transferência/mês, sem criptografia de dados | **$15 USD/mês** |
-| **Total** | | **$22 USD/mês** |
+| Lightsail Instance (Linux/Unix) | 1 GB memória, 2 vCPUs compartilhadas, 40 GB SSD, 2 TB transferência/mês | **$7 USD/mês** |
+| Static IP (Lightsail) | Grátis enquanto anexado a uma instância em execução | **$0** |
+| DuckDNS | Subdomínio `*.duckdns.org`, plano gratuito | **$0** |
+| Certificado TLS (Let's Encrypt via Caddy) | — | **$0** |
+| **Total** | | **≈$7 USD/mês** |
 
-Observação: o plano Standard de banco listado acima é **sem criptografia de dados** — o próximo
-degrau ($30/mês, 2 GB memória) já inclui "Data encrypted". Para uma demo acadêmica, considero o
-plano sem criptografia em repouso aceitável (segredos de aplicação continuam fora do banco, via
-variável de ambiente — §4), mas registro a opção para o usuário decidir se prefere pagar o degrau
-seguinte por criptografia em repouso.
+Escolhido o bundle de **1 GB de memória** (não o de $5/mês com 0,5 GB) porque JVM (Spring Boot) e
+Postgres rodando juntos no mesmo host precisam de mais do que 512 MB para não arriscar OOM durante
+a demo.
 
-### Variante B (alternativa mais barata, com as ressalvas do §1) — Instance + Compose
+**Backup opcional fora da instância** (§5): se o usuário quiser uma cópia do dump fora do disco da
+própria instância (proteção contra perda/corrupção do disco, não só contra erro de operação), um
+bucket Lightsail Object Storage custa **$1 USD/mês** (bundle de 5 GB storage / 25 GB transferência —
+mesma fonte de preços), o que levaria o total para **≈$8 USD/mês**. Ver §5 para a recomendação.
 
-| Item | Plano | Preço (fonte oficial) |
-|---|---|---|
-| Lightsail Instance (Linux/Unix) | Menor bundle — 0,5 GB memória, 2 vCPUs compartilhadas, 20 GB SSD, 1 TB transferência/mês | **$5 USD/mês** |
-| Lightsail Instance (Linux/Unix), alternativa mais folgada | 1 GB memória, 2 vCPUs compartilhadas, 40 GB SSD, 2 TB transferência/mês | **$7 USD/mês** |
-| **Total** | | **$5–7 USD/mês** |
+**Custo mensal declarado (critério de aceite): ≈US$7/mês** (ou ≈US$8/mês com backup externo
+opcional).
 
-0,5 GB de memória é pouco para JVM (Spring Boot) + Postgres no mesmo host rodando ao mesmo tempo —
-recomendo o bundle de $7/mês (1 GB) se a Variante B for a escolhida, para não arriscar OOM na
-demo.
+## 3. Domínio e HTTPS (DuckDNS + Caddy)
 
-**Custo mensal declarado (critério de aceite):** **US$ 22/mês** (Variante A, recomendada) ou
-**US$ 7/mês** (Variante B, alternativa mais barata com HTTPS manual). Ambos os valores devem ser
-confirmados na [página oficial de preços](https://aws.amazon.com/lightsail/pricing/) no momento da
-criação dos recursos, já que preços podem mudar.
+### DuckDNS
 
-## 3. Domínio e HTTPS
+[DuckDNS](https://www.duckdns.org) é um serviço de DNS dinâmico gratuito. Fluxo (confirmado na
+[especificação oficial da API](https://www.duckdns.org/spec.jsp)):
 
-**Variante A (recomendada):** usar o domínio default do Container Service
-(`https://<ServiceName>.<RandomGUID>.<AWSRegion>.cs.amazonlightsail.com`), com certificado emitido
-automaticamente pela AWS — confirmado na documentação oficial (§1). Nenhuma ação extra, nenhum
-custo de domínio. Consistente com a autorização padrão do usuário ("aceitável para a banca, a menos
-que eu diga o contrário").
+1. Criar conta gratuita em duckdns.org (login via GitHub/Google/Reddit/Twitter — sem cartão).
+2. Registrar um subdomínio, ex. `cafey-backend.duckdns.org`, apontando inicialmente para o IP
+   estático da instância Lightsail.
+3. Manter o registro atualizado com uma chamada HTTPS simples:
+   `https://www.duckdns.org/update?domains=cafey-backend&token=<token>&ip=<ip-estatico>` — como o
+   IP é **estático** (Lightsail Static IP, gratuito enquanto anexado à instância), essa chamada só
+   precisa ser feita uma vez (ou, por segurança/simplicidade, num cron a cada poucas horas, caso o
+   IP eventualmente mude por alguma reassociação manual).
 
-**Variante B (se escolhida):** precisa de um nome DNS público estável apontando para o IP estático
-da instância — via domínio próprio (registro + apontamento de DNS) ou via um serviço de DNS
-curinga gratuito de terceiro (`sslip.io`/`nip.io`), e um reverse proxy com renovação automática de
-certificado (Caddy é a opção mais simples — renova Let's Encrypt sozinho). Este documento não
-detalha o passo a passo dessa variante porque não é a recomendação — se o usuário optar por ela,
-detalho na próxima rodada.
+### HTTP-01 (escolhido) em vez de DNS-01
+
+O pedido pediu para avaliar o desafio DNS-01 (via plugin DuckDNS do Caddy, como no tutorial do Home
+Assistant) contra o HTTP-01 simples. **Escolha: HTTP-01**, o modo *default* do Caddy
+— confirmado na [documentação oficial do Caddy sobre HTTPS automático](https://caddyserver.com/docs/automatic-https):
+*"Caddy keeps all managed certificates renewed [...] Certificates are obtained and renewed for all
+qualifying domain names"* usando a porta 80 para o desafio HTTP, sem qualquer plugin/config
+adicional, desde que o domínio resolva publicamente para o host e a porta 80 esteja acessível.
+
+Como a instância já precisa expor a porta 80 (para o próprio redirecionamento HTTP→HTTPS do Caddy)
+e a porta 443, **não há motivo para a complexidade extra do desafio DNS-01** (que exigiria compilar
+um binário Caddy customizado com `xcaddy` incluindo o módulo `github.com/caddy-dns/duckdns`, e
+gerenciar o token da API DuckDNS como segredo dentro da config do Caddy). DNS-01 só compensaria se a
+porta 80 não pudesse ficar aberta (não é o caso aqui) ou se fosse necessário um certificado
+wildcard (não é necessário — um único subdomínio basta).
+
+### Configuração do Caddy no Compose
+
+Adicionar um serviço `caddy` ao `backend/compose.yaml`, na frente do serviço `app`, com um
+`Caddyfile` mínimo:
+
+```
+cafey-backend.duckdns.org {
+    reverse_proxy app:8080
+}
+```
+
+O Caddy oficial (imagem `caddy:2-alpine`) já inclui suporte a HTTPS automático via Let's Encrypt
+(HTTP-01) sem plugins. Portas `80`/`443` do host mapeadas para o container do Caddy; o serviço
+`app` deixa de publicar a porta `8080` no host (só acessível internamente, via a rede do Compose).
 
 ## 4. Segredos
 
-Nenhum segredo entra no repositório nem na imagem Docker. O Lightsail Container Service aceita
-variáveis de ambiente por container na definição do deployment (`containers.<nome>.environment`),
-mas **não tem um mecanismo nativo equivalente ao `RuntimeEnvironmentSecrets` do App Runner** para
-buscar segredos do Secrets Manager/SSM em runtime — as variáveis de ambiente do deployment ficam
-armazenadas como texto na definição do serviço (visível a quem tiver acesso de leitura ao recurso
-Lightsail, não ao público). Para manter o mesmo nível de higiene dos demais módulos (chaves nunca
-em texto no repositório/imagem), a prática recomendada é:
+Sem Secrets Manager nativo nesse caminho (é uma instância genérica, não um recurso gerenciado com
+integração de segredos como o Container Service teria). Mesma abordagem usada localmente pela #149,
+adaptada para produção:
 
-- Gerar o par de chaves RSA de produção (`CAFEY_JWT_PRIVATE_KEY`/`PUBLIC_KEY`, distinto do par
-  efêmero de dev) e a senha do banco **fora do repositório**, e colá-los diretamente no console/CLI
-  do Lightsail ao criar o deployment — nunca commitados, nunca na imagem Docker.
-- Restringir o acesso IAM à conta `076248672901` (ou ao usuário/role que gerencia o Lightsail) a
-  quem precisa ver a definição do deployment.
-- Documentar aqui (sem os valores) que as variáveis abaixo são preenchidas manualmente no console
-  no momento do deploy: `CAFEY_JWT_PRIVATE_KEY`, `CAFEY_JWT_PUBLIC_KEY`,
-  `SPRING_DATASOURCE_PASSWORD`.
+- As variáveis sensíveis (`CAFEY_JWT_PRIVATE_KEY`, `CAFEY_JWT_PUBLIC_KEY`,
+  `SPRING_DATASOURCE_PASSWORD`) entram via um arquivo `.env` **na instância**, fora do
+  repositório (git-ignorado, nunca commitado, copiado manualmente ou colado via SSH ao provisionar)
+  — o Compose já carrega `.env` automaticamente (mesmo mecanismo documentado em
+  `backend/README.md` para uso local).
+- Permissões do arquivo restritas ao usuário SSH da instância (`chmod 600 .env`).
+- Chaves RSA de produção geradas especificamente para este ambiente, distintas do par efêmero de
+  dev — nunca reaproveitar uma chave de teste.
+- `SPRING_PROFILES_ACTIVE=prod` ativo, para que o boot falhe caso as chaves não estejam presentes
+  (`JwtTokenService.resolveKeyPair`), evitando subir com chave efêmera em produção por engano.
 
-Se essa limitação for um problema (ex.: mais pessoas precisarem gerenciar o deployment sem ver os
-segredos), a alternativa é usar AWS Secrets Manager/SSM Parameter Store e buscar o valor no boot da
-aplicação (via um pequeno *entrypoint* que popula a variável de ambiente antes de iniciar o jar) —
-mais trabalho de implementação, fica registrado como opção futura, não necessária para a banca.
+## 5. Backup do Postgres
 
-## 5. Runbook — recursos a criar
+A instância não tem snapshot automático do banco (diferente do Managed Database da Variante A).
+Mecanismo simples, suficiente para proteger os dados da demo até 16/10 (não é uma solução de
+produção):
 
-**Nada abaixo foi executado.** Comandos de referência para quando o usuário autorizar (Variante A).
+### Cron no host (recomendado, custo zero)
+
+Um cron job no host da instância, fora do Compose (mais simples que adicionar um serviço extra ao
+`compose.yaml` só para isso), rodando `pg_dump` dentro do container `db` e salvando o dump
+comprimido num diretório do host:
 
 ```bash
-REGION=us-east-1   # ou a região Lightsail preferida — confirmar disponibilidade de Container
-                    # Service e Managed Database na região escolhida antes de criar
-
-# 1) Banco gerenciado (Postgres, plano Standard 1GB/1 core/40GB)
-aws lightsail create-relational-database \
-  --relational-database-name cafey-backend-db \
-  --relational-database-blueprint-id postgres_16 \
-  --relational-database-bundle-id micro_2_0 \
-  --master-database-name cafey_db \
-  --master-username cafey_user \
-  --master-user-password "<gerar e guardar fora do repositório>" \
-  --region "$REGION"
-
-# 2) Container service (Nano)
-aws lightsail create-container-service \
-  --service-name cafey-backend \
-  --power nano \
-  --scale 1 \
-  --region "$REGION"
-
-# 3) Build + push da imagem para o registro do próprio Container Service
-#    (reaproveita o Dockerfile da #149; não precisa de ECR separado)
-docker build -t cafey-backend backend/cafey-backend
-aws lightsail push-container-image \
-  --service-name cafey-backend \
-  --label app \
-  --image cafey-backend:latest \
-  --region "$REGION"
-
-# 4) Endpoint do banco, para a variável SPRING_DATASOURCE_URL
-aws lightsail get-relational-database \
-  --relational-database-name cafey-backend-db \
-  --region "$REGION" \
-  --query 'relationalDatabase.masterEndpoint'
-
-# 5) Deployment do container, com as variáveis de ambiente (segredos preenchidos manualmente,
-#    nunca neste arquivo/commit — ver §4)
-aws lightsail create-container-service-deployment \
-  --service-name cafey-backend \
-  --containers '{
-    "app": {
-      "image": ":cafey-backend.app.latest",
-      "ports": {"8080": "HTTP"},
-      "environment": {
-        "SPRING_PROFILES_ACTIVE": "prod",
-        "SPRING_DATASOURCE_URL": "jdbc:postgresql://<endpoint-do-banco>:5432/cafey_db",
-        "SPRING_DATASOURCE_USERNAME": "cafey_user",
-        "SPRING_DATASOURCE_PASSWORD": "<preencher na hora, não versionar>",
-        "CAFEY_JWT_PRIVATE_KEY": "<preencher na hora, não versionar>",
-        "CAFEY_JWT_PUBLIC_KEY": "<preencher na hora, não versionar>",
-        "CAFEY_CORS_ALLOWED_ORIGINS": "<origem real do app Web publicado>"
-      }
-    }
-  }' \
-  --public-endpoint '{"containerName": "app", "containerPort": 8080, "healthCheck": {"path": "/actuator/health", "healthyThreshold": 2}}' \
-  --region "$REGION"
-
-# 6) Obter a URL pública HTTPS do serviço
-aws lightsail get-container-services --service-name cafey-backend --region "$REGION" \
-  --query 'containerServices[0].url'
+# /etc/cron.d/cafey-backup (na instância, não no repositório)
+0 */6 * * * root docker compose -f /opt/cafey/backend/compose.yaml exec -T db \
+  pg_dump -U cafey_user cafey_db | gzip > /opt/cafey/backups/cafey_db_$(date +\%Y\%m\%d_\%H\%M).sql.gz
+  find /opt/cafey/backups -name '*.sql.gz' -mtime +7 -delete
 ```
 
-**Pendências a confirmar durante a execução (não bloqueiam o plano, mas precisam de atenção na
-hora):**
-- Expor um endpoint de health check em `/actuator/health` (verificar se o `spring-boot-starter-
-  actuator` está entre as dependências do backend; se não estiver, ajustar o `healthCheck.path` do
-  passo 5 para um endpoint existente, ex. `/` ou um endpoint público do `AuthController`).
-- Confirmar a forma exata pela qual o Container Service alcança o Managed Database (mesma conta,
-  possivelmente rede privada do Lightsail vs. endpoint público do banco protegido por firewall) —
-  a documentação consultada nesta análise não detalhou esse ponto explicitamente; validar ao
-  provisionar e, se necessário, habilitar o modo público do banco com a lista de IPs permitidos
-  restrita.
+A cada 6 horas, mantendo os últimos 7 dias — ajustável. Dump fica no SSD da própria instância (não
+protege contra perda do disco/instância inteira, só contra erro operacional pontual, ex.: uma
+migration ruim ou um `DELETE` sem `WHERE`).
 
-## 6. Migrations e CORS
+### Cópia externa opcional (Lightsail Object Storage, ~$1/mês — ver §2)
+
+Para proteção também contra perda da instância/disco, adicionar ao mesmo cron uma linha de
+`aws s3 cp` para um bucket Lightsail Object Storage (compatível com a API S3):
+
+```bash
+aws s3 cp /opt/cafey/backups/cafey_db_$(date +\%Y\%m\%d_\%H\%M).sql.gz \
+  s3://cafey-backend-backups/ --endpoint-url https://s3.<regiao>.amazonaws.com
+```
+
+**Recomendação:** habilitar a cópia externa (+$1/mês, marginal) dado que a issue é classificada
+como `crítico` e o marco de 16/10 não tem margem para "redo" — mas fica registrado como opcional
+para o usuário decidir junto da autorização de execução.
+
+## 6. Runbook — recursos a criar
+
+**Nada abaixo foi executado.**
+
+```bash
+REGION=us-east-1   # ou a região Lightsail preferida
+
+# 1) Instância (bundle 1 GB / 2 vCPUs compartilhadas / 40 GB SSD)
+aws lightsail create-instances \
+  --instance-names cafey-backend-vps \
+  --availability-zone "${REGION}a" \
+  --blueprint-id ubuntu_24_04 \
+  --bundle-id small_3_0 \
+  --region "$REGION"
+
+# 2) IP estático, anexado à instância (gratuito enquanto anexado)
+aws lightsail allocate-static-ip --static-ip-name cafey-backend-ip --region "$REGION"
+aws lightsail attach-static-ip \
+  --static-ip-name cafey-backend-ip \
+  --instance-name cafey-backend-vps \
+  --region "$REGION"
+
+# 3) Abrir as portas necessárias (22 já vem aberta por padrão; 80/443 para o Caddy)
+aws lightsail put-instance-public-ports \
+  --instance-name cafey-backend-vps \
+  --port-infos fromPort=22,toPort=22,protocol=TCP fromPort=80,toPort=80,protocol=TCP fromPort=443,toPort=443,protocol=TCP \
+  --region "$REGION"
+
+# 4) DuckDNS — criar conta e subdomínio manualmente em duckdns.org (sem CLI oficial),
+#    depois apontar para o IP estático obtido no passo 2:
+curl "https://www.duckdns.org/update?domains=cafey-backend&token=<token-duckdns>&ip=<ip-estatico>"
+
+# 5) Provisionar a instância via SSH: instalar Docker + Docker Compose plugin, clonar o
+#    repositório (ou copiar só backend/), criar o .env (§4) e o Caddyfile (§3), então:
+#    docker compose -f backend/compose.yaml up -d --build
+#    (reaproveita o Dockerfile/compose.yaml da #149, adicionando o serviço `caddy`)
+
+# 6) Cron de backup (§5) — copiar o arquivo /etc/cron.d/cafey-backup para a instância
+
+# 7) Se optar pela cópia externa (§5): criar o bucket
+aws lightsail create-bucket \
+  --bucket-name cafey-backend-backups \
+  --bundle-id small_1_0 \
+  --region "$REGION"
+```
+
+**Pendências a confirmar durante a execução (não bloqueiam o plano):**
+- Confirmar disponibilidade do bundle/blueprint (`small_3_0`/`ubuntu_24_04`) na região escolhida —
+  IDs de bundle podem variar; validar com `aws lightsail get-bundles` e
+  `aws lightsail get-blueprints` no momento da criação.
+- Testar a emissão do certificado Let's Encrypt via Caddy assim que o DNS do DuckDNS propagar
+  (pode levar alguns minutos) — se falhar, checar se a porta 80 está mesmo acessível
+  externamente (grupo de portas do passo 3).
+
+## 7. Migrations e CORS
 
 - **Flyway** roda no boot da aplicação (`ddl-auto: validate`), mesmo mecanismo já validado
-  localmente no Compose da #149 — não é um passo separado, só depende de
-  `SPRING_DATASOURCE_URL` apontar para o Managed Database.
-- **`CAFEY_CORS_ALLOWED_ORIGINS`**: ainda não há URL pública do app Web no repositório — atualizar
-  este valor assim que o deploy do app Web (fora do escopo desta issue) existir.
+  localmente no Compose da #149 — não é um passo separado, só depende de `SPRING_DATASOURCE_URL`
+  apontar para `db` (mesma rede do Compose, sem mudança em relação à #149 — Postgres continua no
+  mesmo host/Compose, diferente da Variante A que usaria um Managed Database externo).
+- **`CAFEY_CORS_ALLOWED_ORIGINS`**: ainda não há URL pública do app Web no repositório. O usuário
+  mencionou estar avaliando Vercel para o frontend Web, separadamente desta issue — atualizar esta
+  variável assim que essa URL existir; não é responsabilidade de #150 decidir a hospedagem do
+  frontend.
 
-## 7. Publicação (manual vs. GitHub Actions)
+## 8. Publicação (manual vs. GitHub Actions)
 
-**Recomendação:** GitHub Actions a partir de `main`, mas a criação do workflow fica para depois da
-primeira publicação manual validada (§5) — o workflow reaproveita os mesmos comandos
-`aws lightsail push-container-image` / `create-container-service-deployment`, com credenciais AWS
-via OIDC (sem chave de longo prazo no repositório).
+**Recomendação:** primeira publicação manual (via SSH, passo 5 do §6) para validar o ambiente antes
+de 16/10; GitHub Actions como evolução depois disso — um workflow simples que conecta via SSH
+(chave privada como GitHub Secret) e roda `git pull && docker compose up -d --build` na instância.
+Fica para a próxima rodada, depois da primeira publicação manual validada.
 
 ## Status e bloqueio
 
 Os itens abaixo **exigem** aprovação humana explícita antes de qualquer execução, por envolverem
-custo real e recursos fora do repositório na conta AWS `076248672901`:
+custo real e recursos fora do repositório na conta AWS `076248672901` e numa conta DuckDNS pessoal:
 
-- Autorização para criar os recursos do §5 (Managed Database, Container Service, deployment) —
-  aguardando.
-- Confirmação da Variante A (recomendada, ~US$22/mês) vs. Variante B (~US$7/mês, HTTPS manual) —
-  ver trade-off no §1.
+- Autorização para criar os recursos do §6 (instância, IP estático, portas, bucket opcional).
+- Criar a conta DuckDNS e registrar o subdomínio (ação fora da AWS, precisa de decisão de qual
+  conta/login usar).
+- Decidir se a cópia externa de backup (§5, +$1/mês) entra ou não.
 - Senha do usuário do banco de produção e o par de chaves RSA de produção
-  (`CAFEY_JWT_PRIVATE_KEY`/`PUBLIC_KEY`) — a gerar fora deste repositório.
-- Região Lightsail a usar (este runbook assume `us-east-1` como placeholder — confirmar
-  disponibilidade de Container Service e Managed Database na região preferida antes de criar).
+  (`CAFEY_JWT_PRIVATE_KEY`/`PUBLIC_KEY`) — a gerar fora deste repositório, para o `.env` da
+  instância (§4).
+- Região Lightsail a usar (runbook assume `us-east-1` como placeholder).
 
-**Recomendação técnica (resumo):** Lightsail Container Service (Nano, $7/mês) + Lightsail Managed
-Database (Standard, $15/mês) = **≈US$22/mês**, domínio HTTPS default do Container Service (sem
-domínio próprio, sem custo/configuração extra), dados do Postgres protegidos por backup/snapshot
-gerenciado (não sujeitos ao risco operacional de perder o volume de um host único). Alternativa
-mais barata (Instance + Compose, ~US$7/mês) documentada no §1/§2 caso o usuário prefira priorizar
-custo sobre o risco operacional. Nenhum recurso foi criado — aguardando autorização para executar
-o §5.
+**Recomendação técnica (resumo):** Lightsail Instance (1 GB, $7/mês) + Docker Compose (reaproveita
+a #149) + Caddy com HTTPS automático via HTTP-01 (mais simples que DNS-01, sem plugin/token no
+Caddy) + DuckDNS gratuito para o domínio + cron de `pg_dump` a cada 6h (7 dias de retenção),
+com cópia externa opcional para Lightsail Object Storage (+$1/mês) dado o caráter crítico da
+issue. Total: **≈US$7–8/mês**. Nenhum recurso foi criado — aguardando autorização para executar
+o §6.
