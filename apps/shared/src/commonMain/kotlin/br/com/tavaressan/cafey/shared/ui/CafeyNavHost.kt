@@ -30,6 +30,7 @@ import androidx.navigation.compose.rememberNavController
 import br.com.tavaressan.cafey.shared.ui.auth.LoginScreen
 import br.com.tavaressan.cafey.shared.ui.auth.RegisterScreen
 import br.com.tavaressan.cafey.shared.ui.care.CareScreen
+import br.com.tavaressan.cafey.shared.ui.device.DeviceRegisterScreen
 import br.com.tavaressan.cafey.shared.ui.history.HistoryScreen
 import br.com.tavaressan.cafey.shared.ui.home.HomeScreen
 import br.com.tavaressan.cafey.shared.ui.schedule.ScheduleScreen
@@ -42,6 +43,7 @@ private const val ROUTE_HOME = "home"
 private const val ROUTE_SCHEDULE = "schedule"
 private const val ROUTE_HISTORY = "history"
 private const val ROUTE_CARE = "care"
+private const val ROUTE_DEVICE_REGISTER = "device_register"
 
 /** Abas do rodapé principal — espelha `assets/nav.js` do protótipo, exceto "Base" (detalhes de
  * hardware do dispositivo), que não tem issue nem tela correspondente ainda. */
@@ -116,10 +118,15 @@ fun CafeyNavHost() {
                         onGoToLogin = { navController.popBackStack() },
                     )
                 }
-                composable(ROUTE_HOME) { HomeScreen() }
+                composable(ROUTE_HOME) {
+                    HomeScreen(onGoToDeviceRegister = { navController.navigate(ROUTE_DEVICE_REGISTER) })
+                }
                 composable(ROUTE_SCHEDULE) { ScheduleScreen() }
                 composable(ROUTE_HISTORY) { HistoryScreen() }
                 composable(ROUTE_CARE) { CareScreen() }
+                composable(ROUTE_DEVICE_REGISTER) {
+                    DeviceRegisterScreen(onRegistered = { navController.popBackStack() })
+                }
             }
         }
     }
