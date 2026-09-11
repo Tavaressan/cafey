@@ -53,6 +53,12 @@ Nenhuma credencial ou chave fica embutida na imagem — todas entram via variáv
 Para sobrescrever localmente sem editar `compose.yaml`, crie um `backend/.env` (não versionado) com
 as variáveis acima — o Compose o carrega automaticamente.
 
+> **Pendente (issue #157):** o app Web publicado no Vercel (`https://cafey-web.vercel.app`) já
+> consegue apontar para um backend remoto via configuração de build (ver
+> `apps/webApp/build.gradle.kts`), mas `CAFEY_CORS_ALLOWED_ORIGINS` do ambiente publicado ainda
+> precisa incluir essa origem — isso só foi possível validar/configurar quando a integração
+> ponta a ponta (Web no Vercel ↔ backend no Lightsail) for testada de fato.
+
 Certificados do AWS IoT Core (`aws.iot.certificate-path` / `private-key-path` / `root-ca-path`) não
 têm variável de ambiente própria ainda: o bean correspondente só é ativado
 (`@ConditionalOnProperty`) se esses paths forem configurados, então a ausência não impede o boot.
