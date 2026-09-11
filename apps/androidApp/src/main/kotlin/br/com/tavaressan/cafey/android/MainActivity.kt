@@ -13,7 +13,7 @@ class MainActivity : ComponentActivity() {
         AndroidPlatformContext.init(applicationContext)
 
         setContent {
-            App()
+            App(baseUrl = BuildConfig.BACKEND_BASE_URL)
         }
     }
 }
