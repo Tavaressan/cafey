@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caféy · Protótipo de interface</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/cafey.css">
+<style>
+  body { background: #211E1C; color: #F5EFE9; }
+  .doc { max-width: 780px; margin: 0 auto; padding: 64px 32px 96px; display: flex; flex-direction: column; gap: 40px; }
+  .doc h1 { margin: 0; font: 600 40px/1.08 var(--display); letter-spacing: -.025em; color: #FBF8F4; }
+  .doc p { margin: 0; font: 400 16px/1.6 var(--text); color: #A79A92; text-wrap: pretty; }
+  .kicker { font: 600 12px var(--text); letter-spacing: .16em; text-transform: uppercase; color: #A79A92; }
+  .screens { display: grid; gap: 12px; }
+  .screens a {
+    display: flex; align-items: baseline; gap: 14px;
+    padding: 20px 22px; border-radius: 18px;
+    background: #2A2624; text-decoration: none;
+  }
+  .screens a:hover { background: #332E2B; }
+  .screens b { font: 600 19px var(--display); letter-spacing: -.02em; color: #FBF8F4; }
+  .screens small { font: 400 14px var(--text); color: #8E837C; }
+  .screens .tag {
+    margin-left: auto; font: 500 12px var(--mono); color: #8E837C; white-space: nowrap;
+  }
+  .sizes { display: flex; flex-wrap: wrap; gap: 10px; }
+  .sizes span {
+    padding: 7px 13px; border-radius: 999px;
+    background: #2A2624; color: #C9A79A;
+    font: 500 12.5px var(--text);
+  }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <img src="../logo/cafey-logo.svg" alt="" width="36" height="36">
+      <span class="kicker">Caféy · protótipo de interface</span>
+    </div>
+    <h1>Cinco telas do app</h1>
+    <p>Implementação em HTML e CSS do projeto de design <em>Caféy coffee machine control UI</em>. Cada tela é responsiva: barra de abas no celular, trilho de ícones no tablet e barra lateral no desktop. Redimensione a janela para atravessar os três pontos de quebra.</p>
+    <div class="sizes"><span>390 · celular</span><span>834 · tablet</span><span>1180 · desktop</span></div>
+  </div>
+
+  <nav class="screens">
+    <a href="home.html"><b>Início</b><small>Estado da máquina, um controle manual, o próximo preparo</small><span class="tag">home.html</span></a>
+    <a href="schedule.html"><b>Agendamentos</b><small>Lista e editor — “café pronto às”, não “ligar às”</small><span class="tag">schedule.html</span></a>
+    <a href="rhythm.html"><b>Ritmo</b><small>Frases primeiro, gráficos depois</small><span class="tag">rhythm.html</span></a>
+    <a href="care.html"><b>Cuidados</b><small>Contado em preparos, dito em palavras simples</small><span class="tag">care.html</span></a>
+    <a href="base.html"><b>Base</b><small>O aparelho, no fundo escuro</small><span class="tag">base.html</span></a>
+  </nav>
+
+  <p>As telas usam dados de exemplo. Nada aqui conversa com o backend ou com a base — o protótipo existe para fixar a linguagem visual antes do cliente Kotlin Multiplatform.</p>
+
+</div>
+</body>
+</html>

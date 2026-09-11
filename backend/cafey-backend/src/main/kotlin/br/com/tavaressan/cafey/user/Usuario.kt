@@ -1,4 +1,4 @@
-package br.com.cafey.user
+package br.com.tavaressan.cafey.user
 
 import jakarta.persistence.*
 import java.time.Instant

@@ -1,19 +1,32 @@
-package br.com.cafey.device
+package br.com.tavaressan.cafey.device
 
+import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse
+import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.http.ProblemDetail
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.*
 import java.util.UUID
 
+@Tag(name = "Dispositivos", description = "Gerenciamento de dispositivos e seus compartilhamentos")
+@ApiResponse(
+    responseCode = "401",
+    description = "Token JWT ausente ou inválido",
+    content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+)
 @RestController
 @RequestMapping("/dispositivos")
 class DispositivoController(
     private val dispositivoService: DispositivoService
 ) {
 
+    @Operation(summary = "Lista os dispositivos do usuário autenticado")
     @GetMapping
     fun listar(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<List<DispositivoResponse>> {
         val usuarioId = UUID.fromString(jwt.subject)
@@ -21,6 +34,13 @@ class DispositivoController(
         return ResponseEntity.ok(dispositivos)
     }
 
+    @Operation(summary = "Cria um novo dispositivo para o usuário autenticado")
+    @ApiResponse(responseCode = "201", description = "Dispositivo criado com sucesso")
+    @ApiResponse(
+        responseCode = "400",
+        description = "Dados inválidos",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
     @PostMapping
     fun criar(
         @AuthenticationPrincipal jwt: Jwt,
@@ -31,6 +51,12 @@ class DispositivoController(
         return ResponseEntity.status(HttpStatus.CREATED).body(dispositivo)
     }
 
+    @Operation(summary = "Obtém um dispositivo pelo ID")
+    @ApiResponse(
+        responseCode = "404",
+        description = "Dispositivo não encontrado",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
     @GetMapping("/{id}")
     fun obter(
         @AuthenticationPrincipal jwt: Jwt,
@@ -41,6 +67,40 @@ class DispositivoController(
         return ResponseEntity.ok(dispositivo)
     }
 
+    @Operation(summary = "Envia um comando (ligar, desligar ou cancelar) para o dispositivo")
+    @ApiResponse(responseCode = "202", description = "Comando aceito e publicado para o dispositivo")
+    @ApiResponse(
+        responseCode = "400",
+        description = "Ação inválida",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
+    @ApiResponse(
+        responseCode = "404",
+        description = "Dispositivo não encontrado ou usuário sem vínculo",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
+    @ApiResponse(
+        responseCode = "503",
+        description = "Conexão MQTT indisponível",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
+    @PostMapping("/{id}/comando")
+    fun comandar(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable id: UUID,
+        @Valid @RequestBody request: ComandoRequest
+    ): ResponseEntity<ComandoResponse> {
+        val usuarioId = UUID.fromString(jwt.subject)
+        val comando = dispositivoService.comandar(id, request, usuarioId)
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(comando)
+    }
+
+    @Operation(summary = "Atualiza dados de um dispositivo")
+    @ApiResponse(
+        responseCode = "404",
+        description = "Dispositivo não encontrado",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
     @PutMapping("/{id}")
     fun atualizar(
         @AuthenticationPrincipal jwt: Jwt,
@@ -52,6 +112,13 @@ class DispositivoController(
         return ResponseEntity.ok(dispositivo)
     }
 
+    @Operation(summary = "Exclui um dispositivo")
+    @ApiResponse(responseCode = "204", description = "Dispositivo excluído com sucesso")
+    @ApiResponse(
+        responseCode = "404",
+        description = "Dispositivo não encontrado",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
     @DeleteMapping("/{id}")
     fun excluir(
         @AuthenticationPrincipal jwt: Jwt,
@@ -62,6 +129,13 @@ class DispositivoController(
         return ResponseEntity.noContent().build()
     }
 
+    @Operation(summary = "Compartilha um dispositivo com outro usuário por email")
+    @ApiResponse(responseCode = "201", description = "Compartilhamento criado com sucesso")
+    @ApiResponse(
+        responseCode = "404",
+        description = "Dispositivo ou usuário convidado não encontrado",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
     @PostMapping("/{id}/compartilhar")
     fun compartilhar(
         @AuthenticationPrincipal jwt: Jwt,
@@ -73,6 +147,7 @@ class DispositivoController(
         return ResponseEntity.status(HttpStatus.CREATED).body(compartilhamento)
     }
 
+    @Operation(summary = "Lista os compartilhamentos de um dispositivo")
     @GetMapping("/{id}/compartilhamentos")
     fun listarCompartilhamentos(
         @AuthenticationPrincipal jwt: Jwt,
@@ -83,6 +158,13 @@ class DispositivoController(
         return ResponseEntity.ok(compartilhamentos)
     }
 
+    @Operation(summary = "Remove o compartilhamento de um dispositivo com um usuário convidado")
+    @ApiResponse(responseCode = "204", description = "Compartilhamento removido com sucesso")
+    @ApiResponse(
+        responseCode = "404",
+        description = "Dispositivo, convidado ou compartilhamento não encontrado",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
     @DeleteMapping("/{id}/compartilhar/{convidadoId}")
     fun removerCompartilhamento(
         @AuthenticationPrincipal jwt: Jwt,

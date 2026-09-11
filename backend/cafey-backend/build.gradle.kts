@@ -6,7 +6,7 @@ plugins {
 	kotlin("plugin.jpa") version "2.3.21"
 }
 
-group = "br.com.cafey"
+group = "br.com.tavaressan"
 version = "0.0.1-SNAPSHOT"
 description = "Cafey"
 
@@ -48,6 +48,8 @@ dependencies {
 	testImplementation("org.testcontainers:junit-jupiter")
 	testImplementation("org.testcontainers:postgresql")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
+	implementation("com.bucket4j:bucket4j_jdk17-core:8.19.0")
 }
 
 kotlin {

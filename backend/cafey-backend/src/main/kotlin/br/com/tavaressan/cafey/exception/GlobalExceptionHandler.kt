@@ -1,4 +1,4 @@
-package br.com.cafey.exception
+package br.com.tavaressan.cafey.exception
 
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
@@ -23,6 +23,22 @@ class GlobalExceptionHandler {
     fun handleBadCredentials(ex: BadCredentialsException, request: WebRequest): ProblemDetail {
         val problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.message ?: "Bad credentials")
         problemDetail.title = "Unauthorized"
+        problemDetail.type = URI.create("about:blank")
+        return problemDetail
+    }
+
+    @ExceptionHandler(RequisicaoInvalidaException::class)
+    fun handleRequisicaoInvalida(ex: RequisicaoInvalidaException, request: WebRequest): ProblemDetail {
+        val problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.message ?: "Invalid request")
+        problemDetail.title = "Bad Request"
+        problemDetail.type = URI.create("about:blank")
+        return problemDetail
+    }
+
+    @ExceptionHandler(ServicoIndisponivelException::class)
+    fun handleServicoIndisponivel(ex: ServicoIndisponivelException, request: WebRequest): ProblemDetail {
+        val problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.message ?: "Service unavailable")
+        problemDetail.title = "Service Unavailable"
         problemDetail.type = URI.create("about:blank")
         return problemDetail
     }

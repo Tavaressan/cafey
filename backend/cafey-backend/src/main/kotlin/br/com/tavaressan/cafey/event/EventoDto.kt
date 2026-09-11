@@ -1,4 +1,4 @@
-package br.com.cafey.event
+package br.com.tavaressan.cafey.event
 
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull

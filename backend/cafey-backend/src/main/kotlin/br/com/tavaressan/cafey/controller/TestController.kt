@@ -1,7 +1,8 @@
-package br.com.cafey.controller
+package br.com.tavaressan.cafey.controller
 
-import br.com.cafey.exception.BadCredentialsException
-import br.com.cafey.exception.ResourceNotFoundException
+import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.exception.ResourceNotFoundException
+import io.swagger.v3.oas.annotations.Hidden
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
 import org.springframework.web.bind.annotation.GetMapping
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.RestController
 
 data class TestDto(@field:NotBlank(message = "must not be blank") val name: String?)
 
+// Scaffolding de desenvolvimento para exercitar o GlobalExceptionHandler; oculto da documentação pública.
+@Hidden
 @RestController
 class TestController {
     @GetMapping("/test/not-found")
