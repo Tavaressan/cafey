@@ -1,4 +1,4 @@
-package br.com.cafey.integration
+package br.com.tavaressan.cafey.integration
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
