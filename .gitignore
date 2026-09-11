@@ -23,6 +23,13 @@ firmware/test/build/
 firmware/sdkconfig
 firmware/sdkconfig.old
 
+# Credenciais AWS IoT Core (INFRA-05) — nunca versionar chaves/certs reais
+firmware/certs/*
+!firmware/certs/*.example
+backend/cafey-backend/src/main/resources/certs/
+backend/cafey-backend/.env
+!backend/cafey-backend/.env.example
+
 # Mecânica (FreeCAD) — saídas geradas e backups
 mechanical/build/
 *.FCStd1
