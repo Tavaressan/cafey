@@ -40,6 +40,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           build-root-directory: backend/cafey-backend
+          # PRs só leem o cache (dependências, wrapper e configuration cache)
+          # gravado pelos pushes na branch default, evitando poluir o cache
+          # com entradas de branches efêmeras e acelerando o feedback do PR.
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Build and test backend
         if: steps.check-backend.outputs.exists == 'true'
