@@ -29,6 +29,8 @@ firmware/certs/*
 backend/cafey-backend/src/main/resources/certs/
 backend/cafey-backend/.env
 !backend/cafey-backend/.env.example
+backend/.env
+!backend/.env.example
 
 # Mecânica (FreeCAD) — saídas geradas e backups
 mechanical/build/
