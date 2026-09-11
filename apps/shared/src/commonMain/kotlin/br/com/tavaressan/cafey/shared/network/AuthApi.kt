@@ -55,6 +55,11 @@ class AuthApi(
 
     suspend fun logout() = tokenStorage.clear()
 
+    /** Login do admin fixo de teste — sem round-trip HTTP, ver [DebugAdminCredentials]. */
+    suspend fun loginComoAdminDebug(): AuthResponse =
+        AuthResponse(accessToken = "debug-admin-access-token", refreshToken = "debug-admin-refresh-token")
+            .also { persistTokens(it) }
+
     private suspend fun persistTokens(response: AuthResponse) {
         tokenStorage.save(StoredTokens(response.accessToken, response.refreshToken))
     }
