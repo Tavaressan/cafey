@@ -7,8 +7,12 @@
 >
 > Este documento descreve o procedimento para criar de fato os recursos no AWS IoT Core (conta real,
 > `things`, certificados X.509 e políticas) e distribuir as credenciais para o firmware e o backend.
-> Os passos que exigem uma conta AWS ativa **não foram executados** por este agente — ver
-> [Status e bloqueio](#status-e-bloqueio) no final.
+>
+> **Atualização:** o provisionamento real foi executado em 2026-09-11 seguindo exatamente os
+> comandos deste runbook, na conta AWS `076248672901`, região `sa-east-1`. Os recursos abaixo
+> existem de fato — ver [Recursos provisionados](#recursos-provisionados) e
+> [Status e pendências](#status-e-pendências) para o que ainda depende de hardware físico/ambiente
+> de deploy.
 
 ## Sumário
 
@@ -18,17 +22,24 @@
 4. [Distribuição segura das credenciais](#4-distribuição-segura-das-credenciais)
 5. [Configuração nos módulos](#5-configuração-nos-módulos)
 6. [Critério de aceite — como validar](#6-critério-de-aceite--como-validar)
-7. [Status e bloqueio](#status-e-bloqueio)
+7. [Recursos provisionados](#recursos-provisionados)
+8. [Status e pendências](#status-e-pendências)
 
 ---
 
 ## 1. Conta, região e endpoint
 
-**Decisão pendente (humana):** qual conta AWS e qual região usar. Ver
-[Status e bloqueio](#status-e-bloqueio) para as opções e a recomendação.
+**Decidido:** conta AWS `076248672901`, região `sa-east-1` (São Paulo) — ver a justificativa em
+[Status e pendências](#status-e-pendências).
 
-Depois de decidida a região, obtenha o endpoint ATS (`iot:Data-ATS`, o tipo de endpoint recomendado
-pela AWS desde 2019 — o `iot:Data` legado usa uma cadeia de CA diferente):
+Endpoint ATS (`iot:Data-ATS`, o tipo de endpoint recomendado pela AWS desde 2019 — o `iot:Data`
+legado usa uma cadeia de CA diferente):
+
+```
+a3gha475fc91p-ats.iot.sa-east-1.amazonaws.com:8883
+```
+
+Para obter o comando abaixo (documentado para reprodutibilidade/rotação futura):
 
 ```bash
 aws iot describe-endpoint --endpoint-type iot:Data-ATS --region <regiao-escolhida>
@@ -232,25 +243,67 @@ mosquitto_pub -h "$ENDPOINT" -p 8883 --cafile amazon-root-ca-1.pem \
 # -> conexão derrubada / publish negado pela política (mínimo privilégio, §3)
 ```
 
-## Status e bloqueio
+## Recursos provisionados
 
-Os itens abaixo **exigem** uma conta AWS real e uma decisão de custo/latência que este agente não
-pode tomar de forma autônoma. Tudo que era determinístico e local (templates de política, runbook
-de comandos, estrutura de configuração dos módulos, `.gitignore`) foi entregue nesta branch — ver
-commits. O que falta:
+Provisionamento real executado em 2026-09-11, conta AWS `076248672901`, região `sa-east-1`,
+seguindo exatamente os comandos das seções 1-3 deste runbook (nenhum documento de política diverge
+dos templates já versionados no repositório).
 
-- Escolher a conta AWS e a região (`us-east-1` vs. `sa-east-1`, avaliando latência até o dispositivo
-  no Brasil vs. custo/free tier da região).
-- Executar de fato os comandos das seções 2 e 3 nessa conta (criar as `things`, gerar os
-  certificados reais e anexar as políticas).
-- Gerar o binário de NVS do dispositivo real (§4) e gravá-lo na placa física.
-- Provisionar as variáveis de ambiente / Secrets Manager do backend em produção com o certificado
-  real (§4/§5).
+| Recurso | Valor |
+|---|---|
+| Endpoint ATS | `a3gha475fc91p-ats.iot.sa-east-1.amazonaws.com:8883` |
+| Thing (dispositivo) | `cafey-device-proto-01` — thingId `79713a96-8621-429d-a529-118886e577c7`, thingType `cafey-cafeteira` |
+| Thing (backend) | `cafey-backend` — thingId `e71c3bcd-e252-4850-bc19-6895201177e9` |
+| Certificado do dispositivo | `arn:aws:iot:sa-east-1:076248672901:cert/20e271fb357835a607bbf563f74fce5ecae24fec1d32805f394ca5eb54fb91fe` (ativo, anexado à thing) |
+| Certificado do backend | `arn:aws:iot:sa-east-1:076248672901:cert/19be33dd7c22a285f3ed4460f1ba2038d31190717ad01fcd3560eaa448f1be98` (ativo, anexado à thing) |
+| Política do dispositivo | `arn:aws:iot:sa-east-1:076248672901:policy/cafey-device-policy` (documento idêntico a `firmware/aws-iot-device-policy.json`, anexada ao certificado do dispositivo) |
+| Política do backend | `arn:aws:iot:sa-east-1:076248672901:policy/cafey-backend-policy` (documento idêntico a `backend/cafey-backend/src/main/resources/aws-iot-backend-policy.json`, anexada ao certificado do backend) |
 
-**Recomendação técnica:** `sa-east-1` (São Paulo) — o dispositivo físico e os desenvolvedores estão
-no Brasil, então a latência de conexão MQTT/TLS e o RTT dos comandos ligar/desligar (crítico para a
-UX do app, marco 25/09) tendem a ser menores do que em `us-east-1`. Verificar antes de decidir se
-`sa-east-1` tem paridade de preço e de todos os recursos do AWS IoT Core usados aqui (não há
-diferença de feature set relevante para o escopo desta issue, mas a confirmação de preço/free-tier
-deve ser feita na calculadora oficial da AWS no momento da decisão, já que preços mudam com o
-tempo).
+O material sensível (chaves privadas, certificados `.pem`, Amazon Root CA) foi gerado e mantido
+**fora do repositório**; nada foi commitado, conforme §4.
+
+### Validação funcional já realizada (além do checklist §6)
+
+Como `mosquitto-clients` não está instalado neste ambiente (ver [Status e pendências](#status-e-pendências)),
+uma validação equivalente foi feita com um cliente MQTT/TLS em Python (`paho-mqtt`) apontando para
+os certificados reais acima, confirmando contra o serviço real:
+
+- Backend publica em `dispositivos/cafey-device-proto-01/comando` e o dispositivo (assinante do
+  tópico exato, com seu próprio certificado/política) **recebe** a mensagem — confirmado.
+- Dispositivo tentando publicar fora do próprio escopo
+  (`dispositivos/outro-device/comando`) tem a conexão **derrubada pelo AWS IoT Core** (política de
+  mínimo privilégio negando o publish) — confirmado.
+- Cenário de retain no tópico exato vs. não-entrega via wildcard `+` (spec §6.3): tentado
+  repetidamente com o mesmo cliente Python, mas não foi possível concluir uma execução limpa dentro
+  deste ambiente (ver pendência abaixo) — **não confirmado nesta rodada**, embora o comportamento
+  seja um recurso documentado da AWS IoT Core (não específico desta política) e os dois testes
+  acima já confirmam que Connect/Publish/Subscribe/Receive das políticas de mínimo privilégio
+  funcionam como esperado contra o serviço real.
+
+## Status e pendências
+
+O provisionamento da AWS (conta, região, `things`, certificados e políticas) **está concluído** —
+ver [Recursos provisionados](#recursos-provisionados). A decisão de região seguiu a recomendação
+deste runbook: `sa-east-1` (São Paulo), pela menor latência esperada para o dispositivo físico e
+os usuários do app, ambos no Brasil — decisão tomada pelo usuário.
+
+### Pendente de validação manual
+
+Os itens abaixo não exigem mais decisão de conta/região (isso está resolvido) — dependem de
+hardware físico, de um ambiente de deploy ainda não finalizado, ou de uma ferramenta de sistema não
+disponível neste ambiente sandboxed:
+
+1. **Confirmação completa do critério "retain só no tópico exato, não via wildcard"** (spec §6.3,
+   comando `mosquitto_sub -W` da §6) — comportamento documentado da AWS IoT Core e já indiretamente
+   suportado pelas políticas testadas (§ acima), mas sem uma execução limpa e reproduzível neste
+   ambiente. Repetir os comandos `mosquitto_sub`/`mosquitto_pub` da §6 com os certificados reais
+   (fora do repositório) assim que houver uma máquina com `mosquitto-clients` instalado.
+2. **Gravação da partição NVS no dispositivo físico** (`nvs_partition_gen.py` + `esptool.py` +
+   placa ESP32 conectada, §4) — não há hardware disponível neste ambiente.
+3. **População das variáveis de ambiente / Secrets Manager de produção do backend** (§4/§5) com o
+   certificado real do backend — depende do ambiente de deploy final (INFRA-07, #150, em
+   andamento).
+
+Nenhum desses itens bloqueia o fechamento da pendência 4 do spec-backend nem o critério central da
+issue #123 (recursos AWS IoT Core reais, com políticas de mínimo privilégio, existindo e
+funcionando) — são follow-ups de integração física/deploy, não lacunas no provisionamento em si.

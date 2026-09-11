@@ -574,7 +574,7 @@ pertencem a esse marco; MQTT é Fase 2.
 | 1 | Confirmar as premissas P1 a P9 (§2) | Aberta |
 | 2 | Fechar payloads MQTT com o firmware | **Reduzida.** Resta o formato de `bootId:seq` e o comportamento quando o preparo termina antes da sincronização NTP |
 | 3 | `iot:RetainPublish` | **Fechada** (§6.3) |
-| 4 | Criar thing e certificado do backend no AWS IoT Core | **Reduzida** (#123). Código/templates de política e o runbook de provisionamento (`docs/docs_arquitetura/aws-iot-core-provisioning.md`) foram entregues; resta executar o provisionamento numa conta AWS real (decisão de conta/região e criação efetiva de `things`/certificados) |
+| 4 | Criar thing e certificado do backend no AWS IoT Core | **Fechada** (#123). Provisionado de fato em `sa-east-1` (conta `076248672901`) — things, certificados e políticas de mínimo privilégio ativos. Detalhes em `docs/docs_arquitetura/aws-iot-core-provisioning.md`. Resta apenas validação manual de integração (dispositivo físico, deploy do backend — ver runbook §"Status e pendências") |
 | 5 | Fixar a versão do `aws-iot-device-sdk` | Aberta |
 | 6 | Decidir se `/auth/senha/*` entra ou é cortado | Aberta. Se entrar, falta tabela de token de redefinição e uma `V6` |
 | 7 | Confirmar `duracao_preparo_s` com o tempo real de extração da Britânia CP30 | **Nova.** Bloqueia `V3` |
