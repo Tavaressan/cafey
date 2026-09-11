@@ -176,6 +176,7 @@ Segue a ordem de execução do §10 da especificação do backend.
 | INFRA-02 | Otimização de build: Configuration Cache e cache avançado do Gradle no CI | 1 | INFRA-01 | |
 | INFRA-03 | Testes de integração com banco PostgreSQL no CI (Testcontainers ou GitHub Actions Service) | 1 | INFRA-01 | |
 | INFRA-04 | Pipeline de CI para compilação do Firmware ESP-IDF em C++ (ESP32) | 1 | FW-01, INFRA-01 | |
+| INFRA-05 | Provisionar o serviço AWS IoT Core: things, certificados X.509 e políticas (device + backend) | 2 | BE-08 | crítico |
 
 ---
 
