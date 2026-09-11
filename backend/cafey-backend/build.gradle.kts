@@ -6,7 +6,7 @@ plugins {
 	kotlin("plugin.jpa") version "2.3.21"
 }
 
-group = "br.com.cafey"
+group = "br.com.tavaressan"
 version = "0.0.1-SNAPSHOT"
 description = "Cafey"
 
@@ -18,6 +18,12 @@ java {
 
 repositories {
 	mavenCentral()
+}
+
+dependencyManagement {
+	imports {
+		mavenBom("org.testcontainers:testcontainers-bom:1.20.4")
+	}
 }
 
 dependencies {
@@ -38,7 +44,12 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
 	testImplementation("com.h2database:h2")
 	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+	testImplementation("org.springframework.boot:spring-boot-testcontainers")
+	testImplementation("org.testcontainers:junit-jupiter")
+	testImplementation("org.testcontainers:postgresql")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1")
+	implementation("com.bucket4j:bucket4j_jdk17-core:8.19.0")
 }
 
 kotlin {

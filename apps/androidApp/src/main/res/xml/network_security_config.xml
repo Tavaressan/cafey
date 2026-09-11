@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Configuracao de release: HTTP em claro proibido, sem excecao. O source set `debug`
+     substitui este arquivo para permitir o backend local durante o desenvolvimento. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

@@ -1,6 +1,6 @@
-package br.com.cafey.mqtt
+package br.com.tavaressan.cafey.mqtt
 
-import br.com.cafey.config.AwsIotProperties
+import br.com.tavaressan.cafey.config.AwsIotProperties
 import tools.jackson.databind.ObjectMapper
 import jakarta.annotation.PostConstruct
 import jakarta.annotation.PreDestroy
@@ -116,16 +116,23 @@ class MqttClientService(
         }
     }
 
-    fun publish(topic: String, payload: Any, qos: QualityOfService = QualityOfService.AT_LEAST_ONCE, retain: Boolean = false) {
+    /**
+     * Publica a mensagem no tópico informado.
+     *
+     * @return `true` se a mensagem foi enviada à conexão MQTT; `false` se a conexão está
+     * inativa e a publicação foi descartada (o chamador decide como reagir a isso).
+     */
+    fun publish(topic: String, payload: Any, qos: QualityOfService = QualityOfService.AT_LEAST_ONCE, retain: Boolean = false): Boolean {
         if (connection == null || !isConnected) {
             logger.warn("Não foi possível publicar no tópico [{}]: conexão inativa", topic)
-            return
+            return false
         }
 
         val json = objectMapper.writeValueAsString(payload)
         connection.publish(
             software.amazon.awssdk.crt.mqtt.MqttMessage(topic, json.toByteArray(StandardCharsets.UTF_8), qos, retain)
         )
+        return true
     }
 
     @PreDestroy

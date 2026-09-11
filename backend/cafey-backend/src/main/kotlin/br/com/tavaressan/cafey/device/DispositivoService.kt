@@ -1,8 +1,13 @@
-package br.com.cafey.device
+package br.com.tavaressan.cafey.device
 
-import br.com.cafey.exception.BadCredentialsException
-import br.com.cafey.exception.ResourceNotFoundException
-import br.com.cafey.user.UsuarioRepository
+import br.com.tavaressan.cafey.config.AwsIotProperties
+import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
+import br.com.tavaressan.cafey.exception.ResourceNotFoundException
+import br.com.tavaressan.cafey.exception.ServicoIndisponivelException
+import br.com.tavaressan.cafey.mqtt.ComandoPayload
+import br.com.tavaressan.cafey.mqtt.MqttClientService
+import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -12,7 +17,8 @@ import java.util.UUID
 class DispositivoService(
     private val dispositivoRepository: DispositivoRepository,
     private val usuarioDispositivoRepository: UsuarioDispositivoRepository,
-    private val usuarioRepository: UsuarioRepository
+    private val usuarioRepository: UsuarioRepository,
+    private val mqttClientService: MqttClientService
 ) {
 
     @Transactional(readOnly = true)
@@ -27,6 +33,34 @@ class DispositivoService(
             ?: throw ResourceNotFoundException("Dispositivo não encontrado ou você não tem acesso")
 
         return toResponse(vinculo.dispositivo, vinculo.papel)
+    }
+
+    @Transactional(readOnly = true)
+    fun comandar(dispositivoId: UUID, request: ComandoRequest, usuarioId: UUID): ComandoResponse {
+        // Mesmo mascaramento dos demais métodos deste serviço: quem não tem vínculo não descobre
+        // se o dispositivo existe.
+        val vinculo = usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)
+            ?: throw ResourceNotFoundException("Dispositivo não encontrado ou você não tem acesso")
+        val dispositivo = vinculo.dispositivo
+
+        val acao = AcaoComando.entries.find { it.name == request.acao.trim().uppercase() }
+            ?: throw RequisicaoInvalidaException(
+                "Ação inválida: '${request.acao}'. Valores aceitos: ${AcaoComando.entries.joinToString()}"
+            )
+
+        // Duração só faz sentido para ligar o preparo; nos demais casos o firmware ignora o campo.
+        val duracaoS = if (acao == AcaoComando.LIGAR) request.duracaoS ?: dispositivo.duracaoPreparoS else 0
+        val comandoId = UUID.randomUUID().toString()
+        val payload = ComandoPayload(comandoId = comandoId, acao = acao.name, duracaoS = duracaoS)
+
+        // retain = false: comando retido reexecutaria assim que o dispositivo religasse (spec §6.2).
+        val topic = AwsIotProperties.topicComando(dispositivoId.toString())
+        val publicado = mqttClientService.publish(topic, payload, retain = false)
+        if (!publicado) {
+            throw ServicoIndisponivelException("Não foi possível enviar o comando: conexão MQTT indisponível")
+        }
+
+        return ComandoResponse(comandoId = comandoId, acao = acao, duracaoS = duracaoS, emitidoEm = payload.emitidoEm)
     }
 
     @Transactional

@@ -131,6 +131,8 @@ Segue a ordem de execução do §10 da especificação do backend.
 | APP-09 | Desktop no nível essencial, reaproveitando composables | 3 | APP-08 | corte 4 |
 | APP-10 | Gráficos de estatística | 4 | APP-06, BE-18 | corte 2 |
 | APP-11 | Cliente BLE: fallback de comando e proxy de eventos para a nuvem | 4 | APP-04, FW-18 | corte 1 |
+| APP-12 | URL do backend configurável por build, para uso em aparelho físico | 3 | APP-03 | |
+| APP-13 | Tela de cadastro e pareamento de dispositivo | 3 | APP-03, BE-08 | |
 
 ---
 
@@ -177,6 +179,8 @@ Segue a ordem de execução do §10 da especificação do backend.
 | INFRA-03 | Testes de integração com banco PostgreSQL no CI (Testcontainers ou GitHub Actions Service) | 1 | INFRA-01 | |
 | INFRA-04 | Pipeline de CI para compilação do Firmware ESP-IDF em C++ (ESP32) | 1 | FW-01, INFRA-01 | |
 | INFRA-05 | Provisionar o serviço AWS IoT Core: things, certificados X.509 e políticas (device + backend) | 2 | BE-08 | crítico |
+| INFRA-06 | Containerizar o backend e subir a stack completa por Compose | 3 | BE-01 | |
+| INFRA-07 | Deploy do backend em ambiente remoto, disponível na banca | 3 | INFRA-06 | crítico |
 
 ---
 

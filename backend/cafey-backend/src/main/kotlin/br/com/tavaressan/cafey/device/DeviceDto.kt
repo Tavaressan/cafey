@@ -1,4 +1,4 @@
-package br.com.cafey.device
+package br.com.tavaressan.cafey.device
 
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.Min

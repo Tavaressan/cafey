@@ -1,10 +1,10 @@
-package br.com.cafey.schedule
+package br.com.tavaressan.cafey.schedule
 
-import br.com.cafey.device.DispositivoRepository
-import br.com.cafey.device.PapelDispositivo
-import br.com.cafey.device.UsuarioDispositivoRepository
-import br.com.cafey.exception.BadCredentialsException
-import br.com.cafey.exception.ResourceNotFoundException
+import br.com.tavaressan.cafey.device.DispositivoRepository
+import br.com.tavaressan.cafey.device.PapelDispositivo
+import br.com.tavaressan.cafey.device.UsuarioDispositivoRepository
+import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -115,6 +115,10 @@ class AgendamentoService(
     private fun toResponse(agendamento: Agendamento): AgendamentoResponse {
         return AgendamentoResponse(
             id = agendamento.id!!,
+            // Seguro sem JOIN FETCH: o Hibernate resolve @Id a partir da FK já carregada na entidade
+            // dona (agendamento), sem precisar inicializar o proxy de "dispositivo". Isso vale para o
+            // proxy padrão baseado em subclasse; deixaria de valer sob bytecode enhancement, que
+            // intercepta o getter e forçaria a inicialização completa do proxy.
             dispositivoId = agendamento.dispositivo.id!!,
             hora = agendamento.hora.format(timeFormatter),
             diasSemana = agendamento.diasSemana,

@@ -1,4 +1,4 @@
-package br.com.cafey.mqtt
+package br.com.tavaressan.cafey.mqtt
 
 import java.time.Instant
 

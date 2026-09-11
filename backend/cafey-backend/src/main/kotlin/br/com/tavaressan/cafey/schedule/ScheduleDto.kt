@@ -1,4 +1,4 @@
-package br.com.cafey.schedule
+package br.com.tavaressan.cafey.schedule
 
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min

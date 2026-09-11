@@ -1,4 +1,4 @@
-package br.com.cafey.event
+package br.com.tavaressan.cafey.event
 
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
