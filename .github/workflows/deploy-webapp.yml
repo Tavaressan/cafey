@@ -1,0 +1,50 @@
+name: Deploy WebApp (Vercel)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/webApp/**'
+      - 'apps/shared/**'
+      - 'apps/build.gradle.kts'
+      - 'apps/settings.gradle.kts'
+      - '.github/workflows/deploy-webapp.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: apps
+
+      # Sem framework/Root Directory configurados no projeto Vercel: o deploy é
+      # do diretório estático já compilado, não de um build remoto do Vercel
+      # (que não tem JDK — ver decisão registrada na PR).
+      - name: Build webApp (Kotlin/Wasm)
+        working-directory: apps
+        run: |
+          chmod +x gradlew
+          ./gradlew :webApp:wasmJsBrowserDistribution
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Deploy to Vercel (production)
+        working-directory: apps/webApp/build/dist/wasmJs/productionExecutable
+        run: vercel deploy --prod --token="$VERCEL_TOKEN" --yes
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
