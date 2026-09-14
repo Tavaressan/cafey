@@ -1,5 +1,6 @@
 package br.com.tavaressan.cafey.shared.network
 
+import br.com.tavaressan.cafey.shared.ble.ComandoRemoto
 import br.com.tavaressan.cafey.shared.domain.model.AcaoComando
 import br.com.tavaressan.cafey.shared.domain.model.ComandoRequest
 import br.com.tavaressan.cafey.shared.domain.model.ComandoResponse
@@ -16,15 +17,15 @@ import io.ktor.http.path
  * O backend responde 202: publicou o comando no tópico MQTT, não esperou a base executar. O novo
  * estado chega pela leitura periódica de [DeviceApi], não por esta chamada.
  */
-class CommandApi(private val apiClient: ApiClient) {
+class CommandApi(private val apiClient: ApiClient) : ComandoRemoto {
 
-    suspend fun ligar(dispositivoId: String): ComandoResponse =
+    override suspend fun ligar(dispositivoId: String): ComandoResponse =
         enviar(dispositivoId, AcaoComando.LIGAR)
 
-    suspend fun desligar(dispositivoId: String): ComandoResponse =
+    override suspend fun desligar(dispositivoId: String): ComandoResponse =
         enviar(dispositivoId, AcaoComando.DESLIGAR)
 
-    suspend fun cancelar(dispositivoId: String): ComandoResponse =
+    override suspend fun cancelar(dispositivoId: String): ComandoResponse =
         enviar(dispositivoId, AcaoComando.CANCELAR)
 
     private suspend fun enviar(dispositivoId: String, acao: AcaoComando): ComandoResponse =

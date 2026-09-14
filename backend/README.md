@@ -53,9 +53,15 @@ Nenhuma credencial ou chave fica embutida na imagem — todas entram via variáv
 Para sobrescrever localmente sem editar `compose.yaml`, crie um `backend/.env` (não versionado) com
 as variáveis acima — o Compose o carrega automaticamente.
 
-Certificados do AWS IoT Core (`aws.iot.certificate-path` / `private-key-path` / `root-ca-path`) não
-têm variável de ambiente própria ainda: o bean correspondente só é ativado
-(`@ConditionalOnProperty`) se esses paths forem configurados, então a ausência não impede o boot.
-Para usá-los em Compose, monte os arquivos como volume e aponte as properties via
-`SPRING_APPLICATION_JSON` ou properties individuais (`AWS_IOT_CERTIFICATE_PATH`, etc.) quando a
-integração MQTT/IoT for necessária no ambiente.
+> **Resolvido em 2026-09-14 (issue #157):** o app Web publicado no Vercel
+> (`https://cafey-web.vercel.app`) aponta para o backend remoto (`BACKEND_BASE_URL` no workflow
+> de deploy) e `CAFEY_CORS_ALLOWED_ORIGINS` em produção já inclui essa origem — integração ponta a
+> ponta validada (CORS, deploy do webApp e chamadas à API).
+
+Certificados do AWS IoT Core (`aws.iot.certificate-path` / `private-key-path` / `root-ca-path`) são
+montados via volume em produção (`backend/compose.prod.yaml`, bind mount de
+`/opt/cafey/secrets:/run/secrets:ro`) com as properties apontadas pelas variáveis
+`AWS_IOT_CERTIFICATE_PATH`/`AWS_IOT_PRIVATE_KEY_PATH`/`AWS_IOT_ROOT_CA_PATH` — o bean
+correspondente só é ativado (`@ConditionalOnProperty`) se esses paths estiverem configurados; em
+dev, a ausência não impede o boot (MQTT fica desabilitado). Ativado em produção desde 2026-09-14 —
+ver `docs/docs_arquitetura/aws-iot-core-provisioning.md`.
