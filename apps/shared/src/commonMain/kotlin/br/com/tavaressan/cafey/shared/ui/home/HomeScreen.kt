@@ -28,6 +28,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.domain.model.DeviceState
+import br.com.tavaressan.cafey.shared.domain.model.ProximoPreparo
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyStar
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
@@ -36,14 +37,16 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
  * `docs/docs_interface/prototype/home.html` (layout mobile: `.shell`, `.stage-card`, `.card`,
  * `.duo`). Simplificações conscientes por escopo:
  * - Sem o anel decorativo pontilhado do mostrador (puramente estético, `.stage__ring`).
- * - Sem o cartão "Próximo preparo" com dado real — agendamentos são APP-05, ainda não implementado.
- * - "Sequência de manhãs" (streak) não tem endpoint no backend hoje; omitido em vez de inventado.
+ * - "Sequência de manhãs" (streak) não tem endpoint no backend hoje; omitido em vez de inventado
+ *   (issue #177).
  */
 @Composable
 fun HomeScreen() {
     val container = LocalAppContainer.current
     val viewModel = viewModel<HomeViewModel>(
-        factory = viewModelFactory { initializer { HomeViewModel(container.deviceApi, container.commandApi) } },
+        factory = viewModelFactory {
+            initializer { HomeViewModel(container.deviceApi, container.commandApi, container.scheduleApi) }
+        },
     )
     val state by viewModel.uiState.collectAsState()
 
@@ -71,6 +74,62 @@ fun HomeScreen() {
             onCancel = viewModel::cancelar,
             onTurnOff = viewModel::desligar,
         )
+
+        NextPreparoCard(state.proximoPreparo)
+    }
+}
+
+/** Rótulo curto do dia relativo a hoje: "hoje" (0), "amanhã" (1) ou "daqui a N dias" (2–6). */
+private fun rotuloDiaRelativo(diasAteOProximo: Int): String = when (diasAteOProximo) {
+    0 -> "hoje"
+    1 -> "amanhã"
+    else -> "daqui a $diasAteOProximo dias"
+}
+
+@Composable
+private fun NextPreparoCard(proximoPreparo: ProximoPreparo?) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 14.dp)
+            .background(CafeyTheme.colors.surface, CafeyTheme.shapes.large)
+            .border(1.dp, CafeyTheme.colors.line, CafeyTheme.shapes.large)
+            .padding(20.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CafeyStar(color = CafeyTheme.colors.blue, size = 15.dp)
+            Text(
+                "Próximo preparo",
+                style = CafeyTheme.typography.caption,
+                color = CafeyTheme.colors.muted,
+                modifier = Modifier.padding(start = 7.dp),
+            )
+        }
+
+        if (proximoPreparo == null) {
+            Text(
+                "Nenhum agendamento ativo",
+                style = CafeyTheme.typography.body,
+                color = CafeyTheme.colors.ink,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+            Text(
+                "Crie um horário na tela de agendamentos para a Caféy preparar sozinha.",
+                style = CafeyTheme.typography.bodySmall,
+                color = CafeyTheme.colors.muted,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        } else {
+            Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 10.dp)) {
+                Text(proximoPreparo.agendamento.hora, style = CafeyTheme.typography.cardHero, color = CafeyTheme.colors.ink)
+                Text(
+                    rotuloDiaRelativo(proximoPreparo.diasAteOProximo),
+                    style = CafeyTheme.typography.body,
+                    color = CafeyTheme.colors.muted,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 3.dp),
+                )
+            }
+        }
     }
 }
 

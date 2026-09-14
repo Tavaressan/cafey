@@ -5,15 +5,21 @@ import androidx.lifecycle.viewModelScope
 import br.com.tavaressan.cafey.shared.domain.model.ComandoResponse
 import br.com.tavaressan.cafey.shared.domain.model.DeviceState
 import br.com.tavaressan.cafey.shared.domain.model.DispositivoResponse
+import br.com.tavaressan.cafey.shared.domain.model.ProximoPreparo
+import br.com.tavaressan.cafey.shared.domain.model.calcularProximoPreparo
 import br.com.tavaressan.cafey.shared.network.ApiError
 import br.com.tavaressan.cafey.shared.network.CommandApi
 import br.com.tavaressan.cafey.shared.network.DeviceApi
+import br.com.tavaressan.cafey.shared.network.ScheduleApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Clock
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 
 /** Intervalo de sondagem do estado do dispositivo (UC-08). O backend (`EventoController` /
  * `DispositivoController`) só expõe REST, sem stream nem WebSocket — sem push disponível, 5s é
@@ -27,6 +33,7 @@ data class HomeUiState(
     val device: DispositivoResponse? = null,
     val commandInFlight: Boolean = false,
     val errorMessage: String? = null,
+    val proximoPreparo: ProximoPreparo? = null,
 ) {
     val deviceState: DeviceState get() = device?.let { DeviceState.from(it.estado) } ?: DeviceState.Unknown("")
 }
@@ -34,6 +41,7 @@ data class HomeUiState(
 class HomeViewModel(
     private val deviceApi: DeviceApi,
     private val commandApi: CommandApi,
+    private val scheduleApi: ScheduleApi,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -52,10 +60,25 @@ class HomeViewModel(
             // MVP de um único dispositivo — troca de aparelho fica para uma issue futura de
             // gerenciamento de dispositivos (fora do escopo de APP-04).
             val device = deviceApi.listar().firstOrNull()
-            _uiState.update { it.copy(loading = false, device = device, errorMessage = null) }
+            val proximoPreparo = device?.let { buscarProximoPreparo(it.id) }
+            _uiState.update {
+                it.copy(loading = false, device = device, errorMessage = null, proximoPreparo = proximoPreparo)
+            }
         } catch (e: ApiError) {
             _uiState.update { it.copy(loading = false, errorMessage = e.message) }
         }
+    }
+
+    // Issue #176 — hora local do próprio aparelho, não o timezone salvo no dispositivo: é isso
+    // que o usuário vê no relógio dele, e a spec de agendamento (APP-05) não define qual dos dois
+    // deveria prevalecer na Home. Se um agendamento vier malformado (hora fora do padrão HH:mm),
+    // ignora a lista em vez de quebrar a tela — a falha já é visível no cartão "Agendamentos".
+    private suspend fun buscarProximoPreparo(dispositivoId: String): ProximoPreparo? = try {
+        val agendamentos = scheduleApi.listar(dispositivoId)
+        val agora = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+        calcularProximoPreparo(agendamentos, agora)
+    } catch (e: ApiError) {
+        null
     }
 
     fun ligar() = runCommand { commandApi.ligar(it) }
