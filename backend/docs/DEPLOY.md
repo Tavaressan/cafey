@@ -298,14 +298,14 @@ de permissões nativo do Lightsail, não uma policy IAM arbitrária.
 
 ### Pendências restantes (não bloqueiam a issue, follow-up)
 
-- `CAFEY_CORS_ALLOWED_ORIGINS` ainda aponta para `http://localhost:8081` — atualizar quando o
-  frontend Web (Vercel, em avaliação separada pelo usuário) tiver uma URL pública.
-- Perfil `prod` do Spring **não foi ativado** nesta implantação: `application-prod.yml` referencia
-  `${AWS_IOT_ENDPOINT}`/`${AWS_IOT_CERTIFICATE_PATH}`/etc. sem valor default, o que quebraria o
-  boot se o profile `prod` for ativado sem essas 4 variáveis (integração AWS IoT do backend, BE-11,
-  ainda não implementada). As chaves JWT de produção são carregadas de qualquer forma (o código
-  verifica a presença das chaves independente do profile ativo) — não há perda de segurança por
-  não ativar `prod`, mas vale abrir uma issue separada para adicionar defaults (`${VAR:}`) a esses
-  4 placeholders antes de alguém tentar ativar `prod` no futuro.
+- ~~`CAFEY_CORS_ALLOWED_ORIGINS` ainda aponta para `http://localhost:8081`~~ — **resolvido em
+  2026-09-14**: inclui `https://cafey-web.vercel.app` (frontend Web publicado na Vercel).
+- ~~Perfil `prod` do Spring não foi ativado~~ — **resolvido em 2026-09-14**: `.env` da instância
+  populado com `SPRING_PROFILES_ACTIVE=prod` e as 4 variáveis `AWS_IOT_*`, `compose.prod.yaml`
+  ajustado para montar os certificados (`/opt/cafey/secrets:/run/secrets:ro`) e propagar essas
+  variáveis ao container (só estarem no `.env` não bastava — o Compose só injeta no processo as
+  chaves listadas em `environment:`). Boot confirmado com `"The following 1 profile is active:
+  prod"` e `"Conectado com sucesso ao AWS IoT Core!"` — ver
+  `docs/docs_arquitetura/aws-iot-core-provisioning.md` (seção "Ativação em produção").
 - Validação completa do cenário retain-exato-vs-wildcard (#123 §6.3) segue pendente, sem
   `mosquitto-clients` disponível neste ambiente.

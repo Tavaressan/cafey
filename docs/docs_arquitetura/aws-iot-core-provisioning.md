@@ -255,7 +255,7 @@ dos templates já versionados no repositório).
 | Thing (dispositivo) | `cafey-device-proto-01` — thingId `79713a96-8621-429d-a529-118886e577c7`, thingType `cafey-cafeteira` |
 | Thing (backend) | `cafey-backend` — thingId `e71c3bcd-e252-4850-bc19-6895201177e9` |
 | Certificado do dispositivo | `arn:aws:iot:sa-east-1:076248672901:cert/20e271fb357835a607bbf563f74fce5ecae24fec1d32805f394ca5eb54fb91fe` (ativo, anexado à thing) |
-| Certificado do backend | `arn:aws:iot:sa-east-1:076248672901:cert/19be33dd7c22a285f3ed4460f1ba2038d31190717ad01fcd3560eaa448f1be98` (ativo, anexado à thing) |
+| Certificado do backend | `arn:aws:iot:sa-east-1:076248672901:cert/e4db633410c0d326e295152905137c7bb3393b4ed6a7a9a38b3da79044a247bb` (ativo, anexado à thing — rotacionado em 2026-09-14, ver nota abaixo) |
 | Política do dispositivo | `arn:aws:iot:sa-east-1:076248672901:policy/cafey-device-policy` (documento idêntico a `firmware/aws-iot-device-policy.json`, anexada ao certificado do dispositivo) |
 | Política do backend | `arn:aws:iot:sa-east-1:076248672901:policy/cafey-backend-policy` (documento idêntico a `backend/cafey-backend/src/main/resources/aws-iot-backend-policy.json`, anexada ao certificado do backend) |
 
@@ -272,6 +272,42 @@ A conta tem também uma `thing` (`Udemy_ESP32_Test`), certificado (criado em 202
 (`Udemy_ESP32_Test_Policy`) **não relacionados a este projeto** — sobra de um teste anterior na
 mesma conta AWS. Não interferem no funcionamento do Cafey (políticas e certificados são isolados
 por recurso), mas vale um cleanup manual se a conta for usada só para este projeto no futuro.
+
+### Ativação em produção (2026-09-14)
+
+A pendência 3 (abaixo) foi fechada: o certificado do backend gerado em 2026-09-11 teve a chave
+privada perdida (nunca foi salva fora da sessão que a criou — o AWS IoT Core não permite recuperar
+uma chave privada após a criação). Em vez de tentar recuperá-la, foi gerado um **novo par
+certificado/chave** para a thing `cafey-backend`:
+
+1. `aws iot create-keys-and-certificate` → novo certificado (ver ARN atualizado na tabela acima),
+   anexado à thing `cafey-backend` e à policy `cafey-backend-policy` já existente.
+2. Certificado antigo (`.../cert/19be33dd7c22a285f3ed4460f1ba2038d31190717ad01fcd3560eaa448f1be98`)
+   marcado `INACTIVE` via `aws iot update-certificate` (chave privada irrecuperável, nunca deve ser
+   usado).
+3. Novo certificado + chave privada + Amazon Root CA 1 transferidos via SCP para
+   `/opt/cafey/secrets/` na instância Lightsail (`chmod 600`, fora do repositório).
+4. `backend/compose.prod.yaml`: adicionado bind mount `/opt/cafey/secrets:/run/secrets:ro` no
+   serviço `app`, e um bloco `environment` explícito para `SPRING_PROFILES_ACTIVE`/`AWS_IOT_*` —
+   o Compose só injeta no container as variáveis listadas em `environment:`; tê-las só no `.env`
+   não bastava (bug encontrado e corrigido nesta mesma ativação).
+5. `.env` da instância atualizado com `SPRING_PROFILES_ACTIVE=prod` e as 4 variáveis `AWS_IOT_*`
+   apontando para os arquivos montados em `/run/secrets`.
+6. Containers recriados (`docker compose -f compose.yaml -f compose.prod.yaml up -d`).
+
+**Validado nos logs de boot do container** (`docker logs cafey_backend`):
+```
+The following 1 profile is active: "prod"
+Tentando conectar MQTT ao AWS IoT Core em a3gha475fc91p-ats.iot.sa-east-1.amazonaws.com:8883...
+Conectado com sucesso ao AWS IoT Core!
+Started CafeyBackendApplicationKt in 17.941 seconds
+```
+CORS e disponibilidade da API (`/swagger-ui`) seguem funcionando normalmente após a mudança.
+
+Fica pendente ainda a gravação das credenciais do **dispositivo** (thing
+`cafey-device-proto-01`) no firmware — item 2 da lista de pendências abaixo, que depende de
+hardware físico e não foi afetado por esta ativação (as credenciais do dispositivo continuam as
+mesmas de 2026-09-11, sem necessidade de rotação).
 
 ### Validação funcional já realizada (além do checklist §6)
 
@@ -311,9 +347,9 @@ disponível neste ambiente sandboxed:
    (fora do repositório) assim que houver uma máquina com `mosquitto-clients` instalado.
 2. **Gravação da partição NVS no dispositivo físico** (`nvs_partition_gen.py` + `esptool.py` +
    placa ESP32 conectada, §4) — não há hardware disponível neste ambiente.
-3. **População das variáveis de ambiente / Secrets Manager de produção do backend** (§4/§5) com o
-   certificado real do backend — depende do ambiente de deploy final (INFRA-07, #150, em
-   andamento).
+3. ~~**População das variáveis de ambiente / Secrets Manager de produção do backend** (§4/§5) com o
+   certificado real do backend~~ — **concluído em 2026-09-14**, ver
+   [Ativação em produção](#ativação-em-produção-2026-09-14).
 
 Nenhum desses itens bloqueia o fechamento da pendência 4 do spec-backend nem o critério central da
 issue #123 (recursos AWS IoT Core reais, com políticas de mínimo privilégio, existindo e
