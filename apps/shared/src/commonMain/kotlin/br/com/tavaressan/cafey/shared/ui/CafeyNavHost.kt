@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -29,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -55,13 +57,13 @@ private const val ROUTE_CARE = "care"
 
 /** Abas do rodapé principal — espelha `assets/nav.js` do protótipo, exceto "Base" (detalhes de
  * hardware do dispositivo), que não tem issue nem tela correspondente ainda. */
-private data class BottomTab(val route: String, val label: String)
+private data class BottomTab(val route: String, val label: String, val icon: ImageVector)
 
 private val BOTTOM_TABS = listOf(
-    BottomTab(ROUTE_HOME, "Início"),
-    BottomTab(ROUTE_SCHEDULE, "Agenda"),
-    BottomTab(ROUTE_HISTORY, "Ritmo"),
-    BottomTab(ROUTE_CARE, "Cuidados"),
+    BottomTab(ROUTE_HOME, "Início", CafeyNavIcons.Home),
+    BottomTab(ROUTE_SCHEDULE, "Agenda", CafeyNavIcons.Schedule),
+    BottomTab(ROUTE_HISTORY, "Ritmo", CafeyNavIcons.Rhythm),
+    BottomTab(ROUTE_CARE, "Cuidados", CafeyNavIcons.Care),
 )
 
 /**
@@ -183,9 +185,11 @@ private fun CafeyBottomBar(currentRoute: String, onSelect: (String) -> Unit) {
             NavigationBarItem(
                 selected = currentRoute == tab.route,
                 onClick = { onSelect(tab.route) },
-                icon = {},
+                icon = { Icon(imageVector = tab.icon, contentDescription = tab.label) },
                 label = { Text(tab.label, style = CafeyTheme.typography.caption) },
                 colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = CafeyTheme.colors.brand,
+                    unselectedIconColor = CafeyTheme.colors.muted,
                     selectedTextColor = CafeyTheme.colors.brand,
                     unselectedTextColor = CafeyTheme.colors.muted,
                     indicatorColor = CafeyTheme.colors.brandTint,
@@ -232,18 +236,28 @@ private fun CafeySideNav(sizeClass: NavShellSizeClass, currentRoute: String, onS
                 .padding(horizontal = if (showLabel) 12.dp else 0.dp, vertical = if (showLabel) 11.dp else 12.dp)
 
             if (showLabel) {
-                Text(
-                    text = tab.label,
-                    style = CafeyTheme.typography.bodySmall,
-                    color = if (selected) CafeyTheme.colors.ink else CafeyTheme.colors.ink4,
+                Row(
                     modifier = itemModifier,
-                )
-            } else {
-                Box(modifier = itemModifier.width(52.dp), contentAlignment = Alignment.Center) {
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(11.dp),
+                ) {
+                    Icon(
+                        imageVector = tab.icon,
+                        contentDescription = null,
+                        tint = if (selected) CafeyTheme.colors.brand else CafeyTheme.colors.muted,
+                    )
                     Text(
                         text = tab.label,
-                        style = CafeyTheme.typography.caption,
-                        color = if (selected) CafeyTheme.colors.brand else CafeyTheme.colors.muted,
+                        style = CafeyTheme.typography.bodySmall,
+                        color = if (selected) CafeyTheme.colors.ink else CafeyTheme.colors.ink4,
+                    )
+                }
+            } else {
+                Box(modifier = itemModifier.width(52.dp), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = tab.icon,
+                        contentDescription = tab.label,
+                        tint = if (selected) CafeyTheme.colors.brand else CafeyTheme.colors.muted,
                     )
                 }
             }
