@@ -40,7 +40,7 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
  * - "Sequência de manhãs" (streak) não tem endpoint no backend hoje; omitido em vez de inventado.
  */
 @Composable
-fun HomeScreen() {
+fun HomeScreen(onGoToDeviceRegister: () -> Unit = {}) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<HomeViewModel>(
         factory = viewModelFactory { initializer { HomeViewModel(container.deviceApi, container.commandApi) } },
@@ -53,9 +53,8 @@ fun HomeScreen() {
             .background(CafeyTheme.colors.ground)
             .padding(22.dp),
     ) {
-        DeviceHeader(name = state.device?.nome ?: "Caféy", online = state.device?.online ?: false)
-
         if (state.loading) {
+            DeviceHeader(name = "Caféy", online = false)
             Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = CafeyTheme.colors.brand)
             }
@@ -63,6 +62,15 @@ fun HomeScreen() {
         }
 
         state.errorMessage?.let { ErrorBanner(it) }
+
+        // APP-13 — conta nova sem dispositivo: caminho explícito para cadastrar, em vez de
+        // deixar a tela de operação sem sentido (sem dispositivo, não há o que operar).
+        if (state.device == null) {
+            EmptyDeviceState(onRegister = onGoToDeviceRegister)
+            return@Column
+        }
+
+        DeviceHeader(name = state.device?.nome ?: "Caféy", online = state.device?.online ?: false)
 
         StageCard(
             deviceState = state.deviceState,
@@ -97,6 +105,43 @@ private fun DeviceHeader(name: String, online: Boolean) {
                     modifier = Modifier.padding(start = 6.dp),
                 )
             }
+        }
+    }
+}
+
+/** APP-13 — estado vazio: conta nova ainda sem dispositivo cadastrado. */
+@Composable
+private fun EmptyDeviceState(onRegister: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 40.dp)
+            .background(CafeyTheme.colors.surface, CafeyTheme.shapes.large)
+            .border(1.dp, CafeyTheme.colors.line, CafeyTheme.shapes.large)
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        CafeyStar(color = CafeyTheme.colors.muted, size = 40.dp)
+        Text(
+            "Nenhum dispositivo cadastrado",
+            style = CafeyTheme.typography.cardTitle,
+            color = CafeyTheme.colors.ink,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        Text(
+            "Cadastre sua cafeteira para começar a usar o Caféy.",
+            style = CafeyTheme.typography.bodySmall,
+            color = CafeyTheme.colors.muted,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        Button(
+            onClick = onRegister,
+            colors = ButtonDefaults.buttonColors(containerColor = CafeyTheme.colors.brand),
+            shape = CafeyTheme.shapes.small,
+            contentPadding = PaddingValues(vertical = 16.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+        ) {
+            Text("Cadastrar dispositivo", style = CafeyTheme.typography.buttonLabel, color = CafeyTheme.colors.brandOn)
         }
     }
 }
