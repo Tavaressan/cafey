@@ -18,7 +18,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 
@@ -83,6 +84,7 @@ class HomeViewModel(
     // que o usuário vê no relógio dele, e a spec de agendamento (APP-05) não define qual dos dois
     // deveria prevalecer na Home. Se um agendamento vier malformado (hora fora do padrão HH:mm),
     // ignora a lista em vez de quebrar a tela — a falha já é visível no cartão "Agendamentos".
+    @OptIn(ExperimentalTime::class)
     private suspend fun buscarProximoPreparo(dispositivoId: String): ProximoPreparo? = try {
         val agendamentos = scheduleApi.listar(dispositivoId)
         val agora = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
