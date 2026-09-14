@@ -16,6 +16,18 @@ services:
   app:
     image: ghcr.io/tavaressan/cafey-backend:latest
     restart: unless-stopped
+    environment:
+      # Ativa o profile prod (AWS IoT Core, INFRA-05) — sem essas variáveis no .env da
+      # instância, o boot segue no profile default (MQTT desabilitado).
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-}
+      AWS_IOT_ENDPOINT: ${AWS_IOT_ENDPOINT:-}
+      AWS_IOT_CERTIFICATE_PATH: ${AWS_IOT_CERTIFICATE_PATH:-}
+      AWS_IOT_PRIVATE_KEY_PATH: ${AWS_IOT_PRIVATE_KEY_PATH:-}
+      AWS_IOT_ROOT_CA_PATH: ${AWS_IOT_ROOT_CA_PATH:-}
+    volumes:
+      # Certificados AWS IoT Core (INFRA-05) — arquivos reais ficam fora do repositório,
+      # em /opt/cafey/secrets na instância (nunca commitados).
+      - /opt/cafey/secrets:/run/secrets:ro
 
   db:
     restart: unless-stopped
