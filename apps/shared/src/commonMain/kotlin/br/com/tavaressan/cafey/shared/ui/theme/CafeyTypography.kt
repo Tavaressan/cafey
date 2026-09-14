@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import br.com.tavaressan.cafey.shared.generated.resources.Res
 import br.com.tavaressan.cafey.shared.generated.resources.instrument_sans_variable
@@ -55,11 +56,11 @@ fun cafeyTypography(): CafeyTypography {
 
     return CafeyTypography(
         // .screen-title — 600 27px
-        screenTitle = TextStyle(fontFamily = display, fontWeight = FontWeight.SemiBold, fontSize = 27.sp, letterSpacing = (-0.03).sp),
+        screenTitle = TextStyle(fontFamily = display, fontWeight = FontWeight.SemiBold, fontSize = 27.sp, letterSpacing = (-0.03).em),
         // .card__title — 600 19px
-        cardTitle = TextStyle(fontFamily = display, fontWeight = FontWeight.SemiBold, fontSize = 19.sp, letterSpacing = (-0.02).sp),
+        cardTitle = TextStyle(fontFamily = display, fontWeight = FontWeight.SemiBold, fontSize = 19.sp, letterSpacing = (-0.02).em),
         // .card__hero — 600 26px
-        cardHero = TextStyle(fontFamily = display, fontWeight = FontWeight.SemiBold, fontSize = 26.sp, letterSpacing = (-0.03).sp),
+        cardHero = TextStyle(fontFamily = display, fontWeight = FontWeight.SemiBold, fontSize = 26.sp, letterSpacing = (-0.03).em),
         // .sentence — 400 19px/1.4
         sentence = TextStyle(fontFamily = text, fontWeight = FontWeight.Normal, fontSize = 19.sp, lineHeight = 26.sp),
         // .card__body — 400 14px/1.55
