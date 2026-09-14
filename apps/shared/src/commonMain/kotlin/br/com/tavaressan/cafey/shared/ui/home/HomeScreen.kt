@@ -37,15 +37,15 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
  * `docs/docs_interface/prototype/home.html` (layout mobile: `.shell`, `.stage-card`, `.card`,
  * `.duo`). Simplificações conscientes por escopo:
  * - Sem o anel decorativo pontilhado do mostrador (puramente estético, `.stage__ring`).
- * - "Sequência de manhãs" (streak) não tem endpoint no backend hoje; omitido em vez de inventado
- *   (issue #177).
  */
 @Composable
 fun HomeScreen() {
     val container = LocalAppContainer.current
     val viewModel = viewModel<HomeViewModel>(
         factory = viewModelFactory {
-            initializer { HomeViewModel(container.deviceApi, container.commandApi, container.scheduleApi) }
+            initializer {
+                HomeViewModel(container.deviceApi, container.commandApi, container.scheduleApi, container.eventApi)
+            }
         },
     )
     val state by viewModel.uiState.collectAsState()
@@ -76,6 +76,7 @@ fun HomeScreen() {
         )
 
         NextPreparoCard(state.proximoPreparo)
+        StreakCard(state.sequenciaManhasDias)
     }
 }
 
@@ -128,6 +129,53 @@ private fun NextPreparoCard(proximoPreparo: ProximoPreparo?) {
                     color = CafeyTheme.colors.muted,
                     modifier = Modifier.padding(start = 8.dp, bottom = 3.dp),
                 )
+            }
+        }
+    }
+}
+
+/** Issue #177 — "sequência de manhãs" (`SequenciaManhas` no backend). Sem endpoint próprio, é um
+ * campo derivado de `/estatisticas` (`EstatisticasConsumoResponse.sequenciaManhasDias`). */
+@Composable
+private fun StreakCard(sequenciaManhasDias: Int) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 14.dp)
+            .background(CafeyTheme.colors.surface, CafeyTheme.shapes.large)
+            .border(1.dp, CafeyTheme.colors.line, CafeyTheme.shapes.large)
+            .padding(20.dp),
+    ) {
+        Text("Sequência de manhãs", style = CafeyTheme.typography.caption, color = CafeyTheme.colors.muted)
+
+        if (sequenciaManhasDias <= 0) {
+            Text(
+                "Nenhuma sequência ainda",
+                style = CafeyTheme.typography.body,
+                color = CafeyTheme.colors.ink,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+            Text(
+                "Prepare antes do meio-dia para começar uma sequência.",
+                style = CafeyTheme.typography.bodySmall,
+                color = CafeyTheme.colors.muted,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        } else {
+            Text(
+                "$sequenciaManhasDias dias",
+                style = CafeyTheme.typography.cardHero,
+                color = CafeyTheme.colors.ink,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+            Row(modifier = Modifier.padding(top = 8.dp)) {
+                repeat(7) { indice ->
+                    CafeyStar(
+                        color = if (indice < sequenciaManhasDias) CafeyTheme.colors.blue else CafeyTheme.colors.blueOff,
+                        size = 10.dp,
+                        modifier = Modifier.padding(end = 4.dp),
+                    )
+                }
             }
         }
     }

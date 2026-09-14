@@ -45,6 +45,7 @@ data class EstatisticasConsumoResponse(
     val totalPreparosConcluidos: Long,
     val porOrigem: Map<String, Long>,
     val tempoTotalPreparoSegundos: Long,
+    val sequenciaManhasDias: Int = 0,
 )
 
 @Serializable

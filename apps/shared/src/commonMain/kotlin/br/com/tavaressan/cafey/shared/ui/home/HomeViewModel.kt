@@ -10,6 +10,7 @@ import br.com.tavaressan.cafey.shared.domain.model.calcularProximoPreparo
 import br.com.tavaressan.cafey.shared.network.ApiError
 import br.com.tavaressan.cafey.shared.network.CommandApi
 import br.com.tavaressan.cafey.shared.network.DeviceApi
+import br.com.tavaressan.cafey.shared.network.EventApi
 import br.com.tavaressan.cafey.shared.network.ScheduleApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +35,7 @@ data class HomeUiState(
     val commandInFlight: Boolean = false,
     val errorMessage: String? = null,
     val proximoPreparo: ProximoPreparo? = null,
+    val sequenciaManhasDias: Int = 0,
 ) {
     val deviceState: DeviceState get() = device?.let { DeviceState.from(it.estado) } ?: DeviceState.Unknown("")
 }
@@ -42,6 +44,7 @@ class HomeViewModel(
     private val deviceApi: DeviceApi,
     private val commandApi: CommandApi,
     private val scheduleApi: ScheduleApi,
+    private val eventApi: EventApi,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -61,8 +64,15 @@ class HomeViewModel(
             // gerenciamento de dispositivos (fora do escopo de APP-04).
             val device = deviceApi.listar().firstOrNull()
             val proximoPreparo = device?.let { buscarProximoPreparo(it.id) }
+            val sequenciaManhasDias = device?.let { buscarSequenciaManhas(it.id) } ?: 0
             _uiState.update {
-                it.copy(loading = false, device = device, errorMessage = null, proximoPreparo = proximoPreparo)
+                it.copy(
+                    loading = false,
+                    device = device,
+                    errorMessage = null,
+                    proximoPreparo = proximoPreparo,
+                    sequenciaManhasDias = sequenciaManhasDias,
+                )
             }
         } catch (e: ApiError) {
             _uiState.update { it.copy(loading = false, errorMessage = e.message) }
@@ -79,6 +89,15 @@ class HomeViewModel(
         calcularProximoPreparo(agendamentos, agora)
     } catch (e: ApiError) {
         null
+    }
+
+    // Issue #177 — backend calcula a sequência real (EventoService.obterEstatisticas ->
+    // SequenciaManhas); aqui só consumimos o campo. 0 (o default de HomeUiState) já é o estado
+    // vazio correto, então uma falha de rede aqui cai discretamente nele em vez de quebrar a tela.
+    private suspend fun buscarSequenciaManhas(dispositivoId: String): Int = try {
+        eventApi.obterEstatisticas(dispositivoId).sequenciaManhasDias
+    } catch (e: ApiError) {
+        0
     }
 
     fun ligar() = runCommand { commandApi.ligar(it) }
