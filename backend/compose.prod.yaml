@@ -14,6 +14,7 @@ services:
       - app
 
   app:
+    image: ghcr.io/tavaressan/cafey-backend:latest
     restart: unless-stopped
 
   db:
