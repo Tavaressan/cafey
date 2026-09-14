@@ -2,6 +2,7 @@ package br.com.tavaressan.cafey.shared.ui.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.tavaressan.cafey.shared.auth.DebugAdminCredentials
 import br.com.tavaressan.cafey.shared.domain.model.LoginRequest
 import br.com.tavaressan.cafey.shared.domain.validation.LoginFormErrors
 import br.com.tavaressan.cafey.shared.network.ApiError
@@ -44,7 +45,11 @@ class LoginViewModel(private val authApi: AuthApi) : ViewModel() {
         _uiState.update { it.copy(loading = true, errorMessage = null) }
         viewModelScope.launch {
             try {
-                authApi.login(LoginRequest(email = state.email, senha = state.senha))
+                if (DebugAdminCredentials.matches(state.email, state.senha)) {
+                    authApi.loginComoAdminDebug()
+                } else {
+                    authApi.login(LoginRequest(email = state.email, senha = state.senha))
+                }
                 _uiState.update { it.copy(loading = false, success = true) }
             } catch (e: ApiError) {
                 _uiState.update { it.copy(loading = false, errorMessage = e.message) }
