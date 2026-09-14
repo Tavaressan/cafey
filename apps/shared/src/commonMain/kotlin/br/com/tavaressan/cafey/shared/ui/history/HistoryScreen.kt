@@ -8,10 +8,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -24,20 +27,22 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
+import br.com.tavaressan.cafey.shared.domain.model.BarraOrigem
 import br.com.tavaressan.cafey.shared.domain.model.EstatisticasConsumoResponse
 import br.com.tavaressan.cafey.shared.domain.model.EventoResponse
+import br.com.tavaressan.cafey.shared.domain.model.barrasPorOrigem
 import br.com.tavaressan.cafey.shared.domain.model.duracaoFormatada
 import br.com.tavaressan.cafey.shared.domain.model.origemLabel
 import br.com.tavaressan.cafey.shared.domain.model.resultadoLabel
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
 /**
- * UC-14/15 — histórico de preparos em lista e estatísticas de consumo (APP-06). Espelha
- * `docs/docs_interface/prototype/rhythm.html` no essencial (resumo + lista), simplificado por
- * escopo:
- * - Os gráficos de distribuição por horário e a "sequência de manhãs" (streak) do protótipo não
- *   têm endpoint correspondente — só `EstatisticasConsumoResponse` (totais e por origem) e a lista
- *   paginada de eventos existem hoje. Omitidos em vez de inventados; ficam para APP-10 (gráficos).
+ * UC-14/15 — histórico de preparos em lista, estatísticas de consumo (APP-06) e gráfico de
+ * distribuição por origem (APP-10). Espelha `docs/docs_interface/prototype/rhythm.html` no
+ * essencial (resumo + gráfico + lista), simplificado por escopo:
+ * - O gráfico de distribuição por horário e a "sequência de manhãs" (streak) do protótipo não têm
+ *   endpoint correspondente — só `EstatisticasConsumoResponse` (totais e por origem) e a lista
+ *   paginada de eventos existem hoje. Omitidos em vez de inventados.
  */
 @Composable
 fun HistoryScreen() {
@@ -122,11 +127,39 @@ private fun EstatisticasCard(estatisticas: EstatisticasConsumoResponse) {
             color = CafeyTheme.colors.muted,
             modifier = Modifier.padding(top = 6.dp),
         )
-        if (estatisticas.porOrigem.isNotEmpty()) {
-            Row(modifier = Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                estatisticas.porOrigem.forEach { (origem, total) ->
-                    Text("$origem: $total", style = CafeyTheme.typography.caption, color = CafeyTheme.colors.ink3)
-                }
+        val barras = estatisticas.barrasPorOrigem()
+        if (barras.isNotEmpty()) {
+            OrigemBarChart(barras, modifier = Modifier.padding(top = 14.dp))
+        }
+    }
+}
+
+/** Gráfico de barras da distribuição de preparos por origem (UC-15 / APP-10). Reaproveita o
+ * `LinearProgressIndicator` já usado em `CareScreen` para o indicador de descalcificação, em vez
+ * de desenhar barras do zero — mesmo componente e mesmos tokens de cor (`brand`/`sunken`). */
+@Composable
+private fun OrigemBarChart(barras: List<BarraOrigem>, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        barras.forEach { barra ->
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    origemLabel(barra.origem),
+                    style = CafeyTheme.typography.caption,
+                    color = CafeyTheme.colors.ink3,
+                    modifier = Modifier.width(96.dp),
+                )
+                LinearProgressIndicator(
+                    progress = { barra.fracao },
+                    color = CafeyTheme.colors.brand,
+                    trackColor = CafeyTheme.colors.sunken,
+                    modifier = Modifier.weight(1f).height(8.dp),
+                )
+                Text(
+                    barra.total.toString(),
+                    style = CafeyTheme.typography.caption,
+                    color = CafeyTheme.colors.muted,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
             }
         }
     }
