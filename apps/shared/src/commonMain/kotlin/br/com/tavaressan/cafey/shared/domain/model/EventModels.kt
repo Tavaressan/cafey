@@ -49,6 +49,7 @@ data class EstatisticasConsumoResponse(
     val totalPreparosConcluidos: Long,
     val porOrigem: Map<String, Long>,
     val tempoTotalPreparoSegundos: Long,
+    val sequenciaManhasDias: Int = 0,
 )
 
 /** Uma barra do gráfico de distribuição por origem (UC-15 / APP-10). `fracao` é o total
