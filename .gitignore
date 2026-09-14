@@ -43,3 +43,5 @@ docs/docs_interface/logo/assets/
 # Python
 __pycache__/
 *.pyc
+.vercel
+.env*
