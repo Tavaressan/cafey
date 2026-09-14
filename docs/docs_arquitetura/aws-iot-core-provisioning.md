@@ -262,6 +262,17 @@ dos templates já versionados no repositório).
 O material sensível (chaves privadas, certificados `.pem`, Amazon Root CA) foi gerado e mantido
 **fora do repositório**; nada foi commitado, conforme §4.
 
+### Verificação (2026-09-14)
+
+Reconferido diretamente na conta via `aws iot list-things` / `list-certificates` / `list-policies` /
+`describe-endpoint` (região `sa-east-1`): os cinco recursos da tabela acima existem exatamente como
+documentado, sem divergência (mesmos ARNs, mesmo endpoint, mesmas datas de criação de 2026-09-11).
+
+A conta tem também uma `thing` (`Udemy_ESP32_Test`), certificado (criado em 2026-01-23) e política
+(`Udemy_ESP32_Test_Policy`) **não relacionados a este projeto** — sobra de um teste anterior na
+mesma conta AWS. Não interferem no funcionamento do Cafey (políticas e certificados são isolados
+por recurso), mas vale um cleanup manual se a conta for usada só para este projeto no futuro.
+
 ### Validação funcional já realizada (além do checklist §6)
 
 Como `mosquitto-clients` não está instalado neste ambiente (ver [Status e pendências](#status-e-pendências)),
