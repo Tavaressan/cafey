@@ -16,6 +16,10 @@ services:
   app:
     image: ghcr.io/tavaressan/cafey-backend:latest
     restart: unless-stopped
+    volumes:
+      # Certificados AWS IoT Core (INFRA-05) — arquivos reais ficam fora do repositório,
+      # em /opt/cafey/secrets na instância (nunca commitados).
+      - /opt/cafey/secrets:/run/secrets:ro
 
   db:
     restart: unless-stopped
