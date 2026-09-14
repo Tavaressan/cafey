@@ -1,11 +1,19 @@
 package br.com.tavaressan.cafey.shared.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -20,6 +28,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -86,23 +96,16 @@ fun CafeyNavHost() {
         BOTTOM_TABS.any { it.route == dest.route }
     }?.route
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground),
-        contentAlignment = Alignment.TopCenter,
     ) {
-        Scaffold(
-            modifier = Modifier.widthIn(max = maxContentWidth).fillMaxHeight(),
-            containerColor = CafeyTheme.colors.ground,
-            bottomBar = {
-                if (currentRoute != null) {
-                    CafeyBottomBar(currentRoute = currentRoute, onSelect = { route -> navigateToTab(navController, route) })
-                }
-            },
-        ) { padding ->
+        val sizeClass = navShellSizeClassFor(maxWidth)
+        val contentMaxWidth = contentMaxWidthFor(sizeClass, compactMax = maxContentWidth)
+        val navHost = @Composable {
             NavHost(
                 navController = navController,
                 startDestination = startRoute,
-                modifier = Modifier.padding(padding),
+                modifier = Modifier.fillMaxSize(),
             ) {
                 composable(ROUTE_LOGIN) {
                     LoginScreen(
@@ -120,6 +123,46 @@ fun CafeyNavHost() {
                 composable(ROUTE_SCHEDULE) { ScheduleScreen() }
                 composable(ROUTE_HISTORY) { HistoryScreen() }
                 composable(ROUTE_CARE) { CareScreen() }
+            }
+        }
+
+        if (sizeClass == NavShellSizeClass.Compact) {
+            // < 768.dp — barra de abas no rodapé, igual ao comportamento mobile original.
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                Scaffold(
+                    modifier = Modifier.widthIn(max = contentMaxWidth).fillMaxHeight(),
+                    containerColor = CafeyTheme.colors.ground,
+                    bottomBar = {
+                        if (currentRoute != null) {
+                            CafeyBottomBar(currentRoute = currentRoute, onSelect = { route -> navigateToTab(navController, route) })
+                        }
+                    },
+                ) { padding ->
+                    Box(modifier = Modifier.padding(padding)) { navHost() }
+                }
+            }
+        } else {
+            // 768.dp+ — navegação lateral (trilho de ícones no tablet, sidebar com rótulos no
+            // desktop), sem barra de abas. Libera `contentMaxWidth` para os valores do `.shell`.
+            Row(modifier = Modifier.fillMaxSize()) {
+                if (currentRoute != null) {
+                    CafeySideNav(
+                        sizeClass = sizeClass,
+                        currentRoute = currentRoute,
+                        onSelect = { route -> navigateToTab(navController, route) },
+                    )
+                }
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    Scaffold(
+                        modifier = Modifier.widthIn(max = contentMaxWidth).fillMaxHeight(),
+                        containerColor = CafeyTheme.colors.ground,
+                    ) { padding ->
+                        Box(modifier = Modifier.padding(padding)) { navHost() }
+                    }
+                }
             }
         }
     }
@@ -148,6 +191,62 @@ private fun CafeyBottomBar(currentRoute: String, onSelect: (String) -> Unit) {
                     indicatorColor = CafeyTheme.colors.brandTint,
                 ),
             )
+        }
+    }
+}
+
+/** Largura do trilho de ícones (tablet) — espelha `.rail` em `cafey.css`. */
+private val RAIL_WIDTH = 82.dp
+
+/** Largura da sidebar com rótulos (desktop) — espelha `.sidebar` em `cafey.css`. */
+private val SIDEBAR_WIDTH = 238.dp
+
+private val SideNavItemShape = RoundedCornerShape(14.dp)
+
+/**
+ * Navegação lateral para as faixas ≥768.dp: trilho de ícones estreito no tablet
+ * ([NavShellSizeClass.Medium]) ou sidebar com rótulos no desktop ([NavShellSizeClass.Expanded]).
+ * Substitui `CafeyBottomBar` nessas faixas (ver `.rail`/`.sidebar` em `cafey.css`).
+ */
+@Composable
+private fun CafeySideNav(sizeClass: NavShellSizeClass, currentRoute: String, onSelect: (String) -> Unit) {
+    val showLabel = sizeClass == NavShellSizeClass.Expanded
+    val width = if (showLabel) SIDEBAR_WIDTH else RAIL_WIDTH
+
+    Column(
+        modifier = Modifier
+            .width(width)
+            .fillMaxHeight()
+            .background(CafeyTheme.colors.sunken)
+            .padding(horizontal = if (showLabel) 18.dp else 15.dp, vertical = 26.dp),
+        horizontalAlignment = if (showLabel) Alignment.Start else Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(if (showLabel) 3.dp else 8.dp),
+    ) {
+        BOTTOM_TABS.forEach { tab ->
+            val selected = currentRoute == tab.route
+            val itemModifier = Modifier
+                .let { if (showLabel) it.fillMaxWidth() else it }
+                .clip(SideNavItemShape)
+                .background(if (selected) CafeyTheme.colors.surface else CafeyTheme.colors.sunken)
+                .clickable { onSelect(tab.route) }
+                .padding(horizontal = if (showLabel) 12.dp else 0.dp, vertical = if (showLabel) 11.dp else 12.dp)
+
+            if (showLabel) {
+                Text(
+                    text = tab.label,
+                    style = CafeyTheme.typography.bodySmall,
+                    color = if (selected) CafeyTheme.colors.ink else CafeyTheme.colors.ink4,
+                    modifier = itemModifier,
+                )
+            } else {
+                Box(modifier = itemModifier.width(52.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = tab.label,
+                        style = CafeyTheme.typography.caption,
+                        color = if (selected) CafeyTheme.colors.brand else CafeyTheme.colors.muted,
+                    )
+                }
+            }
         }
     }
 }
