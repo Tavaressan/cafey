@@ -32,4 +32,9 @@ interface EventoPreparoRepository : JpaRepository<EventoPreparo, UUID> {
 
     @Query("SELECT COALESCE(SUM(e.duracaoS), 0) FROM EventoPreparo e WHERE e.dispositivo.id = :dispositivoId AND e.resultado = 'CONCLUIDO'")
     fun sumDuracaoConcluidos(dispositivoId: UUID): Long
+
+    // Issue #177 — timestamps dos preparos concluídos, para o cálculo de "sequência de manhãs"
+    // (SequenciaManhas.calcular). Só o timestamp é necessário, sem carregar a entidade inteira.
+    @Query("SELECT e.timestamp FROM EventoPreparo e WHERE e.dispositivo.id = :dispositivoId AND e.tipo = 'PREPARO' AND e.resultado = 'CONCLUIDO'")
+    fun findTimestampsPreparosConcluidos(dispositivoId: UUID): List<Instant>
 }
