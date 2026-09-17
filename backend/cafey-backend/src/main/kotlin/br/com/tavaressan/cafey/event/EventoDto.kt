@@ -40,7 +40,8 @@ data class EventoResponse(
 data class EstatisticasConsumoResponse(
     val totalPreparosConcluidos: Long,
     val porOrigem: Map<String, Long>,
-    val tempoTotalPreparoSegundos: Long
+    val tempoTotalPreparoSegundos: Long,
+    val sequenciaManhasDias: Int
 )
 
 data class StatusDescalcificacaoResponse(

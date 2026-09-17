@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
 import java.time.Instant
+import java.time.ZoneId
 import java.util.UUID
 
 @Service
@@ -93,10 +94,21 @@ class EventoService(
 
         val tempoTotal = eventoPreparoRepository.sumDuracaoConcluidos(dispositivoId)
 
+        val dispositivo = dispositivoRepository.findById(dispositivoId).orElseThrow {
+            ResourceNotFoundException("Dispositivo não encontrado")
+        }
+        val timestampsPreparos = eventoPreparoRepository.findTimestampsPreparosConcluidos(dispositivoId)
+        val sequenciaManhas = SequenciaManhas.calcular(
+            timestampsPreparos,
+            ZoneId.of(dispositivo.timezone),
+            Instant.now()
+        )
+
         return EstatisticasConsumoResponse(
             totalPreparosConcluidos = total,
             porOrigem = porOrigem,
-            tempoTotalPreparoSegundos = tempoTotal
+            tempoTotalPreparoSegundos = tempoTotal,
+            sequenciaManhasDias = sequenciaManhas
         )
     }
 
