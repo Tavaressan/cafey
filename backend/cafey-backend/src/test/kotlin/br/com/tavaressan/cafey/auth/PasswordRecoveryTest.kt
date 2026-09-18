@@ -1,6 +1,7 @@
 package br.com.tavaressan.cafey.auth
 
 import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.mail.FakeEmailSenderService
 import br.com.tavaressan.cafey.security.JwtTokenService
 import br.com.tavaressan.cafey.security.PasswordResetToken
 import br.com.tavaressan.cafey.security.PasswordResetTokenRepository
@@ -39,6 +40,8 @@ class PasswordRecoveryTest {
     @Mock
     private lateinit var jwtTokenService: JwtTokenService
 
+    private lateinit var emailSenderService: FakeEmailSenderService
+
     private lateinit var authService: AuthService
 
     private val userId = UUID.randomUUID()
@@ -46,18 +49,20 @@ class PasswordRecoveryTest {
 
     @BeforeEach
     fun setUp() {
+        emailSenderService = FakeEmailSenderService()
         authService = AuthService(
             usuarioRepository,
             refreshTokenRepository,
             passwordResetTokenRepository,
             passwordEncoder,
-            jwtTokenService
+            jwtTokenService,
+            emailSenderService
         )
         user = Usuario(id = userId, nome = "User", email = "user@cafey.com", senhaHash = "oldhash")
     }
 
     @Test
-    fun `should generate password reset token for valid email`() {
+    fun `should generate password reset token for valid email and send it only by email`() {
         `when`(usuarioRepository.findByEmail("user@cafey.com")).thenReturn(user)
         `when`(jwtTokenService.hashToken(anyString())).thenReturn("hashed-token")
         `when`(passwordResetTokenRepository.save(any(PasswordResetToken::class.java))).thenAnswer { it.getArgument(0) }
@@ -65,8 +70,14 @@ class PasswordRecoveryTest {
         val req = SolicitarRecuperacaoSenhaRequest(email = "user@cafey.com")
         val res = authService.solicitarRecuperacaoSenha(req)
 
-        assertNotNull(res.token)
+        assertNotNull(res.mensagem)
         verify(passwordResetTokenRepository).save(any(PasswordResetToken::class.java))
+        assertEquals(1, emailSenderService.chamadas)
+        assertEquals("user@cafey.com", emailSenderService.ultimoDestinatario)
+        // O e-mail deve receber o token em texto claro (rawToken), nunca o hash persistido —
+        // é o hash que o repositório recebe, não o que o usuário usa para redefinir a senha.
+        assertNotEquals("hashed-token", emailSenderService.ultimoToken)
+        assertNotNull(emailSenderService.ultimoToken)
     }
 
     @Test
@@ -74,10 +85,10 @@ class PasswordRecoveryTest {
         `when`(usuarioRepository.findByEmail("unknown@cafey.com")).thenReturn(null)
 
         val req = SolicitarRecuperacaoSenhaRequest(email = "unknown@cafey.com")
-        val res = authService.solicitarRecuperacaoSenha(req)
+        authService.solicitarRecuperacaoSenha(req)
 
-        assertNull(res.token)
         verify(passwordResetTokenRepository, never()).save(any(PasswordResetToken::class.java))
+        assertEquals(0, emailSenderService.chamadas)
     }
 
     @Test

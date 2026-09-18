@@ -20,6 +20,12 @@ spring:
     locations: classpath:db/migration
 
 cafey:
+  mail:
+    # Remetente e link de redefinição de senha usados por EmailSenderService (BE-23, #105).
+    # Em produção, sobrescreva com o domínio/e-mail verificado no provedor real (Parte B, ainda
+    # bloqueada aguardando decisão do dono do projeto).
+    from: ${CAFEY_MAIL_FROM:Cafey <nao-responda@cafey.local>}
+    reset-password-url: ${CAFEY_MAIL_RESET_PASSWORD_URL:http://localhost:8081/redefinir-senha}
   cors:
     # Origens do app Web autorizadas a chamar a API (APP-08). Padrão: dev server do Kotlin/Wasm
     # (apps/webApp) em desenvolvimento local. Em produção, sobrescreva com o(s) domínio(s)
