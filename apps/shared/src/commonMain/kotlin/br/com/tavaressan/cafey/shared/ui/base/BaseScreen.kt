@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -30,7 +31,7 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyStar
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
 @Composable
-fun BaseScreen() {
+fun BaseScreen(onGoToAccount: () -> Unit = {}) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<BaseViewModel>(
         factory = viewModelFactory { initializer { BaseViewModel(container.deviceApi, container.themePreference) } },
@@ -43,6 +44,7 @@ fun BaseScreen() {
         darkTheme = state.darkTheme,
         errorMessage = state.errorMessage,
         onToggleTheme = viewModel::toggleTheme,
+        onGoToAccount = onGoToAccount,
     )
 }
 
@@ -57,6 +59,7 @@ internal fun BaseContent(
     darkTheme: Boolean,
     errorMessage: String?,
     onToggleTheme: () -> Unit,
+    onGoToAccount: () -> Unit = {},
 ) {
     Column(modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground).padding(22.dp)) {
         Text("Base da cozinha", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
@@ -90,6 +93,12 @@ internal fun BaseContent(
         }
 
         ThemeToggleCard(darkTheme = darkTheme, onToggle = onToggleTheme)
+
+        // Issue #183 — a tela de Conta (logout) não é uma aba do rodapé/trilho/sidebar (nav.js só
+        // lista 5, todas espelhadas na issue #182); "Base" é o ponto de entrada natural.
+        OutlinedButton(onClick = onGoToAccount, modifier = Modifier.fillMaxWidth().padding(top = 14.dp)) {
+            Text("Conta")
+        }
     }
 }
 

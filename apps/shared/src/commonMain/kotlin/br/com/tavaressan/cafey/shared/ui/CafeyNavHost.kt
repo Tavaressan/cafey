@@ -41,6 +41,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import br.com.tavaressan.cafey.shared.ui.account.AccountScreen
 import br.com.tavaressan.cafey.shared.ui.auth.LoginScreen
 import br.com.tavaressan.cafey.shared.ui.auth.RegisterScreen
 import br.com.tavaressan.cafey.shared.ui.base.BaseScreen
@@ -59,6 +60,7 @@ private const val ROUTE_SCHEDULE = "schedule"
 private const val ROUTE_HISTORY = "history"
 private const val ROUTE_CARE = "care"
 private const val ROUTE_BASE = "base"
+private const val ROUTE_ACCOUNT = "account"
 private const val ROUTE_DEVICE_REGISTER = "device_register"
 
 /** Abas do rodapé principal — espelha `assets/nav.js` do protótipo (issue #182 adicionou "Base"). */
@@ -148,7 +150,22 @@ fun CafeyNavHost() {
                     composable(ROUTE_SCHEDULE) { ScheduleScreen() }
                     composable(ROUTE_HISTORY) { HistoryScreen() }
                     composable(ROUTE_CARE) { CareScreen() }
-                    composable(ROUTE_BASE) { BaseScreen() }
+                    composable(ROUTE_BASE) {
+                        BaseScreen(onGoToAccount = { navController.navigate(ROUTE_ACCOUNT) })
+                    }
+                    composable(ROUTE_ACCOUNT) {
+                        AccountScreen(
+                            // Issue #183 — limpa TODA a back stack (não só até ROUTE_LOGIN, que
+                            // nem está mais nela depois do login→home): navController.graph.id é a
+                            // raiz do grafo, popUpTo(...) { inclusive = true } sobre ele descarta
+                            // tudo, garantindo que "voltar" não retorne a uma tela autenticada.
+                            onLoggedOut = {
+                                navController.navigate(ROUTE_LOGIN) {
+                                    popUpTo(navController.graph.id) { inclusive = true }
+                                }
+                            },
+                        )
+                    }
                     composable(ROUTE_DEVICE_REGISTER) {
                         DeviceRegisterScreen(onRegistered = { navController.popBackStack() })
                     }
