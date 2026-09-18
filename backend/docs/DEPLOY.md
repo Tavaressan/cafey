@@ -214,8 +214,12 @@ curl "https://www.duckdns.org/update?domains=cafey-backend&token=<token-duckdns>
 
 # 5) Provisionar a instância via SSH: instalar Docker + Docker Compose plugin, clonar o
 #    repositório (ou copiar só backend/), criar o .env (§4) e o Caddyfile (§3), então:
-#    docker compose -f backend/compose.yaml up -d --build
-#    (reaproveita o Dockerfile/compose.yaml da #149, adicionando o serviço `caddy`)
+#    docker compose -f backend/compose.yaml -f backend/compose.prod.yaml pull && \
+#      docker compose -f backend/compose.yaml -f backend/compose.prod.yaml up -d
+#    ATUALIZADO por #158: a instância nunca builda a imagem — `compose.prod.yaml` referencia
+#    `image: ghcr.io/tavaressan/cafey-backend:latest` (publicada pelo GitHub Actions, §8), nunca
+#    `build:` (este runbook original, de #150, ainda descrevia `--build` na própria instância —
+#    a causa do incidente de OOM documentado no §9).
 
 # 6) Cron de backup (§5) — copiar o arquivo /etc/cron.d/cafey-backup para a instância
 
@@ -252,6 +256,14 @@ aws lightsail create-bucket \
 ver nota sobre OOM no §9) e publica em `ghcr.io/tavaressan/cafey-backend:latest`. Em seguida conecta
 via SSH (chave dedicada, GitHub Secret `DEPLOY_SSH_KEY`) e dispara `/opt/cafey/deploy.sh` na
 instância (`git pull` + `docker compose pull` + `up -d`) — a instância nunca builda a imagem.
+
+**Nota (#158):** `compose.prod.yaml` reseta explicitamente a chave `build:` herdada de
+`compose.yaml` (`build: !reset null`) — confirmado com `docker compose -f backend/compose.yaml -f
+backend/compose.prod.yaml config`, que mostra o serviço `app` só com `image:`, sem `build:`. Isso
+garante o critério de aceite "a instância nunca executa `docker build`" mesmo que `deploy.sh` (ou
+alguém manualmente) rode `up -d --build` por engano. `/opt/cafey/deploy.sh` não está neste
+repositório (vive só na instância, ver §4) — não há como confirmar por aqui quais arquivos `-f`
+ele de fato passa; o reset acima cobre o caso mesmo que o script use `--build`.
 
 A chave SSH usada pela Action é restrita via `command="/opt/cafey/deploy.sh"` em
 `~/.ssh/authorized_keys` na instância: qualquer sessão aberta com essa chave só pode rodar esse
