@@ -22,6 +22,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -112,37 +113,42 @@ fun CafeyNavHost() {
         // com dois pontos de invocação estruturalmente diferentes (Compact vs Medium/Expanded), o
         // que fazia o Compose descartar e recriar toda a subárvore do NavHost a cada travessia do
         // breakpoint de 768.dp (perdendo `rememberSaveable` de telas como o editor de agendamentos).
-        NavShellScaffold(
-            sizeClass = sizeClass,
-            currentRoute = currentRoute,
-            contentMaxWidth = contentMaxWidth,
-            onSelectTab = { route -> navigateToTab(navController, route) },
-        ) {
-            NavHost(
-                navController = navController,
-                startDestination = startRoute,
-                modifier = Modifier.fillMaxSize(),
+        // Disponibiliza o sizeClass calculado aqui (largura total da janela) para as telas de
+        // conteúdo via CompositionLocal (issue #188) — telas não podem recalculá-lo localmente, ver
+        // comentário em LocalNavShellSizeClass.
+        CompositionLocalProvider(LocalNavShellSizeClass provides sizeClass) {
+            NavShellScaffold(
+                sizeClass = sizeClass,
+                currentRoute = currentRoute,
+                contentMaxWidth = contentMaxWidth,
+                onSelectTab = { route -> navigateToTab(navController, route) },
             ) {
-                composable(ROUTE_LOGIN) {
-                    LoginScreen(
-                        onLoggedIn = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
-                        onGoToRegister = { navController.navigate(ROUTE_REGISTER) },
-                    )
-                }
-                composable(ROUTE_REGISTER) {
-                    RegisterScreen(
-                        onRegistered = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
-                        onGoToLogin = { navController.popBackStack() },
-                    )
-                }
-                composable(ROUTE_HOME) {
-                    HomeScreen(onGoToDeviceRegister = { navController.navigate(ROUTE_DEVICE_REGISTER) })
-                }
-                composable(ROUTE_SCHEDULE) { ScheduleScreen() }
-                composable(ROUTE_HISTORY) { HistoryScreen() }
-                composable(ROUTE_CARE) { CareScreen() }
-                composable(ROUTE_DEVICE_REGISTER) {
-                    DeviceRegisterScreen(onRegistered = { navController.popBackStack() })
+                NavHost(
+                    navController = navController,
+                    startDestination = startRoute,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    composable(ROUTE_LOGIN) {
+                        LoginScreen(
+                            onLoggedIn = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
+                            onGoToRegister = { navController.navigate(ROUTE_REGISTER) },
+                        )
+                    }
+                    composable(ROUTE_REGISTER) {
+                        RegisterScreen(
+                            onRegistered = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
+                            onGoToLogin = { navController.popBackStack() },
+                        )
+                    }
+                    composable(ROUTE_HOME) {
+                        HomeScreen(onGoToDeviceRegister = { navController.navigate(ROUTE_DEVICE_REGISTER) })
+                    }
+                    composable(ROUTE_SCHEDULE) { ScheduleScreen() }
+                    composable(ROUTE_HISTORY) { HistoryScreen() }
+                    composable(ROUTE_CARE) { CareScreen() }
+                    composable(ROUTE_DEVICE_REGISTER) {
+                        DeviceRegisterScreen(onRegistered = { navController.popBackStack() })
+                    }
                 }
             }
         }
