@@ -257,8 +257,18 @@ A chave SSH usada pela Action é restrita via `command="/opt/cafey/deploy.sh"` e
 `~/.ssh/authorized_keys` na instância: qualquer sessão aberta com essa chave só pode rodar esse
 script, nada mais (sem shell interativo, sem port-forwarding).
 
-Acompanhamento: issue #158 (INFRA-08), aberta para reavaliar a necessidade do swap de 2GB (§9) uma
-vez que a instância deixe de fazer qualquer build.
+**Validação do workflow (#158):** `actionlint` não estava disponível no ambiente usado para revisar
+esta issue; a sintaxe/lógica de `.github/workflows/deploy-backend.yml` foi revisada manualmente
+(steps, `uses`/`with`, secrets referenciados). Diferente do caso comum de "não há como disparar um
+push real a partir do worktree", este workflow **já rodou de ponta a ponta múltiplas vezes em
+produção** antes desta revisão — validado ao vivo em 2026-09-11 (execução inicial, ver §9) e
+novamente em 2026-09-14 (ativação do profile `prod`, ver Pendências no §9) —, o que é evidência mais
+forte que uma validação estática isolada.
+
+Acompanhamento: issue #158 (INFRA-08) — a mudança acima (build no runner do GitHub, deploy só faz
+`pull`) já estava implementada e validada ao vivo desde 2026-09-11 como parte da execução de #150;
+#158 ficou aberta apenas para (a) documentar esta seção substituindo a descrição antiga de build
+local via SSH e (b) reavaliar a necessidade do swap de 2GB — ver "Reavaliação do swap" no §9.
 
 ## 9. Status — implantado
 
@@ -288,6 +298,26 @@ disponível. A instância ficou inacessível via SSH e precisou de `stop`/`start
 sozinho não foi suficiente) para recuperar. Mitigação imediata: 2GB de swap via arquivo
 (`/swapfile`, persistente em `/etc/fstab`). Correção definitiva: mover o build para o GitHub
 Actions (§8) — a instância nunca mais compila nada. Ver issue #158.
+
+### Reavaliação do swap de 2GB (#158)
+
+**Recomendação: manter o swap.** O gatilho original (`docker compose up --build` na própria
+instância) não acontece mais desde a mudança do §8 — a instância só roda `docker compose pull &&
+up -d`, então o pico de memória do build do Gradle/JDK/Kotlin (>1GB sozinho) não se repete. Isso
+elimina a *causa raiz* do incidente de OOM.
+
+Ainda assim, não há motivo para reduzir ou remover o swap:
+- **Custo zero:** é um arquivo (`/swapfile`) no mesmo SSD de 40GB já incluso no bundle da
+  instância — Lightsail não cobra por swap em disco local, diferente de um volume adicional.
+- **Margem de segurança:** a instância de 1GB roda JVM (Spring Boot) + Postgres simultaneamente em
+  runtime; picos pontuais (ex. GC, várias migrations Flyway em sequência, conexões concorrentes)
+  ainda podem se beneficiar da margem extra sem risco de outro OOM.
+- **Custo de reduzir:** editar `/etc/fstab` e redimensionar o `/swapfile` na instância é uma
+  operação manual, com o mesmo risco de tornar a instância inacessível via SSH que motivou a issue
+  original — sem ganho de custo mensal que justifique o risco.
+
+Decisão: nenhuma mudança de infraestrutura na instância (fora do repositório, ver critério de
+aceite de #158) — apenas esta documentação da recomendação.
 
 ### Nota: acesso ao bucket via credencial nativa do Lightsail, não IAM
 
