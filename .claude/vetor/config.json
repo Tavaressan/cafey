@@ -1,0 +1,6 @@
+{
+  "maxConcurrentWorkers": 5,
+  "runtime": "unknown",
+  "packageManager": null,
+  "testCommand": ""
+}
