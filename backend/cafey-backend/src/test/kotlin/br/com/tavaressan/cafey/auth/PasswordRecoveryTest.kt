@@ -1,7 +1,7 @@
 package br.com.tavaressan.cafey.auth
 
 import br.com.tavaressan.cafey.exception.BadCredentialsException
-import br.com.tavaressan.cafey.mail.EmailSenderService
+import br.com.tavaressan.cafey.mail.FakeEmailSenderService
 import br.com.tavaressan.cafey.security.JwtTokenService
 import br.com.tavaressan.cafey.security.PasswordResetToken
 import br.com.tavaressan.cafey.security.PasswordResetTokenRepository
@@ -40,8 +40,7 @@ class PasswordRecoveryTest {
     @Mock
     private lateinit var jwtTokenService: JwtTokenService
 
-    @Mock
-    private lateinit var emailSenderService: EmailSenderService
+    private lateinit var emailSenderService: FakeEmailSenderService
 
     private lateinit var authService: AuthService
 
@@ -50,6 +49,7 @@ class PasswordRecoveryTest {
 
     @BeforeEach
     fun setUp() {
+        emailSenderService = FakeEmailSenderService()
         authService = AuthService(
             usuarioRepository,
             refreshTokenRepository,
@@ -72,7 +72,12 @@ class PasswordRecoveryTest {
 
         assertNotNull(res.mensagem)
         verify(passwordResetTokenRepository).save(any(PasswordResetToken::class.java))
-        verify(emailSenderService).enviarEmailRecuperacaoSenha(anyString(), anyString())
+        assertEquals(1, emailSenderService.chamadas)
+        assertEquals("user@cafey.com", emailSenderService.ultimoDestinatario)
+        // O e-mail deve receber o token em texto claro (rawToken), nunca o hash persistido —
+        // é o hash que o repositório recebe, não o que o usuário usa para redefinir a senha.
+        assertNotEquals("hashed-token", emailSenderService.ultimoToken)
+        assertNotNull(emailSenderService.ultimoToken)
     }
 
     @Test
@@ -83,7 +88,7 @@ class PasswordRecoveryTest {
         authService.solicitarRecuperacaoSenha(req)
 
         verify(passwordResetTokenRepository, never()).save(any(PasswordResetToken::class.java))
-        verify(emailSenderService, never()).enviarEmailRecuperacaoSenha(anyString(), anyString())
+        assertEquals(0, emailSenderService.chamadas)
     }
 
     @Test
