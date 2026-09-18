@@ -214,8 +214,12 @@ curl "https://www.duckdns.org/update?domains=cafey-backend&token=<token-duckdns>
 
 # 5) Provisionar a instância via SSH: instalar Docker + Docker Compose plugin, clonar o
 #    repositório (ou copiar só backend/), criar o .env (§4) e o Caddyfile (§3), então:
-#    docker compose -f backend/compose.yaml up -d --build
-#    (reaproveita o Dockerfile/compose.yaml da #149, adicionando o serviço `caddy`)
+#    docker compose -f backend/compose.yaml -f backend/compose.prod.yaml pull && \
+#      docker compose -f backend/compose.yaml -f backend/compose.prod.yaml up -d
+#    ATUALIZADO por #158: a instância nunca builda a imagem — `compose.prod.yaml` referencia
+#    `image: ghcr.io/tavaressan/cafey-backend:latest` (publicada pelo GitHub Actions, §8), nunca
+#    `build:` (este runbook original, de #150, ainda descrevia `--build` na própria instância —
+#    a causa do incidente de OOM documentado no §9).
 
 # 6) Cron de backup (§5) — copiar o arquivo /etc/cron.d/cafey-backup para a instância
 
@@ -253,12 +257,46 @@ ver nota sobre OOM no §9) e publica em `ghcr.io/tavaressan/cafey-backend:latest
 via SSH (chave dedicada, GitHub Secret `DEPLOY_SSH_KEY`) e dispara `/opt/cafey/deploy.sh` na
 instância (`git pull` + `docker compose pull` + `up -d`) — a instância nunca builda a imagem.
 
+**Nota (#158):** `compose.prod.yaml` reseta explicitamente a chave `build:` herdada de
+`compose.yaml` (`build: !reset null`) — confirmado com `docker compose -f backend/compose.yaml -f
+backend/compose.prod.yaml config`, que mostra o serviço `app` só com `image:`, sem `build:`. Isso
+garante o critério de aceite "a instância nunca executa `docker build`" mesmo que `deploy.sh` (ou
+alguém manualmente) rode `up -d --build` por engano. `/opt/cafey/deploy.sh` não está neste
+repositório (vive só na instância, ver §4) — não há como confirmar por aqui quais arquivos `-f`
+ele de fato passa; o reset acima cobre o caso mesmo que o script use `--build`.
+
+**Atenção — pré-requisito de versão (ação humana pendente):** a tag `!reset` é um mecanismo de
+merge do Compose Specification introduzido pela
+[compose-spec#340](https://github.com/compose-spec/compose-spec/pull/340) junto com `!override`
+(mesmo PR). A documentação oficial ([docs.docker.com/reference/compose-file/merge](https://docs.docker.com/reference/compose-file/merge/),
+consultada em 2026-09-18) confirma explicitamente **Docker Compose ≥ 2.24.4** como requisito para
+`!override`; para `!reset` a mesma página não expõe um badge de versão equivalente — **inferência,
+não confirmada na fonte**: como as duas tags nasceram do mesmo mecanismo de merge e mesmo PR da
+spec, é provável que a mesma versão mínima (2.24.4) se aplique, mas isso não está documentado
+explicitamente. Validado localmente nesta revisão com Compose v5.5.1 (`docker compose config`, ver
+acima) — porém a instância de produção pode rodar um plugin mais antigo (provisionada em
+2026-09-11 com Ubuntu 24.04, então provavelmente atualizado, mas não verificado remotamente nesta
+revisão). Um plugin desatualizado trataria `!reset` como tag YAML desconhecida — **erro de parse
+antes mesmo do `pull`**, quebrando o próprio pipeline que #158 existe para proteger.
+**Antes do próximo deploy após este merge, rodar `docker compose version` na instância e
+confirmar ≥ 2.24.4** (ou atualizar o plugin, se necessário).
+
 A chave SSH usada pela Action é restrita via `command="/opt/cafey/deploy.sh"` em
 `~/.ssh/authorized_keys` na instância: qualquer sessão aberta com essa chave só pode rodar esse
 script, nada mais (sem shell interativo, sem port-forwarding).
 
-Acompanhamento: issue #158 (INFRA-08), aberta para reavaliar a necessidade do swap de 2GB (§9) uma
-vez que a instância deixe de fazer qualquer build.
+**Validação do workflow (#158):** `actionlint` não estava disponível no ambiente usado para revisar
+esta issue; a sintaxe/lógica de `.github/workflows/deploy-backend.yml` foi revisada manualmente
+(steps, `uses`/`with`, secrets referenciados). Diferente do caso comum de "não há como disparar um
+push real a partir do worktree", este workflow **já rodou de ponta a ponta múltiplas vezes em
+produção** antes desta revisão — validado ao vivo em 2026-09-11 (execução inicial, ver §9) e
+novamente em 2026-09-14 (ativação do profile `prod`, ver Pendências no §9) —, o que é evidência mais
+forte que uma validação estática isolada.
+
+Acompanhamento: issue #158 (INFRA-08) — a mudança acima (build no runner do GitHub, deploy só faz
+`pull`) já estava implementada e validada ao vivo desde 2026-09-11 como parte da execução de #150;
+#158 ficou aberta apenas para (a) documentar esta seção substituindo a descrição antiga de build
+local via SSH e (b) reavaliar a necessidade do swap de 2GB — ver "Reavaliação do swap" no §9.
 
 ## 9. Status — implantado
 
@@ -288,6 +326,26 @@ disponível. A instância ficou inacessível via SSH e precisou de `stop`/`start
 sozinho não foi suficiente) para recuperar. Mitigação imediata: 2GB de swap via arquivo
 (`/swapfile`, persistente em `/etc/fstab`). Correção definitiva: mover o build para o GitHub
 Actions (§8) — a instância nunca mais compila nada. Ver issue #158.
+
+### Reavaliação do swap de 2GB (#158)
+
+**Recomendação: manter o swap.** O gatilho original (`docker compose up --build` na própria
+instância) não acontece mais desde a mudança do §8 — a instância só roda `docker compose pull &&
+up -d`, então o pico de memória do build do Gradle/JDK/Kotlin (>1GB sozinho) não se repete. Isso
+elimina a *causa raiz* do incidente de OOM.
+
+Ainda assim, não há motivo para reduzir ou remover o swap:
+- **Custo zero:** é um arquivo (`/swapfile`) no mesmo SSD de 40GB já incluso no bundle da
+  instância — Lightsail não cobra por swap em disco local, diferente de um volume adicional.
+- **Margem de segurança:** a instância de 1GB roda JVM (Spring Boot) + Postgres simultaneamente em
+  runtime; picos pontuais (ex. GC, várias migrations Flyway em sequência, conexões concorrentes)
+  ainda podem se beneficiar da margem extra sem risco de outro OOM.
+- **Custo de reduzir:** editar `/etc/fstab` e redimensionar o `/swapfile` na instância é uma
+  operação manual, com o mesmo risco de tornar a instância inacessível via SSH que motivou a issue
+  original — sem ganho de custo mensal que justifique o risco.
+
+Decisão: nenhuma mudança de infraestrutura na instância (fora do repositório, ver critério de
+aceite de #158) — apenas esta documentação da recomendação.
 
 ### Nota: acesso ao bucket via credencial nativa do Lightsail, não IAM
 

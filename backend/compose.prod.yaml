@@ -14,6 +14,9 @@ services:
       - app
 
   app:
+    # #158: remove o `build:` herdado de compose.yaml — em produção a imagem vem só do GHCR
+    # (`image:` abaixo), nunca compilada na instância, mesmo que alguém rode `--build` por engano.
+    build: !reset null
     image: ghcr.io/tavaressan/cafey-backend:latest
     restart: unless-stopped
     environment:
