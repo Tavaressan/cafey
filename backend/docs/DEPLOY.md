@@ -265,6 +265,22 @@ alguém manualmente) rode `up -d --build` por engano. `/opt/cafey/deploy.sh` nã
 repositório (vive só na instância, ver §4) — não há como confirmar por aqui quais arquivos `-f`
 ele de fato passa; o reset acima cobre o caso mesmo que o script use `--build`.
 
+**Atenção — pré-requisito de versão (ação humana pendente):** a tag `!reset` é um mecanismo de
+merge do Compose Specification introduzido pela
+[compose-spec#340](https://github.com/compose-spec/compose-spec/pull/340) junto com `!override`
+(mesmo PR). A documentação oficial ([docs.docker.com/reference/compose-file/merge](https://docs.docker.com/reference/compose-file/merge/),
+consultada em 2026-09-18) confirma explicitamente **Docker Compose ≥ 2.24.4** como requisito para
+`!override`; para `!reset` a mesma página não expõe um badge de versão equivalente — **inferência,
+não confirmada na fonte**: como as duas tags nasceram do mesmo mecanismo de merge e mesmo PR da
+spec, é provável que a mesma versão mínima (2.24.4) se aplique, mas isso não está documentado
+explicitamente. Validado localmente nesta revisão com Compose v5.5.1 (`docker compose config`, ver
+acima) — porém a instância de produção pode rodar um plugin mais antigo (provisionada em
+2026-09-11 com Ubuntu 24.04, então provavelmente atualizado, mas não verificado remotamente nesta
+revisão). Um plugin desatualizado trataria `!reset` como tag YAML desconhecida — **erro de parse
+antes mesmo do `pull`**, quebrando o próprio pipeline que #158 existe para proteger.
+**Antes do próximo deploy após este merge, rodar `docker compose version` na instância e
+confirmar ≥ 2.24.4** (ou atualizar o plugin, se necessário).
+
 A chave SSH usada pela Action é restrita via `command="/opt/cafey/deploy.sh"` em
 `~/.ssh/authorized_keys` na instância: qualquer sessão aberta com essa chave só pode rodar esse
 script, nada mais (sem shell interativo, sem port-forwarding).
