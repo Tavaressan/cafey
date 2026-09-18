@@ -1,6 +1,7 @@
 package br.com.tavaressan.cafey.auth
 
 import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.mail.EmailSenderService
 import br.com.tavaressan.cafey.security.JwtTokenService
 import br.com.tavaressan.cafey.security.PasswordResetToken
 import br.com.tavaressan.cafey.security.PasswordResetTokenRepository
@@ -8,6 +9,7 @@ import br.com.tavaressan.cafey.security.RefreshToken
 import br.com.tavaressan.cafey.security.RefreshTokenRepository
 import br.com.tavaressan.cafey.user.Usuario
 import br.com.tavaressan.cafey.user.UsuarioRepository
+import org.slf4j.LoggerFactory
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -21,8 +23,11 @@ class AuthService(
     private val refreshTokenRepository: RefreshTokenRepository,
     private val passwordResetTokenRepository: PasswordResetTokenRepository,
     private val passwordEncoder: PasswordEncoder,
-    private val jwtTokenService: JwtTokenService
+    private val jwtTokenService: JwtTokenService,
+    private val emailSenderService: EmailSenderService
 ) {
+
+    private val logger = LoggerFactory.getLogger(AuthService::class.java)
 
     @Transactional
     fun registrar(request: RegisterRequest): AuthResponse {
@@ -102,9 +107,10 @@ class AuthService(
 
     @Transactional
     fun solicitarRecuperacaoSenha(request: SolicitarRecuperacaoSenhaRequest): RecuperacaoSenhaResponse {
+        val mensagemGenerica = "Se o email estiver cadastrado, as instruções foram enviadas."
         val normalizedEmail = request.email.trim().lowercase()
         val usuario = usuarioRepository.findByEmail(normalizedEmail)
-            ?: return RecuperacaoSenhaResponse("Se o email estiver cadastrado, as instruções foram enviadas.")
+            ?: return RecuperacaoSenhaResponse(mensagemGenerica)
 
         val rawToken = UUID.randomUUID().toString().replace("-", "")
         val tokenHash = jwtTokenService.hashToken(rawToken)
@@ -116,10 +122,17 @@ class AuthService(
         )
         passwordResetTokenRepository.save(resetToken)
 
-        return RecuperacaoSenhaResponse(
-            mensagem = "Se o email estiver cadastrado, as instruções foram enviadas.",
-            token = rawToken
-        )
+        // O token só é entregue por e-mail — nunca na resposta da API (correção do achado de
+        // segurança levantado na issue #105: sem isso, o endpoint público era um account takeover).
+        // Falha de envio é apenas logada: não pode virar 5xx nem alterar a resposta, senão vira
+        // oráculo de enumeração de contas.
+        try {
+            emailSenderService.enviarEmailRecuperacaoSenha(normalizedEmail, rawToken)
+        } catch (ex: Exception) {
+            logger.error("Falha ao enviar e-mail de recuperação de senha para {}", normalizedEmail, ex)
+        }
+
+        return RecuperacaoSenhaResponse(mensagem = mensagemGenerica)
     }
 
     @Transactional
