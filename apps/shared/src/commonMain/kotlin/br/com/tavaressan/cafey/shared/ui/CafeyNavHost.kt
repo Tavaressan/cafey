@@ -31,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -105,7 +106,18 @@ fun CafeyNavHost() {
     ) {
         val sizeClass = navShellSizeClassFor(maxWidth)
         val contentMaxWidth = contentMaxWidthFor(sizeClass, compactMax = maxContentWidth)
-        val navHost = @Composable {
+
+        // NavShellScaffold é chamado a partir de uma única posição na árvore de composição,
+        // independente de `sizeClass` — issue #187: antes, `NavHost` vivia dentro de um `if/else`
+        // com dois pontos de invocação estruturalmente diferentes (Compact vs Medium/Expanded), o
+        // que fazia o Compose descartar e recriar toda a subárvore do NavHost a cada travessia do
+        // breakpoint de 768.dp (perdendo `rememberSaveable` de telas como o editor de agendamentos).
+        NavShellScaffold(
+            sizeClass = sizeClass,
+            currentRoute = currentRoute,
+            contentMaxWidth = contentMaxWidth,
+            onSelectTab = { route -> navigateToTab(navController, route) },
+        ) {
             NavHost(
                 navController = navController,
                 startDestination = startRoute,
@@ -134,44 +146,43 @@ fun CafeyNavHost() {
                 }
             }
         }
+    }
+}
 
-        if (sizeClass == NavShellSizeClass.Compact) {
-            // < 768.dp — barra de abas no rodapé, igual ao comportamento mobile original.
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                Scaffold(
-                    modifier = Modifier.widthIn(max = contentMaxWidth).fillMaxHeight(),
-                    containerColor = CafeyTheme.colors.ground,
-                    bottomBar = {
-                        if (currentRoute != null) {
-                            CafeyBottomBar(currentRoute = currentRoute, onSelect = { route -> navigateToTab(navController, route) })
-                        }
-                    },
-                ) { padding ->
-                    Box(modifier = Modifier.padding(padding)) { navHost() }
-                }
-            }
-        } else {
-            // 768.dp+ — navegação lateral (trilho de ícones no tablet, sidebar com rótulos no
-            // desktop), sem barra de abas. Libera `contentMaxWidth` para os valores do `.shell`.
-            Row(modifier = Modifier.fillMaxSize()) {
-                if (currentRoute != null) {
-                    CafeySideNav(
-                        sizeClass = sizeClass,
-                        currentRoute = currentRoute,
-                        onSelect = { route -> navigateToTab(navController, route) },
-                    )
-                }
-                Box(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    contentAlignment = Alignment.TopCenter,
-                ) {
-                    Scaffold(
-                        modifier = Modifier.widthIn(max = contentMaxWidth).fillMaxHeight(),
-                        containerColor = CafeyTheme.colors.ground,
-                    ) { padding ->
-                        Box(modifier = Modifier.padding(padding)) { navHost() }
+/**
+ * Casca de navegação (barra inferior no Compact, navegação lateral em Medium/Expanded) em torno de
+ * [content]. [content] é chamado a partir de uma única posição de código, para que o Compose nunca
+ * o trate como uma subárvore diferente ao alternar [sizeClass] (ver comentário em [CafeyNavHost]).
+ * `internal` para ser exercitado por teste de composição em `desktopTest` (issue #187).
+ */
+@Composable
+internal fun NavShellScaffold(
+    sizeClass: NavShellSizeClass,
+    currentRoute: String?,
+    contentMaxWidth: Dp,
+    onSelectTab: (String) -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val isCompact = sizeClass == NavShellSizeClass.Compact
+
+    Row(modifier = Modifier.fillMaxSize()) {
+        if (!isCompact && currentRoute != null) {
+            CafeySideNav(sizeClass = sizeClass, currentRoute = currentRoute, onSelect = onSelectTab)
+        }
+        Box(
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Scaffold(
+                modifier = Modifier.widthIn(max = contentMaxWidth).fillMaxHeight(),
+                containerColor = CafeyTheme.colors.ground,
+                bottomBar = {
+                    if (isCompact && currentRoute != null) {
+                        CafeyBottomBar(currentRoute = currentRoute, onSelect = onSelectTab)
                     }
-                }
+                },
+            ) { padding ->
+                Box(modifier = Modifier.padding(padding)) { content() }
             }
         }
     }
