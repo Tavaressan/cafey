@@ -43,6 +43,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import br.com.tavaressan.cafey.shared.ui.auth.LoginScreen
 import br.com.tavaressan.cafey.shared.ui.auth.RegisterScreen
+import br.com.tavaressan.cafey.shared.ui.base.BaseScreen
 import br.com.tavaressan.cafey.shared.ui.care.CareScreen
 import br.com.tavaressan.cafey.shared.ui.device.DeviceRegisterScreen
 import br.com.tavaressan.cafey.shared.ui.history.HistoryScreen
@@ -57,10 +58,10 @@ private const val ROUTE_HOME = "home"
 private const val ROUTE_SCHEDULE = "schedule"
 private const val ROUTE_HISTORY = "history"
 private const val ROUTE_CARE = "care"
+private const val ROUTE_BASE = "base"
 private const val ROUTE_DEVICE_REGISTER = "device_register"
 
-/** Abas do rodapé principal — espelha `assets/nav.js` do protótipo, exceto "Base" (detalhes de
- * hardware do dispositivo), que não tem issue nem tela correspondente ainda. */
+/** Abas do rodapé principal — espelha `assets/nav.js` do protótipo (issue #182 adicionou "Base"). */
 private data class BottomTab(val route: String, val label: String, val icon: ImageVector)
 
 private val BOTTOM_TABS = listOf(
@@ -68,6 +69,7 @@ private val BOTTOM_TABS = listOf(
     BottomTab(ROUTE_SCHEDULE, "Agenda", CafeyNavIcons.Schedule),
     BottomTab(ROUTE_HISTORY, "Ritmo", CafeyNavIcons.Rhythm),
     BottomTab(ROUTE_CARE, "Cuidados", CafeyNavIcons.Care),
+    BottomTab(ROUTE_BASE, "Base", CafeyNavIcons.Base),
 )
 
 /**
@@ -146,6 +148,7 @@ fun CafeyNavHost() {
                     composable(ROUTE_SCHEDULE) { ScheduleScreen() }
                     composable(ROUTE_HISTORY) { HistoryScreen() }
                     composable(ROUTE_CARE) { CareScreen() }
+                    composable(ROUTE_BASE) { BaseScreen() }
                     composable(ROUTE_DEVICE_REGISTER) {
                         DeviceRegisterScreen(onRegistered = { navController.popBackStack() })
                     }

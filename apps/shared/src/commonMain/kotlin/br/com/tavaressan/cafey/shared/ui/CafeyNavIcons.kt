@@ -30,6 +30,14 @@ internal object CafeyNavIcons {
         "M12 3.5s5.8 6.3 5.8 10.2A5.8 5.8 0 0 1 6.2 13.7C6.2 9.8 12 3.5 12 3.5z",
     )
 
+    // Issue #182 — `<rect x="7.5" y="7.5" width="9" height="9" rx="2">` do protótipo convertido para
+    // path equivalente (PathParser não lê `<rect>`), combinado com o "+" de conector nos 4 lados.
+    val Base: ImageVector = navIcon(
+        "nav_base",
+        "M9.5,7.5 H14.5 A2,2 0 0 1 16.5,9.5 V14.5 A2,2 0 0 1 14.5,16.5 H9.5 A2,2 0 0 1 7.5,14.5 V9.5 A2,2 0 0 1 9.5,7.5 Z" +
+            "M10 4.5v3M14 4.5v3M10 16.5v3M14 16.5v3M4.5 10h3M4.5 14h3M16.5 10h3M16.5 14h3",
+    )
+
     private fun navIcon(name: String, svgPathData: String): ImageVector {
         val nodes = PathParser().parsePathString(svgPathData).toNodes()
         return ImageVector.Builder(
