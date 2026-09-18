@@ -4,6 +4,7 @@ import br.com.tavaressan.cafey.config.CorsProperties
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.core.env.Environment
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -22,7 +23,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource
 @EnableConfigurationProperties(CorsProperties::class)
 class SecurityConfig(
     private val jwtTokenService: JwtTokenService,
-    private val corsProperties: CorsProperties
+    private val corsProperties: CorsProperties,
+    private val environment: Environment
 ) {
 
     @Bean
@@ -58,17 +60,24 @@ class SecurityConfig(
 
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
+        // "/test/**" (scaffolding de dev para exercitar o GlobalExceptionHandler, ver
+        // TestController) só é liberado fora do perfil `prod` (issue #185) — em produção,
+        // cai em `anyRequest().authenticated()` e responde 401 sem token, mesma guarda de
+        // JwtTokenService para as chaves RSA.
+        val isProd = environment.activeProfiles.contains("prod")
+
         http
             .cors { it.configurationSource(corsConfigurationSource()) }
             .csrf { it.disable() }
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
-                auth
-                    .requestMatchers("/auth/**").permitAll()
-                    .requestMatchers("/actuator/**").permitAll()
-                    .requestMatchers("/test/**").permitAll()
-                    .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                    .anyRequest().authenticated()
+                auth.requestMatchers("/auth/**").permitAll()
+                auth.requestMatchers("/actuator/**").permitAll()
+                if (!isProd) {
+                    auth.requestMatchers("/test/**").permitAll()
+                }
+                auth.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                auth.anyRequest().authenticated()
             }
             .oauth2ResourceServer { oauth2 ->
                 oauth2.jwt { jwt ->
