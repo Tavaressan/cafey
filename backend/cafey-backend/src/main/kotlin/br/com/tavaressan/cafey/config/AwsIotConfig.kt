@@ -16,8 +16,12 @@ class AwsIotConfig(
     @Bean
     @ConditionalOnProperty(prefix = "aws.iot", name = ["certificate-path", "private-key-path"])
     fun awsIotMqttConnection(): MqttClientConnection? {
-        val certPath = properties.certificatePath ?: return null
-        val keyPath = properties.privateKeyPath ?: return null
+        // certificate-path/private-key-path têm default vazio em application-prod.yml (#159,
+        // preserva o boot sem AWS_IOT_* definidas) — string vazia conta como "ausente" aqui,
+        // não só null, senão o @ConditionalOnProperty (que só olha presença da chave) deixaria
+        // passar e o builder do CRT falharia tentando abrir um path vazio.
+        val certPath = properties.certificatePath?.takeIf { it.isNotBlank() } ?: return null
+        val keyPath = properties.privateKeyPath?.takeIf { it.isNotBlank() } ?: return null
 
         val builder = AwsIotMqttConnectionBuilder.newMtlsBuilderFromPath(certPath, keyPath)
             .withEndpoint(properties.endpoint)
