@@ -2,6 +2,7 @@ package br.com.tavaressan.cafey.shared.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,6 +30,8 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.domain.model.DeviceState
 import br.com.tavaressan.cafey.shared.domain.model.ProximoPreparo
+import br.com.tavaressan.cafey.shared.ui.LocalNavShellSizeClass
+import br.com.tavaressan.cafey.shared.ui.NavShellSizeClass
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyStar
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
@@ -75,16 +78,47 @@ fun HomeScreen(onGoToDeviceRegister: () -> Unit = {}) {
 
         DeviceHeader(name = state.device?.nome ?: "Caféy", online = state.device?.online ?: false)
 
-        StageCard(
-            deviceState = state.deviceState,
-            commandInFlight = state.commandInFlight,
-            onPrepare = viewModel::ligar,
-            onCancel = viewModel::cancelar,
-            onTurnOff = viewModel::desligar,
+        HomeContentLayout(
+            sizeClass = LocalNavShellSizeClass.current,
+            stage = {
+                StageCard(
+                    deviceState = state.deviceState,
+                    commandInFlight = state.commandInFlight,
+                    onPrepare = viewModel::ligar,
+                    onCancel = viewModel::cancelar,
+                    onTurnOff = viewModel::desligar,
+                )
+            },
+            sidebar = {
+                NextPreparoCard(state.proximoPreparo)
+                StreakCard(state.sequenciaManhasDias)
+            },
         )
+    }
+}
 
-        NextPreparoCard(state.proximoPreparo)
-        StreakCard(state.sequenciaManhasDias)
+/**
+ * Desktop (≥1024.dp, `.wide--home` de cafey.css): [stage] (mostrador+ação) numa coluna, [sidebar]
+ * (próximo preparo+sequência de manhãs) noutra, lado a lado (grid 1.22fr/.78fr) — issue #188. Abaixo
+ * disso (inclusive tablet), coluna única, igual ao comportamento anterior. `internal` para ser
+ * exercitado por teste de composição em `desktopTest`.
+ */
+@Composable
+internal fun HomeContentLayout(
+    sizeClass: NavShellSizeClass,
+    stage: @Composable () -> Unit,
+    sidebar: @Composable () -> Unit,
+) {
+    if (sizeClass == NavShellSizeClass.Expanded) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            Column(modifier = Modifier.weight(1.22f)) { stage() }
+            Column(modifier = Modifier.weight(0.78f)) { sidebar() }
+        }
+    } else {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            stage()
+            sidebar()
+        }
     }
 }
 

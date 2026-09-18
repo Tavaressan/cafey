@@ -1,5 +1,6 @@
 package br.com.tavaressan.cafey.shared.ui
 
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -8,6 +9,15 @@ import androidx.compose.ui.unit.dp
  * (`docs/docs_interface/prototype/assets/cafey.css`): < 768 = barra de abas, 768–1023 = trilho de
  * ícones, ≥ 1024 = sidebar.
  */
+/**
+ * Disponibiliza o [NavShellSizeClass] atual (calculado uma vez no `BoxWithConstraints` de
+ * `CafeyNavHost`, a partir da largura total da janela) para as telas de conteúdo — issue #188. Não
+ * pode ser recalculado localmente em cada tela via `BoxWithConstraints`: a largura disponível ali
+ * já está limitada a `contentMaxWidth` (390/754/1018.dp), que não se alinha aos breakpoints de
+ * 768/1024.dp usados aqui.
+ */
+val LocalNavShellSizeClass = staticCompositionLocalOf { NavShellSizeClass.Compact }
+
 enum class NavShellSizeClass {
     /** < 768.dp — barra de abas no rodapé, coluna única. */
     Compact,

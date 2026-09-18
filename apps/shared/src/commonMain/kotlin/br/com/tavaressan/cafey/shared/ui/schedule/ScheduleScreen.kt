@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -38,6 +39,8 @@ import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.domain.model.AgendamentoResponse
 import br.com.tavaressan.cafey.shared.domain.model.DIAS_SEMANA_LABELS
 import br.com.tavaressan.cafey.shared.domain.model.diaAtivo
+import br.com.tavaressan.cafey.shared.ui.LocalNavShellSizeClass
+import br.com.tavaressan.cafey.shared.ui.NavShellSizeClass
 import br.com.tavaressan.cafey.shared.ui.auth.fieldErrorMessage
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
@@ -57,10 +60,13 @@ fun ScheduleScreen() {
         factory = viewModelFactory { initializer { ScheduleViewModel(container.deviceApi, container.scheduleApi) } },
     )
     val state by viewModel.uiState.collectAsState()
+    val editing = state.editing
+    // Desktop (≥1024.dp, `.wide--late` de cafey.css): lista e editor lado a lado (grid 1fr/1fr) em
+    // vez do editor substituir a tela toda — issue #188. Abaixo disso, comportamento anterior.
+    val isExpanded = LocalNavShellSizeClass.current == NavShellSizeClass.Expanded
 
     Column(modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground).padding(22.dp)) {
-        val editing = state.editing
-        if (editing != null) {
+        if (editing != null && !isExpanded) {
             ScheduleForm(
                 form = editing,
                 saving = state.saving,
@@ -90,26 +96,77 @@ fun ScheduleScreen() {
             Text(it, color = CafeyTheme.colors.brandDeep, style = CafeyTheme.typography.bodySmall, modifier = Modifier.padding(top = 12.dp))
         }
 
-        if (state.agendamentos.isEmpty()) {
-            Text(
-                "Nenhum agendamento ainda.",
-                style = CafeyTheme.typography.body,
-                color = CafeyTheme.colors.muted,
-                modifier = Modifier.padding(top = 24.dp),
-            )
-        } else {
-            LazyColumn(
-                modifier = Modifier.padding(top = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                items(state.agendamentos, key = { it.id }) { agendamento ->
-                    ScheduleCard(
-                        agendamento = agendamento,
-                        onToggleAtivo = { viewModel.toggleAtivo(agendamento) },
-                        onEdit = { viewModel.startEdit(agendamento) },
-                        onDelete = { viewModel.excluir(agendamento) },
+        ScheduleContentLayout(
+            isExpanded = isExpanded,
+            list = { ScheduleList(agendamentos = state.agendamentos, viewModel = viewModel, topPadding = if (isExpanded) 0.dp else 16.dp) },
+            editor = {
+                if (editing != null) {
+                    ScheduleForm(
+                        form = editing,
+                        saving = state.saving,
+                        onHoraChange = viewModel::onHoraChange,
+                        onDiaToggle = viewModel::onDiaToggle,
+                        onSave = viewModel::submit,
+                        onCancel = viewModel::cancelEdit,
+                    )
+                } else {
+                    Text(
+                        "Selecione um agendamento para editar, ou crie um novo.",
+                        style = CafeyTheme.typography.body,
+                        color = CafeyTheme.colors.muted,
                     )
                 }
+            },
+        )
+    }
+}
+
+/**
+ * Desktop (≥1024.dp, `.wide--late` de cafey.css): [list] e [editor] lado a lado (grid 1fr/1fr), em
+ * vez do editor substituir a lista na tela toda — issue #188. Abaixo disso, só [list] (o caller
+ * mostra o editor em tela cheia separadamente nesse caso). `internal` para ser exercitado por teste
+ * de composição em `desktopTest`.
+ */
+@Composable
+internal fun ScheduleContentLayout(
+    isExpanded: Boolean,
+    list: @Composable () -> Unit,
+    editor: @Composable () -> Unit,
+) {
+    if (isExpanded) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            Box(modifier = Modifier.weight(1f)) { list() }
+            Box(modifier = Modifier.weight(1f)) { editor() }
+        }
+    } else {
+        list()
+    }
+}
+
+@Composable
+private fun ScheduleList(agendamentos: List<AgendamentoResponse>, viewModel: ScheduleViewModel, topPadding: Dp) {
+    if (agendamentos.isEmpty()) {
+        Text(
+            "Nenhum agendamento ainda.",
+            style = CafeyTheme.typography.body,
+            color = CafeyTheme.colors.muted,
+            modifier = Modifier.padding(top = 24.dp),
+        )
+    } else {
+        LazyColumn(
+            modifier = Modifier.padding(top = topPadding),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            items(agendamentos, key = { it.id }) { agendamento ->
+                ScheduleCard(
+                    agendamento = agendamento,
+                    onToggleAtivo = { viewModel.toggleAtivo(agendamento) },
+                    onEdit = { viewModel.startEdit(agendamento) },
+                    onDelete = { viewModel.excluir(agendamento) },
+                )
             }
         }
     }

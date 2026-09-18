@@ -1,3 +1,7 @@
+// compose.uiTest (usado no desktopTest, issue #187) e' experimental no Compose Multiplatform
+// 1.11.1 e exige opt-in explicito no proprio build script para resolver sem erro de compilacao.
+@file:OptIn(org.jetbrains.compose.ExperimentalComposeLibrary::class)
+
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
@@ -86,6 +90,10 @@ kotlin {
                 // kotlin.test.Test em alvos jvm() customizados (nao o plugin kotlin("jvm") simples)
                 // nao ganha o mapeamento automatico para JUnit; precisa da dependencia explicita.
                 implementation(kotlin("test-junit"))
+                // Teste de composicao (issue #187) — restrito ao desktopTest para nao acoplar
+                // wasmJs/js a infra de teste de UI (Skia/Karma).
+                implementation(compose.uiTest)
+                implementation(compose.desktop.currentOs)
             }
         }
         val wasmJsMain by getting {
