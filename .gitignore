@@ -11,7 +11,10 @@ _autosave-*
 .history/
 
 # Ferramentas do editor / assistente
-.claude/
+.claude/worktrees/
+.claude/_scratch_docx/
+.claude/skills/
+.claude/vetor/status/
 .vscode/
 
 # Sistema
@@ -33,9 +36,9 @@ backend/.env
 !backend/.env.example
 
 # Mecânica (FreeCAD) — saídas geradas e backups
-mechanical/build/
-*.FCStd1
-*.FCBak
+#mechanical/build/
+#*.FCStd1
+#*.FCBak
 
 # Marca — PNG/PDF derivados dos SVGs por export-assets.ps1
 docs/docs_interface/logo/assets/
