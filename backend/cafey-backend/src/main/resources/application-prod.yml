@@ -1,0 +1,13 @@
+# Perfil de produção (AWS IoT Core) — INFRA-05.
+# Ativar com SPRING_PROFILES_ACTIVE=prod. Os valores sensíveis vêm de variáveis de
+# ambiente / Secrets Manager (ver backend/cafey-backend/.env.example); nada aqui é segredo,
+# apenas nomes de variável e defaults não sensíveis.
+aws:
+  iot:
+    endpoint: ${AWS_IOT_ENDPOINT}
+    port: 8883
+    client-id: cafey-backend
+    thing-name: cafey-backend
+    certificate-path: ${AWS_IOT_CERTIFICATE_PATH}
+    private-key-path: ${AWS_IOT_PRIVATE_KEY_PATH}
+    root-ca-path: ${AWS_IOT_ROOT_CA_PATH}

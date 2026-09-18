@@ -1,0 +1,18 @@
+# Template para gerar a partição NVS com as credenciais MQTT/TLS do dispositivo
+# (namespace "cafey_mqtt", consumido por MqttConfigStore — firmware/main/core/mqtt_config_store.*).
+#
+# Uso (ver docs/docs_arquitetura/aws-iot-core-provisioning.md §4):
+#   1. cp provisioning.csv.example provisioning.csv   (git-ignorado, NUNCA commitar)
+#   2. Preencha broker/clientid abaixo e aponte rootca/cert/key para os arquivos PEM reais
+#      gerados no §2 do runbook (um por thing/dispositivo).
+#   3. $IDF_PATH/components/nvs_flash/nvs_partition_generator/nvs_partition_gen.py generate \
+#        provisioning.csv cafey_mqtt_nvs.bin 0x6000
+#   4. esptool.py --port <porta-serial> write_flash 0x9000 cafey_mqtt_nvs.bin
+#
+# key,type,encoding,value
+cafey_mqtt,namespace,,
+broker,data,string,mqtts://SEU-ENDPOINT-ats.iot.SUA-REGIAO.amazonaws.com:8883
+clientid,data,string,cafey-device-proto-01
+rootca,file,string,amazon-root-ca-1.pem
+cert,file,string,cafey-device-proto-01-cert.pem
+key,file,string,cafey-device-proto-01-private.key

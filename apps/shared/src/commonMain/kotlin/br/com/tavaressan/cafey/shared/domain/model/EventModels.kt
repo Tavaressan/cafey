@@ -25,13 +25,17 @@ fun EventoResponse.resultadoLabel(): String = when (resultado.uppercase()) {
     else -> resultado
 }
 
-/** Rótulo legível de `origem` para a lista de histórico (UC-14). */
-fun EventoResponse.origemLabel(): String = when (origem.uppercase()) {
+/** Rótulo legível de uma origem bruta (`APP`, `AGENDAMENTO`, `BOTAO`), compartilhado entre a lista
+ * de histórico (UC-14) e o gráfico de distribuição por origem (UC-15 / APP-10). */
+fun origemLabel(origem: String): String = when (origem.uppercase()) {
     "APP" -> "App"
     "AGENDAMENTO" -> "Agendamento"
     "BOTAO" -> "Botão"
     else -> origem
 }
+
+/** Rótulo legível de `origem` para a lista de histórico (UC-14). */
+fun EventoResponse.origemLabel(): String = origemLabel(origem)
 
 /** Duração do preparo no formato `m:ss`, para a lista de histórico (UC-14). */
 fun EventoResponse.duracaoFormatada(): String {
@@ -45,7 +49,26 @@ data class EstatisticasConsumoResponse(
     val totalPreparosConcluidos: Long,
     val porOrigem: Map<String, Long>,
     val tempoTotalPreparoSegundos: Long,
+    val sequenciaManhasDias: Int = 0,
 )
+
+/** Uma barra do gráfico de distribuição por origem (UC-15 / APP-10). `fracao` é o total
+ * normalizado pelo maior valor do grupo, em `[0, 1]`, pronto para dimensionar a barra na UI. */
+data class BarraOrigem(
+    val origem: String,
+    val total: Long,
+    val fracao: Float,
+)
+
+/** Distribuição por origem ordenada da maior para a menor, para o gráfico de barras da tela de
+ * histórico (UC-15 / APP-10). Vazio quando não há preparos registrados. */
+fun EstatisticasConsumoResponse.barrasPorOrigem(): List<BarraOrigem> {
+    val maximo = porOrigem.values.maxOrNull() ?: return emptyList()
+    if (maximo == 0L) return emptyList()
+    return porOrigem.entries
+        .sortedByDescending { it.value }
+        .map { (origem, total) -> BarraOrigem(origem, total, total.toFloat() / maximo.toFloat()) }
+}
 
 @Serializable
 data class StatusDescalcificacaoResponse(

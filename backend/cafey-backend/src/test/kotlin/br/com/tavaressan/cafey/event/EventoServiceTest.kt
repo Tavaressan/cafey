@@ -96,6 +96,24 @@ class EventoServiceTest {
     }
 
     @Test
+    fun `should compute sequenciaManhasDias from timestamps repository in estatisticas`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(ownerLink)
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(device))
+        `when`(eventoPreparoRepository.countPorOrigem(dispositivoId)).thenReturn(emptyList())
+        `when`(eventoPreparoRepository.sumDuracaoConcluidos(dispositivoId)).thenReturn(0L)
+        `when`(eventoPreparoRepository.findTimestampsPreparosConcluidos(dispositivoId)).thenReturn(emptyList())
+
+        val estatisticas = service.obterEstatisticas(dispositivoId, usuarioId)
+
+        // device.timezone tem o padrão "America/Sao_Paulo" e não há timestamps — sequência zero,
+        // igual a SequenciaManhas.calcular(emptyList(), ...). O foco aqui é a integração
+        // (repositório -> ZoneId do dispositivo -> SequenciaManhas), já coberta em detalhe por
+        // SequenciaManhasTest.
+        assertEquals(0, estatisticas.sequenciaManhasDias)
+        verify(eventoPreparoRepository).findTimestampsPreparosConcluidos(dispositivoId)
+    }
+
+    @Test
     fun `should calculate descaling status`() {
         `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(ownerLink)
         `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(device))

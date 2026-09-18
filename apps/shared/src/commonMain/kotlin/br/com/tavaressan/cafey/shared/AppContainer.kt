@@ -16,7 +16,7 @@ import br.com.tavaressan.cafey.shared.network.platformDefaultBaseUrl
  * (`MainActivity`, `main()` do desktop/web), e repassa para as telas via `CompositionLocal` ou
  * parâmetro direto.
  */
-class AppContainer(baseUrl: String = platformDefaultBaseUrl) {
+class AppContainer(val baseUrl: String = platformDefaultBaseUrl) {
     val tokenStorage: TokenStorage = createTokenStorage()
     val apiClient: ApiClient = ApiClient(baseUrl, tokenStorage)
 
