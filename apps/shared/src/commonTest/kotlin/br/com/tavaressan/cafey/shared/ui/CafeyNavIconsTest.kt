@@ -9,7 +9,7 @@ class CafeyNavIconsTest {
 
     @Test
     fun allTabIconsHaveVisibleStrokePaths() {
-        val icons = listOf(CafeyNavIcons.Home, CafeyNavIcons.Schedule, CafeyNavIcons.Rhythm, CafeyNavIcons.Care)
+        val icons = listOf(CafeyNavIcons.Home, CafeyNavIcons.Schedule, CafeyNavIcons.Rhythm, CafeyNavIcons.Care, CafeyNavIcons.Base)
 
         icons.forEach { icon ->
             assertEquals(21.dp, icon.defaultWidth, "icone ${icon.name} deveria ter 21dp de largura, como no design")

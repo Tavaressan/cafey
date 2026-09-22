@@ -22,6 +22,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -39,8 +41,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import br.com.tavaressan.cafey.shared.ui.account.AccountScreen
 import br.com.tavaressan.cafey.shared.ui.auth.LoginScreen
 import br.com.tavaressan.cafey.shared.ui.auth.RegisterScreen
+import br.com.tavaressan.cafey.shared.ui.base.BaseScreen
 import br.com.tavaressan.cafey.shared.ui.care.CareScreen
 import br.com.tavaressan.cafey.shared.ui.device.DeviceRegisterScreen
 import br.com.tavaressan.cafey.shared.ui.history.HistoryScreen
@@ -55,10 +59,11 @@ private const val ROUTE_HOME = "home"
 private const val ROUTE_SCHEDULE = "schedule"
 private const val ROUTE_HISTORY = "history"
 private const val ROUTE_CARE = "care"
+private const val ROUTE_BASE = "base"
+private const val ROUTE_ACCOUNT = "account"
 private const val ROUTE_DEVICE_REGISTER = "device_register"
 
-/** Abas do rodapé principal — espelha `assets/nav.js` do protótipo, exceto "Base" (detalhes de
- * hardware do dispositivo), que não tem issue nem tela correspondente ainda. */
+/** Abas do rodapé principal — espelha `assets/nav.js` do protótipo (issue #182 adicionou "Base"). */
 private data class BottomTab(val route: String, val label: String, val icon: ImageVector)
 
 private val BOTTOM_TABS = listOf(
@@ -66,6 +71,7 @@ private val BOTTOM_TABS = listOf(
     BottomTab(ROUTE_SCHEDULE, "Agenda", CafeyNavIcons.Schedule),
     BottomTab(ROUTE_HISTORY, "Ritmo", CafeyNavIcons.Rhythm),
     BottomTab(ROUTE_CARE, "Cuidados", CafeyNavIcons.Care),
+    BottomTab(ROUTE_BASE, "Base", CafeyNavIcons.Base),
 )
 
 /**
@@ -105,73 +111,104 @@ fun CafeyNavHost() {
     ) {
         val sizeClass = navShellSizeClassFor(maxWidth)
         val contentMaxWidth = contentMaxWidthFor(sizeClass, compactMax = maxContentWidth)
-        val navHost = @Composable {
-            NavHost(
-                navController = navController,
-                startDestination = startRoute,
-                modifier = Modifier.fillMaxSize(),
+
+        // NavShellScaffold é chamado a partir de uma única posição na árvore de composição,
+        // independente de `sizeClass` — issue #187: antes, `NavHost` vivia dentro de um `if/else`
+        // com dois pontos de invocação estruturalmente diferentes (Compact vs Medium/Expanded), o
+        // que fazia o Compose descartar e recriar toda a subárvore do NavHost a cada travessia do
+        // breakpoint de 768.dp (perdendo `rememberSaveable` de telas como o editor de agendamentos).
+        // Disponibiliza o sizeClass calculado aqui (largura total da janela) para as telas de
+        // conteúdo via CompositionLocal (issue #188) — telas não podem recalculá-lo localmente, ver
+        // comentário em LocalNavShellSizeClass.
+        CompositionLocalProvider(LocalNavShellSizeClass provides sizeClass) {
+            NavShellScaffold(
+                sizeClass = sizeClass,
+                currentRoute = currentRoute,
+                contentMaxWidth = contentMaxWidth,
+                onSelectTab = { route -> navigateToTab(navController, route) },
             ) {
-                composable(ROUTE_LOGIN) {
-                    LoginScreen(
-                        onLoggedIn = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
-                        onGoToRegister = { navController.navigate(ROUTE_REGISTER) },
-                    )
-                }
-                composable(ROUTE_REGISTER) {
-                    RegisterScreen(
-                        onRegistered = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
-                        onGoToLogin = { navController.popBackStack() },
-                    )
-                }
-                composable(ROUTE_HOME) {
-                    HomeScreen(onGoToDeviceRegister = { navController.navigate(ROUTE_DEVICE_REGISTER) })
-                }
-                composable(ROUTE_SCHEDULE) { ScheduleScreen() }
-                composable(ROUTE_HISTORY) { HistoryScreen() }
-                composable(ROUTE_CARE) { CareScreen() }
-                composable(ROUTE_DEVICE_REGISTER) {
-                    DeviceRegisterScreen(onRegistered = { navController.popBackStack() })
+                NavHost(
+                    navController = navController,
+                    startDestination = startRoute,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    composable(ROUTE_LOGIN) {
+                        LoginScreen(
+                            onLoggedIn = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
+                            onGoToRegister = { navController.navigate(ROUTE_REGISTER) },
+                        )
+                    }
+                    composable(ROUTE_REGISTER) {
+                        RegisterScreen(
+                            onRegistered = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
+                            onGoToLogin = { navController.popBackStack() },
+                        )
+                    }
+                    composable(ROUTE_HOME) {
+                        HomeScreen(onGoToDeviceRegister = { navController.navigate(ROUTE_DEVICE_REGISTER) })
+                    }
+                    composable(ROUTE_SCHEDULE) { ScheduleScreen() }
+                    composable(ROUTE_HISTORY) { HistoryScreen() }
+                    composable(ROUTE_CARE) { CareScreen() }
+                    composable(ROUTE_BASE) {
+                        BaseScreen(onGoToAccount = { navController.navigate(ROUTE_ACCOUNT) })
+                    }
+                    composable(ROUTE_ACCOUNT) {
+                        AccountScreen(
+                            // Issue #183 — limpa TODA a back stack (não só até ROUTE_LOGIN, que
+                            // nem está mais nela depois do login→home): navController.graph.id é a
+                            // raiz do grafo, popUpTo(...) { inclusive = true } sobre ele descarta
+                            // tudo, garantindo que "voltar" não retorne a uma tela autenticada.
+                            onLoggedOut = {
+                                navController.navigate(ROUTE_LOGIN) {
+                                    popUpTo(navController.graph.id) { inclusive = true }
+                                }
+                            },
+                        )
+                    }
+                    composable(ROUTE_DEVICE_REGISTER) {
+                        DeviceRegisterScreen(onRegistered = { navController.popBackStack() })
+                    }
                 }
             }
         }
+    }
+}
 
-        if (sizeClass == NavShellSizeClass.Compact) {
-            // < 768.dp — barra de abas no rodapé, igual ao comportamento mobile original.
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                Scaffold(
-                    modifier = Modifier.widthIn(max = contentMaxWidth).fillMaxHeight(),
-                    containerColor = CafeyTheme.colors.ground,
-                    bottomBar = {
-                        if (currentRoute != null) {
-                            CafeyBottomBar(currentRoute = currentRoute, onSelect = { route -> navigateToTab(navController, route) })
-                        }
-                    },
-                ) { padding ->
-                    Box(modifier = Modifier.padding(padding)) { navHost() }
-                }
-            }
-        } else {
-            // 768.dp+ — navegação lateral (trilho de ícones no tablet, sidebar com rótulos no
-            // desktop), sem barra de abas. Libera `contentMaxWidth` para os valores do `.shell`.
-            Row(modifier = Modifier.fillMaxSize()) {
-                if (currentRoute != null) {
-                    CafeySideNav(
-                        sizeClass = sizeClass,
-                        currentRoute = currentRoute,
-                        onSelect = { route -> navigateToTab(navController, route) },
-                    )
-                }
-                Box(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    contentAlignment = Alignment.TopCenter,
-                ) {
-                    Scaffold(
-                        modifier = Modifier.widthIn(max = contentMaxWidth).fillMaxHeight(),
-                        containerColor = CafeyTheme.colors.ground,
-                    ) { padding ->
-                        Box(modifier = Modifier.padding(padding)) { navHost() }
+/**
+ * Casca de navegação (barra inferior no Compact, navegação lateral em Medium/Expanded) em torno de
+ * [content]. [content] é chamado a partir de uma única posição de código, para que o Compose nunca
+ * o trate como uma subárvore diferente ao alternar [sizeClass] (ver comentário em [CafeyNavHost]).
+ * `internal` para ser exercitado por teste de composição em `desktopTest` (issue #187).
+ */
+@Composable
+internal fun NavShellScaffold(
+    sizeClass: NavShellSizeClass,
+    currentRoute: String?,
+    contentMaxWidth: Dp,
+    onSelectTab: (String) -> Unit,
+    content: @Composable () -> Unit,
+) {
+    val isCompact = sizeClass == NavShellSizeClass.Compact
+
+    Row(modifier = Modifier.fillMaxSize()) {
+        if (!isCompact && currentRoute != null) {
+            CafeySideNav(sizeClass = sizeClass, currentRoute = currentRoute, onSelect = onSelectTab)
+        }
+        Box(
+            modifier = Modifier.weight(1f).fillMaxHeight(),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Scaffold(
+                modifier = Modifier.widthIn(max = contentMaxWidth).fillMaxHeight(),
+                containerColor = CafeyTheme.colors.ground,
+                bottomBar = {
+                    if (isCompact && currentRoute != null) {
+                        CafeyBottomBar(currentRoute = currentRoute, onSelect = onSelectTab)
                     }
-                }
+                },
+            ) { padding ->
+                Box(modifier = Modifier.padding(padding)) { content() }
             }
         }
     }

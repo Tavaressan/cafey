@@ -2,8 +2,10 @@ package br.com.tavaressan.cafey.shared.ui.care
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,6 +26,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.domain.model.StatusDescalcificacaoResponse
+import br.com.tavaressan.cafey.shared.ui.LocalNavShellSizeClass
+import br.com.tavaressan.cafey.shared.ui.NavShellSizeClass
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
 /**
@@ -63,12 +67,29 @@ fun CareScreen() {
                 modifier = Modifier.padding(top = 24.dp),
             )
         } else {
-            DescalcificacaoCard(
-                status = status,
-                podeDarBaixa = state.podeDarBaixa,
-                baixaInFlight = state.baixaInFlight,
-                onDarBaixa = viewModel::darBaixa,
-            )
+            // Tablet+ (≥768.dp, `.wide` de cafey.css): cards secundários lado a lado (grid 1fr/1fr)
+            // — issue #188. Hoje só existe um card real (Descalcificar; Enxágue/Filtro ainda não têm
+            // endpoint, ver issue relacionada), então o Row fica pronto para recebê-los sem mudar o
+            // layout visível abaixo de 768.dp.
+            if (LocalNavShellSizeClass.current == NavShellSizeClass.Compact) {
+                DescalcificacaoCard(
+                    status = status,
+                    podeDarBaixa = state.podeDarBaixa,
+                    baixaInFlight = state.baixaInFlight,
+                    onDarBaixa = viewModel::darBaixa,
+                )
+            } else {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+                    Box(modifier = Modifier.weight(1f)) {
+                        DescalcificacaoCard(
+                            status = status,
+                            podeDarBaixa = state.podeDarBaixa,
+                            baixaInFlight = state.baixaInFlight,
+                            onDarBaixa = viewModel::darBaixa,
+                        )
+                    }
+                }
+            }
         }
     }
 }

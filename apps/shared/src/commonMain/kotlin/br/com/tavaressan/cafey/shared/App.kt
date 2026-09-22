@@ -2,6 +2,9 @@ package br.com.tavaressan.cafey.shared
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import br.com.tavaressan.cafey.shared.network.platformDefaultBaseUrl
 import br.com.tavaressan.cafey.shared.ui.CafeyNavHost
@@ -22,8 +25,13 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 @Composable
 fun App(baseUrl: String = platformDefaultBaseUrl) {
     val container = remember(baseUrl) { AppContainer(baseUrl) }
+    // Issue #182 — carrega a preferência de tema persistida uma vez, aqui em cima (acima do
+    // NavHost), para que CafeyTheme reflita a escolha alterada na tela "Base" imediatamente.
+    val darkTheme by container.themePreference.darkTheme.collectAsState()
+    LaunchedEffect(container) { container.themePreference.load() }
+
     CompositionLocalProvider(LocalAppContainer provides container) {
-        CafeyTheme {
+        CafeyTheme(darkTheme = darkTheme) {
             CafeyNavHost()
         }
     }

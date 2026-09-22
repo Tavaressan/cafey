@@ -9,6 +9,8 @@ import br.com.tavaressan.cafey.shared.network.DeviceApi
 import br.com.tavaressan.cafey.shared.network.EventApi
 import br.com.tavaressan.cafey.shared.network.ScheduleApi
 import br.com.tavaressan.cafey.shared.network.platformDefaultBaseUrl
+import br.com.tavaressan.cafey.shared.preferences.ThemePreference
+import br.com.tavaressan.cafey.shared.preferences.createThemePreferenceStorage
 
 /**
  * Composição manual de dependências da camada `shared` — sem framework de DI, é pequeno o
@@ -25,4 +27,8 @@ class AppContainer(val baseUrl: String = platformDefaultBaseUrl) {
     val scheduleApi: ScheduleApi = ScheduleApi(apiClient)
     val eventApi: EventApi = EventApi(apiClient)
     val commandApi: CommandApi = CommandApi(apiClient)
+
+    // Issue #182 — alternador claro/escuro da tela "Base"; precisa viver aqui (não num ViewModel de
+    // tela) porque é lido acima do NavHost (App.kt, para CafeyTheme) e alterado de dentro dele.
+    val themePreference: ThemePreference = ThemePreference(createThemePreferenceStorage())
 }
