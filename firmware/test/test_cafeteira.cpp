@@ -135,6 +135,53 @@ int test_cafeteira_start_brew_without_duration_uses_default() {
     return 0;
 }
 
+int test_cafeteira_start_brew_clamps_duration_above_max() {
+    MockGpio::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    TestableCafeteira caf;
+    caf.boot();
+
+    // duracaoS muito acima do teto (spec-backend @Max(900)) deve ser clampada,
+    // cobrindo o caminho MQTT/BLE (StartBrew) e o agendamento local.
+    caf.post(Message{MessageType::StartBrew, 2147483647});
+    caf.process_pending();
+    TEST_ASSERT(caf.brew_seconds_left() == cafey::app::Cafeteira::kMaxDurationS,
+                "duracaoS acima do teto aplica o maximo, nao o valor recebido");
+
+    std::cout << "[PASS] test_cafeteira_start_brew_clamps_duration_above_max" << std::endl;
+    return 0;
+}
+
+int test_cafeteira_start_brew_boundary_at_max_duration() {
+    MockGpio::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+
+    // No teto exato (900 s): nao deve ser clampado.
+    {
+        TestableCafeteira caf;
+        caf.boot();
+        caf.post(Message{MessageType::StartBrew,
+                          static_cast<int32_t>(cafey::app::Cafeteira::kMaxDurationS)});
+        caf.process_pending();
+        TEST_ASSERT(caf.brew_seconds_left() == cafey::app::Cafeteira::kMaxDurationS,
+                    "duracaoS igual ao teto permanece inalterada");
+    }
+
+    // 1 s acima do teto: deve ser clampada para o teto.
+    {
+        TestableCafeteira caf;
+        caf.boot();
+        caf.post(Message{MessageType::StartBrew,
+                          static_cast<int32_t>(cafey::app::Cafeteira::kMaxDurationS) + 1});
+        caf.process_pending();
+        TEST_ASSERT(caf.brew_seconds_left() == cafey::app::Cafeteira::kMaxDurationS,
+                    "duracaoS 1s acima do teto e clampada para o teto");
+    }
+
+    std::cout << "[PASS] test_cafeteira_start_brew_boundary_at_max_duration" << std::endl;
+    return 0;
+}
+
 int test_skeleton_active_objects() {
     cafey::app::Conectividade con;
     con.start();
@@ -162,6 +209,8 @@ int main() {
     if (test_cafeteira_brew_timer_completes_with_concluido()) return 1;
     if (test_cafeteira_button_cancels_brew()) return 1;
     if (test_cafeteira_start_brew_without_duration_uses_default()) return 1;
+    if (test_cafeteira_start_brew_clamps_duration_above_max()) return 1;
+    if (test_cafeteira_start_brew_boundary_at_max_duration()) return 1;
     if (test_skeleton_active_objects()) return 1;
     std::cout << "All Cafeteira AO tests PASSED!" << std::endl;
     return 0;
