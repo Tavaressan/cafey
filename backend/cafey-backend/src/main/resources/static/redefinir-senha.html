@@ -68,7 +68,8 @@
           show("Senha redefinida com sucesso. Já pode entrar no app com a nova senha.", "success");
           return;
         }
-        show(response.status === 400
+        // Token inválido/expirado volta como 401 (BadCredentialsException); 400 cobre validação.
+        show(response.status === 400 || response.status === 401
           ? "Link inválido ou expirado. Solicite uma nova recuperação de senha pelo app."
           : "Não foi possível redefinir a senha agora. Tente novamente mais tarde.", "error");
       } catch (e) {
