@@ -143,6 +143,30 @@ adaptada para produção:
 - `SPRING_PROFILES_ACTIVE=prod` ativo, para que o boot falhe caso as chaves não estejam presentes
   (`JwtTokenService.resolveKeyPair`), evitando subir com chave efêmera em produção por engano.
 
+### E-mail de recuperação de senha (AWS SES via SMTP — issue #194)
+
+Com `SPRING_PROFILES_ACTIVE=prod`, o e-mail de recuperação de senha sai pelo SMTP do AWS SES
+(`ProdEmailSenderService` + `JavaMailSender`, sem SDK do SES). Fora de `prod`, só é logado
+(`LogEmailSenderService`). Variáveis no `.env` da instância (listadas também em
+`compose.prod.yaml`, senão não chegam ao container — mesma lição das `AWS_IOT_*`; modelo em
+`cafey-backend/.env.example`):
+
+- `CAFEY_MAIL_SMTP_HOST` (`email-smtp.<região>.amazonaws.com`), `CAFEY_MAIL_SMTP_PORT` (587,
+  STARTTLS), `CAFEY_MAIL_SMTP_USERNAME`, `CAFEY_MAIL_SMTP_PASSWORD` — credenciais **SMTP** geradas
+  no console do SES (não são as chaves de acesso IAM). O password é segredo, com as mesmas regras
+  das demais variáveis sensíveis acima.
+- `CAFEY_MAIL_FROM` — remetente em identidade (e-mail ou domínio) verificada no SES, na mesma região.
+- `CAFEY_MAIL_RESET_PASSWORD_URL` — `https://cafey-backend.duckdns.org/redefinir-senha.html`:
+  página estática servida pelo próprio backend (`static/redefinir-senha.html`, liberada sem JWT),
+  que lê o `token` da query string e chama `POST /auth/redefinir-senha`.
+
+**Sandbox do SES (decisão B3):** a conta permanece no sandbox por enquanto — o SES só entrega para
+identidades verificadas e com cota baixa. Para testar em produção, verifique também o e-mail
+destinatário no console do SES. Sair do sandbox é uma solicitação manual à AWS, fora do código.
+
+Sem host/credenciais configurados o boot segue normal; cada solicitação de recuperação de senha
+apenas registra o erro de envio em log (nunca 5xx, nunca token na resposta).
+
 ## 5. Backup do Postgres
 
 A instância não tem snapshot automático do banco (diferente do Managed Database da Variante A).
