@@ -164,6 +164,8 @@ Reason: É a leitura mais direta do rótulo, mas o protótipo não explica a dif
 
 `CareScreen.kt`/`CareViewModel.kt` (Compose Multiplatform) implementam só o cartão "Descalcificar" com dado real (`StatusDescalcificacaoResponse`, contador e limiar de preparos) — "Enxaguar o circuito" e "Trocar o filtro de água", que este contrato documenta em detalhe (com gauge circular e barras de progresso próprias), **não têm contador nem endpoint no backend hoje** e foram omitidos do código, com comentário explícito nesse sentido. Não há o tratamento hero/gauge circular descrito nas seções "Layout"/"Componentes" acima — é um único card, sem `card--accent` nem `gauge`, sem grid de duas colunas dentro desta tela.
 
+Atualização (2026-10-02, issue #190): as duas omissões acima foram resolvidas — o backend expõe `GET /dispositivos/{id}/cuidados` (contador, limiar e destaque dos três cuidados) e `POST /dispositivos/{id}/enxague|filtro/baixa`, e `CareScreen.kt` mostra os três cartões com dado real, o destaque no topo e os outros dois abaixo (lado a lado a partir do tablet). Continuam fora, sem endpoint/comando: "Iniciar enxágue", "Lembrar aos 280", o gauge circular, o tratamento `is-paused` e as previsões de data ("no seu ritmo").
+
 Correção (2026-09-18, checkout sincronizado com `origin/main`): a navegação (trilho de ícones/sidebar por breakpoint) já adapta em nível de app inteiro via `CafeyNavHost.kt`/`NavShellSizeClass.kt` — o que eu tinha registrado como "sem trilho/sidebar" não é mais verdade em nenhuma tela.
 
 Resolvido: loading, estado "nenhum dispositivo vinculado" e o estado `permission denied` (ver Estados acima, que corrige o notApplicable original deste contrato).
@@ -180,6 +182,5 @@ OPEN_QUESTION
 'Iniciar enxágue' e 'Já fiz isso' não têm confirmação visual (sucesso, ou erro se a base não responder) definida.
 Impact: O usuário pode não saber se a ação realmente foi registrada pela base.
 
-OPEN_QUESTION
-Comportamento quando dois ou mais cuidados estão igualmente urgentes (ex.: enxágue e filtro no mesmo momento) não está definido — só um cartão de destaque existe na tela.
-Impact: Pode ser preciso decidir um critério de priorização (ordem, múltiplos destaques) antes de implementar.
+RESOLVED (2026-10-02, issue #190 — decisão do dono do projeto)
+O cuidado com a maior fração contador/limiar é o destaque (calculada no backend, sem teto, para que o mais estourado vença); empate segue a ordem enxágue, filtro, descalcificação. Limiares: enxágue 40, filtro 300; descalcificação usa o limiar do dispositivo.
