@@ -5,5 +5,5 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 @ConfigurationProperties(prefix = "cafey.mail")
 class EmailProperties(
     var from: String = "Cafey <nao-responda@cafey.local>",
-    var resetPasswordUrl: String = "http://localhost:8081/redefinir-senha"
+    var resetPasswordUrl: String = "http://localhost:8080/redefinir-senha.html"
 )

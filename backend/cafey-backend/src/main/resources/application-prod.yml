@@ -11,3 +11,26 @@ aws:
     certificate-path: ${AWS_IOT_CERTIFICATE_PATH:}
     private-key-path: ${AWS_IOT_PRIVATE_KEY_PATH:}
     root-ca-path: ${AWS_IOT_ROOT_CA_PATH:}
+
+# Envio real de e-mail via SMTP do AWS SES (issue #194, Parte B de #105). Host/credenciais vêm de
+# variáveis de ambiente (nunca commitar valores reais). Host do SES: email-smtp.<região>.amazonaws.com;
+# usuário/senha são as credenciais SMTP geradas no console do SES (não as chaves de acesso IAM).
+# Sem a configuração completa o boot segue normal e o envio falha de forma controlada (apenas log).
+spring:
+  mail:
+    host: ${CAFEY_MAIL_SMTP_HOST:}
+    port: ${CAFEY_MAIL_SMTP_PORT:587}
+    username: ${CAFEY_MAIL_SMTP_USERNAME:}
+    password: ${CAFEY_MAIL_SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          # Sem timeouts o JavaMail espera indefinidamente, e o envio roda de forma síncrona
+          # dentro da requisição de recuperação de senha.
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
