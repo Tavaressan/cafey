@@ -7,7 +7,7 @@ import org.springframework.stereotype.Component
 /**
  * Implementação de desenvolvimento/teste do envio de e-mail (BE-23, issue #105): apenas registra
  * o link de redefinição de senha no log, sem SMTP/SES real. Ativa em qualquer perfil que não seja
- * `prod` — o perfil `prod` usa a implementação real (bloqueada em #105 até decisão do provedor).
+ * `prod` — o perfil `prod` usa [ProdEmailSenderService] (envio real via AWS SES, issue #194).
  */
 @Component
 @Profile("!prod")

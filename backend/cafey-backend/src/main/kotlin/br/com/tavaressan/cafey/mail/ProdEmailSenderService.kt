@@ -1,25 +1,37 @@
 package br.com.tavaressan.cafey.mail
 
 import org.springframework.context.annotation.Profile
+import org.springframework.mail.SimpleMailMessage
+import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.stereotype.Component
 
 /**
- * Stub do envio real de e-mail em produção. A escolha do provedor (AWS SES vs. SMTP genérico),
- * identidade do remetente e demais decisões de Parte B da issue #105 estão bloqueadas aguardando
- * o dono do projeto — ver comentário da issue. Enquanto isso, o perfil `prod` sobe normalmente
- * (sem esta implementação, o contexto Spring falharia ao iniciar por falta de um bean de
- * [EmailSenderService]), mas qualquer solicitação de recuperação de senha falha de forma
- * controlada: o erro é apenas logado por [br.com.tavaressan.cafey.auth.AuthService] (nunca vira
- * 5xx nem muda a resposta da API, para não abrir oráculo de enumeração de contas).
+ * Envio real de e-mail em produção (issue #194, Parte B de #105) via SMTP do AWS SES, usando o
+ * [JavaMailSender] configurado em `spring.mail.*` (`application-prod.yml`, valores vindos de
+ * variáveis de ambiente `CAFEY_MAIL_SMTP_*`).
+ *
+ * Falhas de envio (SMTP indisponível, credenciais inválidas, destinatário fora do sandbox do SES)
+ * são propagadas de propósito: quem chama, [br.com.tavaressan.cafey.auth.AuthService], apenas as
+ * registra em log — nunca viram 5xx nem mudam a resposta da API (evita oráculo de enumeração de
+ * contas).
  */
 @Component
 @Profile("prod")
-class ProdEmailSenderService : EmailSenderService {
+class ProdEmailSenderService(
+    private val mailSender: JavaMailSender,
+    private val properties: EmailProperties
+) : EmailSenderService {
 
     override fun enviarEmailRecuperacaoSenha(destinatario: String, token: String) {
-        throw UnsupportedOperationException(
-            "Envio real de e-mail ainda não implementado (issue #105, Parte B bloqueada " +
-                "aguardando decisão do provedor SES/SMTP)."
-        )
+        val link = "${properties.resetPasswordUrl}?token=$token"
+        val message = SimpleMailMessage().apply {
+            from = properties.from
+            setTo(destinatario)
+            subject = "Cafey - redefinição de senha"
+            text = "Recebemos uma solicitação para redefinir a senha da sua conta Cafey.\n\n" +
+                "Para escolher uma nova senha, acesse o link abaixo:\n$link\n\n" +
+                "Se você não fez essa solicitação, ignore este e-mail."
+        }
+        mailSender.send(message)
     }
 }

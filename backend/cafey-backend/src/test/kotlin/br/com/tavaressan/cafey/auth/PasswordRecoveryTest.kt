@@ -1,6 +1,7 @@
 package br.com.tavaressan.cafey.auth
 
 import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.mail.EmailSenderService
 import br.com.tavaressan.cafey.mail.FakeEmailSenderService
 import br.com.tavaressan.cafey.security.JwtTokenService
 import br.com.tavaressan.cafey.security.PasswordResetToken
@@ -17,6 +18,7 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
+import org.springframework.mail.MailSendException
 import org.springframework.security.crypto.password.PasswordEncoder
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -78,6 +80,31 @@ class PasswordRecoveryTest {
         // é o hash que o repositório recebe, não o que o usuário usa para redefinir a senha.
         assertNotEquals("hashed-token", emailSenderService.ultimoToken)
         assertNotNull(emailSenderService.ultimoToken)
+    }
+
+    @Test
+    fun `should keep the generic response when the e-mail provider fails`() {
+        `when`(usuarioRepository.findByEmail("user@cafey.com")).thenReturn(user)
+        `when`(jwtTokenService.hashToken(anyString())).thenReturn("hashed-token")
+        `when`(passwordResetTokenRepository.save(any(PasswordResetToken::class.java))).thenAnswer { it.getArgument(0) }
+        val failingSender = object : EmailSenderService {
+            override fun enviarEmailRecuperacaoSenha(destinatario: String, token: String) {
+                throw MailSendException("SMTP indisponível")
+            }
+        }
+        val service = AuthService(
+            usuarioRepository,
+            refreshTokenRepository,
+            passwordResetTokenRepository,
+            passwordEncoder,
+            jwtTokenService,
+            failingSender
+        )
+
+        val res = service.solicitarRecuperacaoSenha(SolicitarRecuperacaoSenhaRequest(email = "user@cafey.com"))
+
+        // Falha de envio só é logada: a resposta continua genérica, sem 5xx nem token.
+        assertEquals("Se o email estiver cadastrado, as instruções foram enviadas.", res.mensagem)
     }
 
     @Test

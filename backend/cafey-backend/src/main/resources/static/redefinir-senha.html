@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- O token viaja na query string: nunca vazar via Referer para outros sites. -->
+  <meta name="referrer" content="no-referrer">
+  <title>Cafey - redefinir senha</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f5efe6; color: #3b2a20; margin: 0; }
+    main { max-width: 22rem; margin: 3rem auto; padding: 0 1rem; }
+    h1 { font-size: 1.4rem; }
+    label { display: block; margin-top: 1rem; }
+    input { width: 100%; box-sizing: border-box; padding: .6rem; margin-top: .25rem; font-size: 1rem; }
+    button { width: 100%; margin-top: 1.5rem; padding: .7rem; font-size: 1rem; background: #6f4e37; color: #fff; border: 0; border-radius: .3rem; cursor: pointer; }
+    button:disabled { opacity: .6; cursor: default; }
+    #message { margin-top: 1rem; min-height: 1.5rem; }
+    .error { color: #b00020; }
+    .success { color: #1b6e2f; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Redefinir senha</h1>
+    <form id="reset-form">
+      <label>Nova senha
+        <input id="password" type="password" minlength="6" required autocomplete="new-password">
+      </label>
+      <label>Confirmar nova senha
+        <input id="confirm" type="password" minlength="6" required autocomplete="new-password">
+      </label>
+      <button id="submit" type="submit">Redefinir senha</button>
+    </form>
+    <p id="message" role="status"></p>
+  </main>
+  <script>
+    const token = new URLSearchParams(window.location.search).get("token");
+    const form = document.getElementById("reset-form");
+    const message = document.getElementById("message");
+    const submit = document.getElementById("submit");
+
+    function show(text, kind) {
+      message.textContent = text;
+      message.className = kind;
+    }
+
+    if (!token) {
+      form.hidden = true;
+      show("Link inválido. Solicite uma nova recuperação de senha pelo app.", "error");
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const password = document.getElementById("password").value;
+      if (password !== document.getElementById("confirm").value) {
+        show("As senhas não coincidem.", "error");
+        return;
+      }
+      submit.disabled = true;
+      try {
+        const response = await fetch("/auth/redefinir-senha", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: token, novaSenha: password })
+        });
+        if (response.ok) {
+          form.hidden = true;
+          show("Senha redefinida com sucesso. Já pode entrar no app com a nova senha.", "success");
+          return;
+        }
+        show(response.status === 400
+          ? "Link inválido ou expirado. Solicite uma nova recuperação de senha pelo app."
+          : "Não foi possível redefinir a senha agora. Tente novamente mais tarde.", "error");
+      } catch (e) {
+        show("Não foi possível redefinir a senha agora. Tente novamente mais tarde.", "error");
+      }
+      submit.disabled = false;
+    });
+  </script>
+</body>
+</html>

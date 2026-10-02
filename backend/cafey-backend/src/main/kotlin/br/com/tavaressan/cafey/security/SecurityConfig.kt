@@ -72,6 +72,8 @@ class SecurityConfig(
             .sessionManagement { it.sessionCreationPolicy(SessionCreationPolicy.STATELESS) }
             .authorizeHttpRequests { auth ->
                 auth.requestMatchers("/auth/**").permitAll()
+                // Página estática de redefinição de senha (issue #194), aberta pelo link do e-mail.
+                auth.requestMatchers("/redefinir-senha.html").permitAll()
                 auth.requestMatchers("/actuator/**").permitAll()
                 if (!isProd) {
                     auth.requestMatchers("/test/**").permitAll()

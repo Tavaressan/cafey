@@ -49,6 +49,8 @@ Nenhuma credencial ou chave fica embutida na imagem — todas entram via variáv
 | `CAFEY_DB_USERNAME` / `CAFEY_DB_PASSWORD` / `CAFEY_DB_NAME` | credenciais do Postgres (`db` e `app`) | `cafey_user` / `cafey_password` / `cafey_db` |
 | `CAFEY_JWT_PRIVATE_KEY` / `CAFEY_JWT_PUBLIC_KEY` | par de chaves RSA (PKCS#8/X.509, Base64 ou PEM) para assinar os JWT emitidos em `/auth` | vazio — gera par efêmero (dev/teste); **obrigatório com perfil `prod` ativo**, senão o boot falha |
 | `CAFEY_CORS_ALLOWED_ORIGINS` | origem(ns), separadas por vírgula, autorizadas a chamar a API a partir do app Web | `http://localhost:8081` |
+| `CAFEY_MAIL_FROM` / `CAFEY_MAIL_RESET_PASSWORD_URL` | remetente e URL da página de redefinição de senha (`/redefinir-senha.html`, servida pelo backend) usados no e-mail de recuperação | `Cafey <nao-responda@cafey.local>` / `http://localhost:8080/redefinir-senha.html` |
+| `CAFEY_MAIL_SMTP_HOST` / `CAFEY_MAIL_SMTP_PORT` / `CAFEY_MAIL_SMTP_USERNAME` / `CAFEY_MAIL_SMTP_PASSWORD` | SMTP do AWS SES (`email-smtp.<região>.amazonaws.com`, credenciais SMTP do SES) — **só perfil `prod`**, propagadas por `compose.prod.yaml` | vazio / `587` / vazio / vazio — fora de `prod` o e-mail só é logado (`LogEmailSenderService`) |
 
 Para sobrescrever localmente sem editar `compose.yaml`, crie um `backend/.env` (não versionado) com
 as variáveis acima — o Compose o carrega automaticamente.

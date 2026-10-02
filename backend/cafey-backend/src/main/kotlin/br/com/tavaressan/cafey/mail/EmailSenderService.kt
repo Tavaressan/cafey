@@ -2,8 +2,8 @@ package br.com.tavaressan.cafey.mail
 
 /**
  * Abstração do transporte de e-mail (BE-23, issue #105). A implementação ativa é escolhida por
- * perfil Spring: [LogEmailSenderService] em desenvolvimento, uma implementação real em produção
- * (bloqueada em #105 aguardando decisão do provedor — SES vs. SMTP).
+ * perfil Spring: [LogEmailSenderService] em desenvolvimento/teste e [ProdEmailSenderService]
+ * (AWS SES via SMTP, issue #194) em produção.
  */
 interface EmailSenderService {
     /**
