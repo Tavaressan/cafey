@@ -68,8 +68,10 @@ class SerializationTest {
 
     @Test
     fun cuidadosResponse_decodesBackendShape() {
-        // Shape real de br.com.tavaressan.cafey.event.CuidadosResponse (GET /dispositivos/{id}/cuidados),
-        // com Json estrito: um campo novo no backend sem espelho no app quebra este teste (issue #190).
+        // Shape de br.com.tavaressan.cafey.event.CuidadosResponse (GET /dispositivos/{id}/cuidados), conferido
+        // contra CuidadosIntegrationTest (issue #190). Json estrito: nomes de campo, tipos e valores do enum
+        // atuais precisam decodificar sem `ignoreUnknownKeys`. O literal é escrito à mão, então um campo novo
+        // no backend não quebra este teste — ele trava só o contrato de hoje.
         val backendJson = """
             {
               "descalcificacao":{

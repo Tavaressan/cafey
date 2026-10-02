@@ -182,5 +182,10 @@ OPEN_QUESTION
 'Iniciar enxágue' e 'Já fiz isso' não têm confirmação visual (sucesso, ou erro se a base não responder) definida.
 Impact: O usuário pode não saber se a ação realmente foi registrada pela base.
 
-RESOLVED (2026-10-02, issue #190 — decisão do dono do projeto)
-O cuidado com a maior fração contador/limiar é o destaque (calculada no backend, sem teto, para que o mais estourado vença); empate segue a ordem enxágue, filtro, descalcificação. Limiares: enxágue 40, filtro 300; descalcificação usa o limiar do dispositivo.
+CONFIRMED (2026-10-02, issue #190)
+O cuidado com a maior fração contador/limiar é o destaque; limiares: enxágue 40 preparos, filtro 300.
+Source: comentário do dono do projeto na issue #190 (2026-10-02).
+
+ASSUMED
+A fração do destaque não tem teto (o cuidado mais estourado vence), o empate segue a ordem enxágue, filtro, descalcificação (ordem do protótipo) e sempre há exatamente um destaque, mesmo com todos os contadores em 0.
+Reason: a issue só definiu "maior fração contador/limiar"; teto, desempate e o caso 0/0 foram escolhas da implementação (`DestaqueCuidado.kt`), sem confirmação do dono.
