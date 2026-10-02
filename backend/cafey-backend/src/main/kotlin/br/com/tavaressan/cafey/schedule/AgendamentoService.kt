@@ -42,7 +42,8 @@ class AgendamentoService(
             dispositivo = dispositivo,
             hora = LocalTime.parse(request.hora, timeFormatter),
             diasSemana = request.diasSemana,
-            ativo = request.ativo
+            ativo = request.ativo,
+            duracaoPreparoS = request.duracaoPreparoS
         )
         val salvo = agendamentoRepository.save(agendamento)
 
@@ -71,6 +72,7 @@ class AgendamentoService(
         request.hora?.let { agendamento.hora = LocalTime.parse(it, timeFormatter) }
         request.diasSemana?.let { agendamento.diasSemana = it }
         request.ativo?.let { agendamento.ativo = it }
+        request.duracaoPreparoS?.let { agendamento.duracaoPreparoS = it }
         agendamento.atualizadoEm = Instant.now()
 
         val salvo = agendamentoRepository.save(agendamento)
@@ -123,6 +125,7 @@ class AgendamentoService(
             hora = agendamento.hora.format(timeFormatter),
             diasSemana = agendamento.diasSemana,
             ativo = agendamento.ativo,
+            duracaoPreparoS = agendamento.duracaoPreparoS,
             criadoEm = agendamento.criadoEm,
             atualizadoEm = agendamento.atualizadoEm
         )
