@@ -82,6 +82,36 @@ class EventoController(
         return ResponseEntity.ok(status)
     }
 
+    @Operation(summary = "Obtém os três cuidados (enxágue, filtro, descalcificação) e qual deles é o destaque")
+    @GetMapping("/cuidados")
+    fun obterCuidados(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable dispositivoId: UUID
+    ): ResponseEntity<CuidadosResponse> {
+        val usuarioId = UUID.fromString(jwt.subject)
+        return ResponseEntity.ok(eventoService.obterCuidados(dispositivoId, usuarioId))
+    }
+
+    @Operation(summary = "Registra a baixa (reset) do cuidado de enxágue do circuito")
+    @PostMapping("/enxague/baixa")
+    fun darBaixaEnxague(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable dispositivoId: UUID
+    ): ResponseEntity<StatusCuidadoResponse> {
+        val usuarioId = UUID.fromString(jwt.subject)
+        return ResponseEntity.ok(eventoService.darBaixaEnxague(dispositivoId, usuarioId))
+    }
+
+    @Operation(summary = "Registra a baixa (reset) do cuidado de troca do filtro de água")
+    @PostMapping("/filtro/baixa")
+    fun darBaixaFiltro(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable dispositivoId: UUID
+    ): ResponseEntity<StatusCuidadoResponse> {
+        val usuarioId = UUID.fromString(jwt.subject)
+        return ResponseEntity.ok(eventoService.darBaixaFiltro(dispositivoId, usuarioId))
+    }
+
     @Operation(summary = "Processa um lote de eventos recebidos via proxy BLE do dispositivo")
     @ApiResponse(responseCode = "201", description = "Eventos processados com sucesso")
     @PostMapping("/eventos/proxy-ble")
