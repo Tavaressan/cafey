@@ -78,6 +78,30 @@ data class StatusDescalcificacaoResponse(
     val percentualUso: Double,
 )
 
+/** Espelha `br.com.tavaressan.cafey.event.TipoCuidado` (issue #190). */
+@Serializable
+enum class TipoCuidado { ENXAGUE, FILTRO, DESCALCIFICACAO }
+
+/** Espelha `StatusCuidadoResponse` do backend: enxágue e troca de filtro, contados em preparos
+ * desde a última baixa (issue #190). */
+@Serializable
+data class StatusCuidadoResponse(
+    val contadorPreparos: Int,
+    val limiarPreparos: Int,
+    val precisaAtencao: Boolean,
+    val percentualUso: Double,
+)
+
+/** Espelha `CuidadosResponse` do backend (`GET /dispositivos/{id}/cuidados`): os três cuidados e
+ * qual deles é o destaque (maior fração contador/limiar, decidido no servidor). */
+@Serializable
+data class CuidadosResponse(
+    val descalcificacao: StatusDescalcificacaoResponse,
+    val enxague: StatusCuidadoResponse,
+    val filtro: StatusCuidadoResponse,
+    val destaque: TipoCuidado,
+)
+
 /** Página do Spring Data (`org.springframework.data.domain.Page<T>`) — só os campos que a UI usa. */
 @Serializable
 data class PageResponse<T>(

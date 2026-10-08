@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mock
 import org.mockito.Mockito.*
@@ -136,6 +137,122 @@ class EventoServiceTest {
         assertEquals(0, status.contadorPreparos)
         assertEquals(0, device.contadorPreparos)
         verify(dispositivoRepository).save(device)
+    }
+
+    @Test
+    fun `should compute enxague and filtro counters since their last baixa`() {
+        val baixaEnxague = Instant.parse("2026-09-20T08:00:00Z")
+        val baixaFiltro = Instant.parse("2026-08-01T08:00:00Z")
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(ownerLink)
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(device))
+        `when`(eventoPreparoRepository.findUltimaBaixaEm(dispositivoId, "BAIXA_ENXAGUE")).thenReturn(baixaEnxague)
+        `when`(eventoPreparoRepository.findUltimaBaixaEm(dispositivoId, "BAIXA_FILTRO")).thenReturn(baixaFiltro)
+        `when`(eventoPreparoRepository.countPreparosConcluidosDesde(dispositivoId, baixaEnxague)).thenReturn(34L)
+        `when`(eventoPreparoRepository.countPreparosConcluidosDesde(dispositivoId, baixaFiltro)).thenReturn(210L)
+
+        val cuidados = service.obterCuidados(dispositivoId, usuarioId)
+
+        assertEquals(34, cuidados.enxague.contadorPreparos)
+        assertEquals(40, cuidados.enxague.limiarPreparos)
+        assertFalse(cuidados.enxague.precisaAtencao)
+        assertEquals(85.0, cuidados.enxague.percentualUso)
+        assertEquals(210, cuidados.filtro.contadorPreparos)
+        assertEquals(300, cuidados.filtro.limiarPreparos)
+        assertFalse(cuidados.filtro.precisaAtencao)
+        assertEquals(70.0, cuidados.filtro.percentualUso)
+        assertEquals(5, cuidados.descalcificacao.contadorPreparos)
+        assertEquals(10, cuidados.descalcificacao.limiarDescalcificacao)
+    }
+
+    @Test
+    fun `should count every brew when there is no baixa yet and flag the limiar as reached`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(ownerLink)
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(device))
+        `when`(eventoPreparoRepository.findUltimaBaixaEm(dispositivoId, "BAIXA_ENXAGUE")).thenReturn(null)
+        `when`(eventoPreparoRepository.findUltimaBaixaEm(dispositivoId, "BAIXA_FILTRO")).thenReturn(null)
+        `when`(eventoPreparoRepository.countPreparosConcluidosDesde(dispositivoId, Instant.EPOCH)).thenReturn(40L)
+
+        val cuidados = service.obterCuidados(dispositivoId, usuarioId)
+
+        // 40 de 40 preparos: o limiar é atingido (>=), igual à descalcificação.
+        assertTrue(cuidados.enxague.precisaAtencao)
+        assertEquals(100.0, cuidados.enxague.percentualUso)
+        assertFalse(cuidados.filtro.precisaAtencao)
+    }
+
+    @Test
+    fun `should highlight the cuidado with the highest counter to limiar ratio`() {
+        val baixaEnxague = Instant.parse("2026-09-20T08:00:00Z")
+        val baixaFiltro = Instant.parse("2026-08-01T08:00:00Z")
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(ownerLink)
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(device))
+        `when`(eventoPreparoRepository.findUltimaBaixaEm(dispositivoId, "BAIXA_ENXAGUE")).thenReturn(baixaEnxague)
+        `when`(eventoPreparoRepository.findUltimaBaixaEm(dispositivoId, "BAIXA_FILTRO")).thenReturn(baixaFiltro)
+        `when`(eventoPreparoRepository.countPreparosConcluidosDesde(dispositivoId, baixaEnxague)).thenReturn(10L)
+        `when`(eventoPreparoRepository.countPreparosConcluidosDesde(dispositivoId, baixaFiltro)).thenReturn(290L)
+
+        // enxágue 10/40 = 0,25; filtro 290/300 = 0,97; descalcificação 5/10 = 0,5.
+        assertEquals(TipoCuidado.FILTRO, service.obterCuidados(dispositivoId, usuarioId).destaque)
+    }
+
+    @Test
+    fun `should record a baixa marker for enxague and zero its counter`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(ownerLink)
+
+        val status = service.darBaixaEnxague(dispositivoId, usuarioId)
+
+        val captor = ArgumentCaptor.forClass(EventoPreparo::class.java)
+        verify(eventoPreparoRepository).save(captor.capture())
+        val marcador = captor.value
+        assertEquals("BAIXA_ENXAGUE", marcador.tipo)
+        assertEquals("BAIXA", marcador.resultado)
+        assertEquals(device, marcador.dispositivo)
+        assertTrue(marcador.eventoId.startsWith("BAIXA_ENXAGUE-"))
+        assertEquals(0, status.contadorPreparos)
+        assertEquals(40, status.limiarPreparos)
+        assertFalse(status.precisaAtencao)
+        assertEquals(0.0, status.percentualUso)
+        // A baixa dos novos cuidados não mexe no contador de descalcificação do dispositivo.
+        assertEquals(5, device.contadorPreparos)
+    }
+
+    @Test
+    fun `should record a baixa marker for filtro with its own limiar`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(ownerLink)
+
+        val status = service.darBaixaFiltro(dispositivoId, usuarioId)
+
+        val captor = ArgumentCaptor.forClass(EventoPreparo::class.java)
+        verify(eventoPreparoRepository).save(captor.capture())
+        assertEquals("BAIXA_FILTRO", captor.value.tipo)
+        assertEquals(300, status.limiarPreparos)
+        assertEquals(0, status.contadorPreparos)
+    }
+
+    @Test
+    fun `should reject baixa of enxague and filtro for non owners`() {
+        val convidado = UsuarioDispositivo(usuario = user, dispositivo = device, papel = PapelDispositivo.CONVIDADO)
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(convidado)
+
+        assertThrows<BadCredentialsException> { service.darBaixaEnxague(dispositivoId, usuarioId) }
+        assertThrows<BadCredentialsException> { service.darBaixaFiltro(dispositivoId, usuarioId) }
+        verify(eventoPreparoRepository, never()).save(any(EventoPreparo::class.java))
+    }
+
+    @Test
+    fun `should not let ingestion forge a baixa marker`() {
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(device))
+
+        val req = IngestaoEventoRequest(
+            eventoId = "evt-forjado",
+            tipo = "BAIXA_ENXAGUE",
+            resultado = "BAIXA",
+            origem = "APP",
+            timestamp = Instant.now()
+        )
+
+        assertNull(service.ingestar(dispositivoId, req))
+        verify(eventoPreparoRepository, never()).save(any(EventoPreparo::class.java))
     }
 
     @Test

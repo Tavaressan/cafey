@@ -51,6 +51,22 @@ data class StatusDescalcificacaoResponse(
     val percentualUso: Double
 )
 
+/** Issue #190 — estado de um cuidado contado em preparos desde a última baixa (enxágue, filtro). */
+data class StatusCuidadoResponse(
+    val contadorPreparos: Int,
+    val limiarPreparos: Int,
+    val precisaAtencao: Boolean,
+    val percentualUso: Double
+)
+
+/** Issue #190 — os três cuidados da tela Cuidados e qual deles é o destaque. */
+data class CuidadosResponse(
+    val descalcificacao: StatusDescalcificacaoResponse,
+    val enxague: StatusCuidadoResponse,
+    val filtro: StatusCuidadoResponse,
+    val destaque: TipoCuidado
+)
+
 data class ProxyBleEventosRequest(
     val eventos: List<IngestaoEventoRequest>
 )
