@@ -85,6 +85,20 @@ entrada do rail. O ideal eletrônico seria junto à bobina, mas isso colocaria
 eletrólito do lado da rede. Se o ESP32 resetar ao acionar o relé na bancada, o
 diagnóstico já está escrito.
 
+**LED de status (decidido em 08/10/2026).** O LED fica na parede frontal
+(Peça 1) e a placa auxiliar sobre o fundo (Peça 2), que abre por baixo para
+trocar o fusível. Por isso a ligação é desconectável: rabicho de 4 fios (R, G,
+B e cátodo comum) de ~10 cm, com conector JST-XH de 4 vias (M7): o cabo
+pré-crimpado é soldado nos terminais do LED e isolado com termorretrátil
+Ø 2,5 mm (E9), e o header macho fica no canto frontal direito da placa
+auxiliar. Um plugue único e polarizado, em vez de 4 jumpers Dupont avulsos, não
+deixa inverter nem deslocar os fios ao fechar o fundo. O passo do XH (2,5 mm)
+difere em 0,12 mm da placa ilhada (2,54 mm) em 4 pinos — conferir o encaixe na
+montagem. R3, R4 e R5 ficam na placa. No arranjo 3D o percurso é de ~26 mm
+para trás e ~23 mm para baixo; os 10 cm deixam folga para soltar o conector com
+o fundo aberto. Prender o cabo com abraçadeira. Não usar o fio rígido 22 AWG
+(M6) no rabicho: ele quebra com a dobra a cada abertura.
+
 ## Aberturas por face
 
 Todas as aberturas respeitam duas margens: no mínimo 6 mm da linha de dobra

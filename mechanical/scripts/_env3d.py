@@ -15,6 +15,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PARAMS_CSV = os.path.join(ROOT, "params", "parametros_3d.csv")
 COMPONENTES_CSV = os.path.join(ROOT, "params", "componentes_3d.csv")
 BUILD_DIR = os.path.join(ROOT, "build")
+MODELS_DIR = os.path.join(ROOT, "models")
 
 FCSTD = os.path.join(BUILD_DIR, "peca1_3d.FCStd")
 STEP = os.path.join(BUILD_DIR, "peca1_3d.step")
