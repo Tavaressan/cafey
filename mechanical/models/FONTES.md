@@ -12,7 +12,7 @@ caixas de `params/componentes_3d.csv`. São **representação visual**: a valida
 | `porta-fusivel-inline.step` | `porta_fusivel` | GrabCAD, `inline-fuse-holder-1.snapshot.2.zip` (autor no cabeçalho: jvalderrama) | Termos do GrabCAD |
 | `tomada-tpa2-3-e3f.igs` | `tomada_j1_corpo` | GrabCAD, `tomada-2p-t-10-a-nbr-14136-referencia-tpa2-3-e3f-…-black-1.snapshot.2.zip` | Termos do GrabCAD |
 | `placa-ilhada-60x40.step` | `placa_aux` | GrabCAD, `prototype-pcb-1.snapshot.1.zip` (`STEP/60mm x 40mm.step`) | Termos do GrabCAD |
-| `PG9 Gland.step` | `prensa_cabo_corpo` | Fornecido pelo usuário; **origem não registrada** (cabeçalho: exportado do FreeCAD, 2023-01-13) | Desconhecida |
+| `PG9 Gland.step` | `prensa_cabo_corpo` | Baixado pela equipe como modelo do prensa-cabo PG9 (peça sem modelo na primeira busca); site de origem não anotado (cabeçalho: exportado do FreeCAD, 2023-01-13) | Desconhecida |
 | `hlk-pmxx.step` | `hlk_pm01` | Biblioteca 3D do KiCad 10.0, `Converter_ACDC.3dshapes/Converter_ACDC_Hi-Link_HLK-PMxx.step` | [CC-BY-SA 4.0 com exceção para designs e arquivos gerados](https://gitlab.com/kicad/libraries/kicad-packages3D/-/blob/master/LICENSE.md) |
 | `led-5mm-rgb.step` | `led_rgb` | Biblioteca 3D do KiCad 10.0, `LED_THT.3dshapes/LED_D5.0mm-4_RGB.step` | Idem KiCad |
 | `adafruit-916-botao-metal-16mm.step` | `botao` | [adafruit/Adafruit_CAD_Parts](https://github.com/adafruit/Adafruit_CAD_Parts) @ `c128bce`, `916 metal button/916 Metal Button.step` | MIT |
