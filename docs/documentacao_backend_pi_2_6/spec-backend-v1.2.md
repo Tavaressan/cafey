@@ -197,8 +197,8 @@ em SQL cru; o ganho é não escrever `AttributeConverter`.
 | id | uuid | PK |
 | dispositivo_id | uuid | FK |
 | evento_id | text | **Novo.** `bootId:seq` gerado no dispositivo |
-| tipo | text | `default 'PREPARO'` |
-| resultado | text | **Novo.** `CONCLUIDO` \| `CANCELADO` |
+| tipo | text | `default 'PREPARO'`. `BAIXA_ENXAGUE` \| `BAIXA_FILTRO` são reservados aos marcadores de cuidado (#190) |
+| resultado | text | **Novo.** `CONCLUIDO` \| `CANCELADO`; `BAIXA` só nos marcadores de cuidado |
 | origem | text | `APP` \| `AGENDAMENTO` \| `BOTAO` |
 | duracao_s | int | **Mudou (P5).** Gravada, não calculada: é a duração que o temporizador local aplicou |
 | timestamp | timestamptz | Instante de referência do evento (início do acionamento) |
@@ -221,6 +221,21 @@ O evento é publicado uma única vez, em estado terminal. `CONCLUIDO` é o corte
 pelo temporizador local; `CANCELADO` é o corte por comando (UC-09). Sem sensor,
 não existe terceiro desfecho detectável: queda de energia no meio do preparo não
 gera evento, e isso é limitação declarada, não lacuna de implementação.
+
+**Marcadores de cuidado (#190).** A baixa de enxágue e a de troca de filtro
+gravam uma linha nesta tabela, sem coluna nova: `tipo` `BAIXA_ENXAGUE` ou
+`BAIXA_FILTRO`, `resultado` `BAIXA`, `origem` `APP`, `duracao_s` 0 e `evento_id`
+gerado pelo servidor (`<tipo>-<uuid>`). É a exceção à regra acima: essas linhas
+não vêm do dispositivo nem descrevem um preparo. O contador de cada cuidado é o
+número de preparos `CONCLUIDO` com `criado_em` posterior ao último marcador do
+tipo; sem marcador, conta o histórico inteiro. Usa `criado_em`, e não
+`timestamp`, porque o `timestamp` do dispositivo pode ser provisório antes do
+NTP — mesma semântica do contador de descalcificação, que zera na baixa e conta
+o que chega depois. A ingestão (MQTT e proxy BLE) descarta evento com `tipo`
+reservado, o histórico e a sequência de manhãs filtram `tipo = 'PREPARO'`, e as
+estatísticas só contam `resultado = 'CONCLUIDO'`. Os limiares são constantes em
+`EventoService` (enxágue 40, filtro 300 preparos), sem coluna equivalente a
+`limiar_descalcificacao`.
 
 **P5 — `duracao_s` gravada, não calculada.** A v1.1 previa remover a coluna e
 calcular `fim - inicio`. A implementação (`V5__eventos.sql`) guarda um único
@@ -307,6 +322,8 @@ de ter efeito de segurança.
 | Operar / agendar em um dispositivo | `DONO` ou `CONVIDADO` do dispositivo |
 | Compartilhar, renomear, remover dispositivo | Apenas `DONO` |
 | `POST /dispositivos/{id}/eventos` (proxy BLE) | `DONO` ou `CONVIDADO`; rejeitar `inicio` no futuro ou anterior a N dias; `origem` é valor declarado pelo cliente, não verificado |
+| `GET /dispositivos/{id}/cuidados` | `DONO` ou `CONVIDADO` |
+| Baixa de cuidado (descalcificação, enxágue, filtro) | Apenas `DONO` |
 | `/actuator/health` | Público; demais endpoints do Actuator, autenticado |
 
 CSRF desabilitado (não há cookie de sessão). CORS liberado apenas para as
@@ -345,12 +362,21 @@ RFC 7807).
 | GET | `/dispositivos/{id}/estatisticas` | UC-15 |
 | GET | `/dispositivos/{id}/manutencao` | UC-16 |
 | POST | `/dispositivos/{id}/manutencao/baixa` | UC-17 |
+| GET | `/dispositivos/{id}/cuidados` | — (#190) |
+| POST | `/dispositivos/{id}/enxague/baixa` | — (#190) |
+| POST | `/dispositivos/{id}/filtro/baixa` | — (#190) |
 
 UC-06, 07 e 09 compartilham a mesma rota porque são a mesma operação com ação
 diferente no corpo — `{"acao": "LIGAR" | "DESLIGAR" | "CANCELAR"}`.
 
 `POST /dispositivos/{id}/eventos` é a porta do proxy BLE: o app envia eventos
 em nome do dispositivo, e a restrição de deduplicação absorve reenvios.
+
+`GET /dispositivos/{id}/cuidados` devolve os três cuidados (descalcificação,
+enxágue, filtro) e o `destaque`: o de maior fração contador/limiar, sem teto,
+com empate decidido na ordem enxágue, filtro, descalcificação. A baixa de
+enxágue ou filtro responde o status do cuidado já zerado. Os marcadores de baixa
+não aparecem em `GET /dispositivos/{id}/eventos` (ver `eventos_preparo`, §3).
 
 `POST /dispositivos/{id}/comandos` responde `202` com `comandoId`. O desfecho
 não vem na resposta: o cliente o obtém por `GET /dispositivos/{id}` (campo
@@ -562,6 +588,7 @@ Requerem atualização de `spec-cafeteira-conectada.md` antes da banca:
 6. `eventos_preparo`: identidade passa a ser `evento_id` (`bootId:seq`) gerado no dispositivo; nova coluna `resultado`
 7. `dispositivos`: adicionada `duracao_preparo_s` — o fim do preparo é temporizado, não observado
 8. Nova tabela `password_reset_tokens` (UC-03)
+9. `eventos_preparo`: `tipo` ganha `BAIXA_ENXAGUE`/`BAIXA_FILTRO` e `resultado` ganha `BAIXA`, para os marcadores de cuidado (#190)
 
 Registrado também na especificação principal:
 
