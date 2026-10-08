@@ -66,7 +66,8 @@ conector de alavanca. Continuidade cabo→tomada é o item crítico de seguranç
 | M4 | Barra de pinos fêmea | 2 | `barra de pinos femea 1x40 2,54mm` | Passo 2,54 mm, cortável | Passo 2,00 mm; barra empilhável alta |
 | M5 | Barra de pinos macho | 1 | `barra de pinos macho 1x40 2,54mm` | Passo 2,54 mm | Passo 2,00 mm |
 | M6 | Fio rígido para montagem | 1 kit | `fio rigido 22AWG kit cores jumper solda` | 22 AWG, rígido, ≥3 cores | Fio flexível fino sem estanhar |
-| M7 | Conector JST-XH 4 vias (rabicho do LED) | 2 conjuntos (1 + reserva) | `conector JST XH 4 vias cabo pre crimpado header 180 graus` | Passo 2,5 mm; header macho PTH vertical (180°) + cabo pré-crimpado ≥ 10 cm | JST-PH (passo 2,0 mm); JST-SM; header SMD |
+| M7 | Conectores JST-XH (rabichos do LED e do botão) | 4 vias: 2 conjuntos; 2 vias: 2 conjuntos (1 + reserva cada) | `conector JST XH 4 vias cabo pre crimpado header 180 graus` / `... 2 vias ...` | Passo 2,5 mm; header macho PTH vertical (180°) + cabo pré-crimpado ≥ 10 cm (4 vias) e ≥ 15 cm (2 vias) | JST-PH (passo 2,0 mm); JST-SM; header SMD |
+| M8 | Cabo extensor micro-USB de painel `MEDIR` | 1 | `cabo extensor micro usb painel macho femea com parafuso` | Micro-B macho → micro-B fêmea com flange de fixação por parafuso; 20–30 cm; dados (não só carga) | Só carga; USB-C; sem flange de painel |
 
 ## Verificar em estoque antes de comprar (Alfabra)
 

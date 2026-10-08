@@ -99,6 +99,27 @@ para trás e ~23 mm para baixo; os 10 cm deixam folga para soltar o conector com
 o fundo aberto. Prender o cabo com abraçadeira. Não usar o fio rígido 22 AWG
 (M6) no rabicho: ele quebra com a dobra a cada abertura.
 
+**Botão (decidido em 08/10/2026).** Mesma lógica do LED: o botão fica na
+parede frontal e o R2 (pull-up) e o C3 (filtro) na placa auxiliar. Rabicho de
+2 fios de ~15 cm com JST-XH de 2 vias (M7): cabo pré-crimpado soldado nos dois
+terminais do contato NA, isolado com termorretrátil Ø 4 mm (E9), e header macho
+na borda direita da placa auxiliar, ao lado do header do LED. No arranjo 3D o
+percurso é de ~45 mm para a esquerda, ~8 mm para trás e ~23 mm para baixo
+(~76 mm). Continua em aberto, para o profissional habilitado, ligar ou não o
+corpo metálico do botão ao PE.
+
+**USB de painel (decidido em 08/10/2026).** O cabo extensor de painel (M8) já é
+desconectável: o plugue micro-B sai do micro-USB do ESP32 com o fundo aberto,
+então não leva conector extra. O conector de painel fica na lateral esquerda
+(y = 37,5) e o micro-USB do ESP32 na ponta traseira da placa, com a boca
+voltada para a divisória. Percurso no arranjo 3D de ~10 cm (por cima do ESP32,
+~49 mm em X, descendo ~14 mm e voltando ao plugue por trás); cabo de 20 a 30 cm
+dá folga para baixar o fundo e soltar o plugue. Atrás do micro-USB sobram
+~29 mm até a divisória — um plugue reto e a curva do cabo ficam justos nesse
+espaço; conferir na montagem e, se não couber, usar plugue micro-B em 90°. O
+corpo do conector de painel define o `recorte_usb` (ainda placeholder): medir
+o M8 antes de imprimir.
+
 ## Aberturas por face
 
 Todas as aberturas respeitam duas margens: no mínimo 6 mm da linha de dobra

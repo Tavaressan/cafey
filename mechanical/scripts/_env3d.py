@@ -112,8 +112,9 @@ DESCRIPTIONS = {
     "furo_led": ("Furo do LED RGB Ø5 (x=150, z=-22)",
                  "SINALIZACAO. Passagem do LED RGB de status. Conferir Ø real "
                  "contra o LED/porta-LED comprado (item 5)."),
-    "furo_botao": ("Furo do botao de painel Ø12 (x=195, z=-22)",
-                   "COMANDO. Passagem do botao de painel. Conferir Ø real (item 5)."),
+    "furo_botao": ("Furo do botao de painel Ø16 (x=195, z=-22)",
+                   "COMANDO. Passagem do botao de painel metalico momentaneo NA de "
+                   "16 mm. Conferir Ø real contra o botao comprado (M1)."),
     "prensa_cabo": ("Prensa-cabo PG9 Ø15 (x=70, z=-22)",
                     "ENTRADA DE ENERGIA DO MODULO (rede 127 V vinda da parede). "
                     "Recebe o prensa-cabo PG9. Faixa de aperto 4-8 mm nominal "
@@ -220,7 +221,7 @@ fix_* nao existem mais - a peca ja' nasce fechada nos 4 cantos).
 ABERTURAS DE FACE
   janela_rf     retangulo 40x28   parede frontal  x=75    janela de radio
   furo_led      Ø5                parede frontal  x=150   LED RGB de status
-  furo_botao    Ø12               parede frontal  x=195   botao de painel
+  furo_botao    Ø16               parede frontal  x=195   botao de painel
   prensa_cabo   Ø15               parede traseira x=70    entrada de energia
   tomada_j1     retangulo 45,5x23 parede traseira x=185   saida de energia
   recorte_usb   ~16x9 (placeholder) parede esq   grade    USB de painel
