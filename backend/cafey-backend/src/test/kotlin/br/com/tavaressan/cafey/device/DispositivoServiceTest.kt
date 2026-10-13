@@ -6,8 +6,10 @@ import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import br.com.tavaressan.cafey.exception.ServicoIndisponivelException
 import br.com.tavaressan.cafey.mqtt.ComandoPayload
 import br.com.tavaressan.cafey.mqtt.MqttClientService
+import br.com.tavaressan.cafey.schedule.AgendamentosAlteradosEvent
 import br.com.tavaressan.cafey.user.Usuario
 import br.com.tavaressan.cafey.user.UsuarioRepository
+import org.springframework.context.ApplicationEventPublisher
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -40,6 +42,9 @@ class DispositivoServiceTest {
     @Mock
     private lateinit var mqttClientService: MqttClientService
 
+    @Mock
+    private lateinit var eventPublisher: ApplicationEventPublisher
+
     private lateinit var service: DispositivoService
 
     private val ownerId = UUID.randomUUID()
@@ -54,7 +59,7 @@ class DispositivoServiceTest {
 
     @BeforeEach
     fun setUp() {
-        service = DispositivoService(dispositivoRepository, usuarioDispositivoRepository, usuarioRepository, mqttClientService)
+        service = DispositivoService(dispositivoRepository, usuarioDispositivoRepository, usuarioRepository, mqttClientService, eventPublisher)
 
         ownerUser = Usuario(id = ownerId, nome = "Owner", email = "owner@cafey.com", senhaHash = "hash")
         guestUser = Usuario(id = guestId, nome = "Guest", email = "guest@cafey.com", senhaHash = "hash")
@@ -101,6 +106,67 @@ class DispositivoServiceTest {
 
         assertEquals("Cafeteira Atualizada", res.nome)
         assertEquals(240, res.duracaoPreparoS)
+        assertEquals(2, res.versaoAgendamentos)
+        verify(eventPublisher).publishEvent(AgendamentosAlteradosEvent(deviceId))
+    }
+
+    @Test
+    fun `should not republish schedules when duration does not change`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        val req = AtualizarDispositivoRequest(nome = "Novo nome", duracaoPreparoS = device.duracaoPreparoS)
+        val res = service.atualizar(deviceId, req, ownerId)
+
+        assertEquals(1, res.versaoAgendamentos)
+        verify(eventPublisher, never()).publishEvent(any(AgendamentosAlteradosEvent::class.java))
+    }
+
+    @Test
+    fun `should not republish schedules when only the name changes`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        val res = service.atualizar(deviceId, AtualizarDispositivoRequest(nome = "Só o nome"), ownerId)
+
+        assertEquals("Só o nome", res.nome)
+        assertEquals(1, res.versaoAgendamentos)
+        verify(eventPublisher, never()).publishEvent(any(AgendamentosAlteradosEvent::class.java))
+    }
+
+    @Test
+    fun `should republish schedules when timezone changes`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        val res = service.atualizar(deviceId, AtualizarDispositivoRequest(timezone = " America/Manaus "), ownerId)
+
+        assertEquals("America/Manaus", res.timezone)
+        assertEquals(2, res.versaoAgendamentos)
+        verify(eventPublisher).publishEvent(AgendamentosAlteradosEvent(deviceId))
+    }
+
+    @Test
+    fun `should bump schedule version only once when timezone and duration change together`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        val req = AtualizarDispositivoRequest(timezone = "America/Manaus", duracaoPreparoS = 240)
+        val res = service.atualizar(deviceId, req, ownerId)
+
+        assertEquals(2, res.versaoAgendamentos)
+        verify(eventPublisher, times(1)).publishEvent(AgendamentosAlteradosEvent(deviceId))
+    }
+
+    @Test
+    fun `should not republish schedules when timezone is the same after trim`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        val res = service.atualizar(deviceId, AtualizarDispositivoRequest(timezone = " ${device.timezone} "), ownerId)
+
+        assertEquals(1, res.versaoAgendamentos)
+        verify(eventPublisher, never()).publishEvent(any(AgendamentosAlteradosEvent::class.java))
     }
 
     @Test
