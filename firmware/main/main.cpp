@@ -66,8 +66,10 @@ extern "C" void app_main(void) {
 
     // Disparo do agendamento: o Agendador aciona o preparo pelo relogio interno
     // (spec §5.5), postando StartBrew para a Cafeteira, sem passar pela nuvem.
-    g_agendador.set_on_fire([] {
-        g_cafeteira.post(cafey::core::Message{cafey::core::MessageType::StartBrew, 0});
+    // A duracao vem do proprio agendamento (#200); 0 cai no default da Cafeteira.
+    g_agendador.set_on_fire([](const cafey::storage::Schedule& s) {
+        g_cafeteira.post(cafey::core::Message{cafey::core::MessageType::StartBrew,
+                                              static_cast<int32_t>(s.duration_s)});
     });
 
     // Carrega os agendamentos persistidos para o Agendador executar offline.

@@ -38,7 +38,7 @@ public:
 int test_fires_when_clock_matches_schedule() {
     FakeClock clock;
     int fired = 0;
-    TestableAgendador age(clock, [&] { ++fired; });
+    TestableAgendador age(clock, [&](const cafey::storage::Schedule&) { ++fired; });
     age.init();
     age.post(Message{MessageType::TimeSynced, 0});
     age.process_pending();
@@ -69,7 +69,7 @@ int test_fires_when_clock_matches_schedule() {
 int test_does_not_fire_when_unsynced() {
     FakeClock clock;
     int fired = 0;
-    TestableAgendador age(clock, [&] { ++fired; });
+    TestableAgendador age(clock, [&](const cafey::storage::Schedule&) { ++fired; });
     age.init();
 
     cafey::storage::Schedule s{};
@@ -90,7 +90,7 @@ int test_does_not_fire_when_unsynced() {
 int test_does_not_fire_on_unscheduled_day() {
     FakeClock clock;
     int fired = 0;
-    TestableAgendador age(clock, [&] { ++fired; });
+    TestableAgendador age(clock, [&](const cafey::storage::Schedule&) { ++fired; });
     age.init();
     age.post(Message{MessageType::TimeSynced, 0});
     age.process_pending();
@@ -113,7 +113,7 @@ int test_does_not_fire_on_unscheduled_day() {
 int test_inactive_schedule_does_not_fire() {
     FakeClock clock;
     int fired = 0;
-    TestableAgendador age(clock, [&] { ++fired; });
+    TestableAgendador age(clock, [&](const cafey::storage::Schedule&) { ++fired; });
     age.init();
     age.post(Message{MessageType::TimeSynced, 0});
     age.process_pending();
@@ -133,12 +133,40 @@ int test_inactive_schedule_does_not_fire() {
     return 0;
 }
 
+// #200: o callback recebe o agendamento que disparou, com a duracao dele.
+int test_fire_passes_schedule_duration() {
+    FakeClock clock;
+    uint16_t fired_duration = 0;
+    TestableAgendador age(clock, [&](const cafey::storage::Schedule& s) {
+        fired_duration = s.duration_s;
+    });
+    age.init();
+    age.post(Message{MessageType::TimeSynced, 0});
+    age.process_pending();
+
+    cafey::storage::Schedule s{};
+    s.hour = 7;
+    s.minute = 30;
+    s.days_of_week = 0x7F;
+    s.active = true;
+    s.duration_s = 480;
+    age.set_schedules(&s, 1);
+
+    clock.value = kWed0730Utc;
+    age.tick();
+    TEST_ASSERT(fired_duration == 480, "on_fire recebe a duracao do agendamento");
+
+    std::cout << "[PASS] test_fire_passes_schedule_duration" << std::endl;
+    return 0;
+}
+
 int main() {
     std::cout << "Running Cafey Agendador (FW-14) Unit Tests..." << std::endl;
     if (test_fires_when_clock_matches_schedule()) return 1;
     if (test_does_not_fire_when_unsynced()) return 1;
     if (test_does_not_fire_on_unscheduled_day()) return 1;
     if (test_inactive_schedule_does_not_fire()) return 1;
+    if (test_fire_passes_schedule_duration()) return 1;
     std::cout << "All Agendador tests PASSED!" << std::endl;
     return 0;
 }

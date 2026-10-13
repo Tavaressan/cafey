@@ -76,12 +76,48 @@ static void test_rejects_null_out() {
     std::cout << "OK: test_rejects_null_out\n";
 }
 
+// #200: duracaoS por item (PR #203); item sem duracaoS herda a do topo.
+static void test_parses_item_duration_with_fallback() {
+    const char* payload = R"({
+      "versao": 8,
+      "timezone": "America/Sao_Paulo",
+      "duracaoS": 300,
+      "agendamentos": [
+        { "id": "11111111-1111-1111-1111-111111111111", "hora": "07:05", "diasSemana": 62, "ativo": true, "duracaoS": 480 },
+        { "id": "22222222-2222-2222-2222-222222222222", "hora": "18:30", "diasSemana": 1, "ativo": true }
+      ]
+    })";
+    Schedule list[16];
+    size_t count = 0;
+    SchedulePayloadMeta meta{};
+    assert(parse_schedule_payload(payload, list, 16, &count, &meta));
+    assert(count == 2);
+    assert(meta.duracao_s == 300);
+    assert(list[0].duration_s == 480);
+    assert(list[1].duration_s == 300);
+    std::cout << "OK: test_parses_item_duration_with_fallback" << std::endl;
+}
+
+static void test_item_without_any_duration_is_zero() {
+    Schedule list[16];
+    size_t count = 0;
+    SchedulePayloadMeta meta{};
+    assert(parse_schedule_payload(
+        R"({"versao":1,"agendamentos":[{"id":"a","hora":"06:00","diasSemana":127,"ativo":true}]})",
+        list, 16, &count, &meta));
+    assert(count == 1);
+    assert(list[0].duration_s == 0);
+    std::cout << "OK: test_item_without_any_duration_is_zero" << std::endl;
+}
+
 int main() {
     test_parses_metadata();
     test_parses_schedule_list();
     test_empty_list_replaces_with_zero();
     test_respects_max_capacity();
     test_rejects_null_out();
+    test_parses_item_duration_with_fallback();
+    test_item_without_any_duration_is_zero();
     std::cout << "Todos os testes de parse_schedule_payload passaram.\n";
     return 0;
 }

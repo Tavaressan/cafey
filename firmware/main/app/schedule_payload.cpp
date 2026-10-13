@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <limits>
 #include <vector>
 
 #include "core/mini_json.hpp"
@@ -58,6 +59,17 @@ bool parse_schedule_payload(const std::string& json, cafey::storage::Schedule* o
         bool ativo = false;
         if (mj::get_bool(item, "ativo", ativo)) {
             schedule.active = ativo;
+        }
+
+        // #200: cada item traz a propria duracao (PR #203); sem ela, vale a
+        // duracao padrao do dispositivo enviada no topo do payload.
+        long item_duracao = 0;
+        if (mj::get_long(item, "duracaoS", item_duracao) && item_duracao > 0) {
+            schedule.duration_s = static_cast<uint16_t>(
+                std::min<long>(item_duracao, std::numeric_limits<uint16_t>::max()));
+        } else {
+            schedule.duration_s = static_cast<uint16_t>(
+                std::min<uint32_t>(parsed_meta.duracao_s, std::numeric_limits<uint16_t>::max()));
         }
 
         out[count++] = schedule;

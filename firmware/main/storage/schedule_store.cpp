@@ -14,8 +14,8 @@ ScheduleStore::ScheduleStore()
       count_(0) {}
 
 esp_err_t ScheduleStore::init() {
-    static_assert(sizeof(PersistedLayout) == 664,
-                  "layout novo do FW-19 deve ter 664 bytes (antigo: 656)");
+    static_assert(sizeof(PersistedLayout) == 696,
+                  "layout v2 (#200, com duration_s) deve ter 696 bytes (v1: 664, pre-FW-19: 656)");
 
     esp_err_t err = nvs_.init();
     if (err != ESP_OK) {

@@ -7,7 +7,7 @@ using cafey::core::MessageType;
 
 // Verifica os agendamentos a cada segundo; a deduplicacao por minuto abaixo
 // garante no maximo um disparo por agendamento a cada minuto de relogio.
-Agendador::Agendador(cafey::core::Clock& clock, std::function<void()> on_fire)
+Agendador::Agendador(cafey::core::Clock& clock, FireHandler on_fire)
     : ActiveObject("agendador", 16, 4096, 5, /*tick_period_ms=*/1000),
       clock_(clock),
       on_fire_(std::move(on_fire)) {}
@@ -52,7 +52,7 @@ void Agendador::on_tick() {
         if (s.hour != tm_now.tm_hour || s.minute != tm_now.tm_min) continue;
 
         ++fired_count_;
-        if (on_fire_) on_fire_();
+        if (on_fire_) on_fire_(s);
     }
 }
 

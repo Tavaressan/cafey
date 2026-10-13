@@ -63,7 +63,7 @@ private:
     // blob de layout antigo (sem prefixo, tamanho diferente) ou corrompido e
     // tratá-lo como store vazio, deixando o backend republicar a lista retida.
     static constexpr uint32_t kScheduleMagic = 0x53464143;   // 'CAFS' LE
-    static constexpr uint16_t kScheduleSchemaVersion = 1;
+    static constexpr uint16_t kScheduleSchemaVersion = 2; // v2: Schedule::duration_s (#200)
 
     struct PersistedLayout {
         uint32_t magic;

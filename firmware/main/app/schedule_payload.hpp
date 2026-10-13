@@ -11,7 +11,7 @@ namespace cafey::app {
 /** @brief Metadados da lista de agendamentos (spec-backend §6.2). */
 struct SchedulePayloadMeta {
     uint32_t version = 0;     // `versao` monotonica
-    uint32_t duracao_s = 0;   // `duracaoS` do disparo agendado (offline)
+    uint32_t duracao_s = 0;   // `duracaoS` do topo: duracao padrao do dispositivo
     bool has_duracao = false;
 };
 
