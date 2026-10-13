@@ -14,6 +14,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository
 import java.util.Base64
 import java.util.UUID
 
@@ -72,6 +73,21 @@ class JwtAuthenticationFilterTest {
         assertTrue(autenticacao!!.isAuthenticated)
         val principal = autenticacao.principal as Jwt
         assertEquals(usuarioId.toString(), principal.subject)
+    }
+
+    @Test
+    fun `token valido grava o contexto no repositorio da requisicao para os despachos seguintes`() {
+        val token = jwtTokenService.generateAccessToken(UUID.randomUUID(), "test@cafey.com")
+        val request = MockHttpServletRequest("GET", "/dispositivos")
+        request.addHeader(HttpHeaders.AUTHORIZATION, "Bearer $token")
+
+        filter.doFilter(request, MockHttpServletResponse(), FilterChain { _, _ -> })
+        SecurityContextHolder.clearContext()
+
+        // É o que o SecurityContextHolderFilter recarrega num despacho ERROR, que este filtro pula.
+        val recarregado = RequestAttributeSecurityContextRepository().loadDeferredContext(request).get()
+        assertTrue(recarregado.authentication!!.isAuthenticated)
+        assertTrue(recarregado.authentication!!.principal is Jwt)
     }
 
     @Test

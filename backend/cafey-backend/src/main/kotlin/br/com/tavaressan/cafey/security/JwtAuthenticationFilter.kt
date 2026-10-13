@@ -7,6 +7,7 @@ import org.springframework.http.HttpHeaders
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.security.oauth2.jwt.JwtException
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository
 import org.springframework.web.filter.OncePerRequestFilter
 
 /**
@@ -34,6 +35,12 @@ class JwtAuthenticationFilter(
 
     private val authenticationConverter = JwtAuthenticationConverter()
 
+    // O SecurityContextHolderFilter só carrega o contexto, não o salva. Sem gravar no repositório
+    // (o mesmo da cadeia STATELESS), um despacho ERROR (que este filtro pula) recarregaria um contexto
+    // vazio e o usuário autenticado receberia 401 no lugar do status real, como fazia o
+    // BearerTokenAuthenticationFilter substituído.
+    private val securityContextRepository = RequestAttributeSecurityContextRepository()
+
     override fun doFilterInternal(
         request: HttpServletRequest,
         response: HttpServletResponse,
@@ -48,6 +55,7 @@ class JwtAuthenticationFilter(
                 val context = SecurityContextHolder.createEmptyContext()
                 context.authentication = authenticationConverter.convert(jwt)
                 SecurityContextHolder.setContext(context)
+                securityContextRepository.saveContext(context, request, response)
             } catch (ex: JwtException) {
                 SecurityContextHolder.clearContext()
             }
