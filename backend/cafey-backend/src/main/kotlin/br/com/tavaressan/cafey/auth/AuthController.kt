@@ -23,28 +23,38 @@ class AuthController(
     private val authService: AuthService
 ) {
 
-    @Operation(summary = "Registra um novo usuário e devolve os tokens de acesso")
+    @Operation(
+        summary = "Registra um novo usuário e devolve os tokens de acesso",
+        description = "Nome oficial da rota: `/auth/signup`. O caminho `/auth/registrar` é um alias " +
+            "mantido por compatibilidade com os clientes já publicados e se comporta exatamente igual."
+    )
     @ApiResponse(responseCode = "201", description = "Usuário registrado com sucesso")
     @ApiResponse(
         responseCode = "400",
         description = "Dados inválidos ou email já cadastrado",
         content = [Content(schema = Schema(implementation = ProblemDetail::class))]
     )
-    @PostMapping("/registrar")
-    fun registrar(@Valid @RequestBody request: RegisterRequest): ResponseEntity<AuthResponse> {
+    @PostMapping("/signup", "/registrar")
+    fun signup(@Valid @RequestBody request: RegisterRequest): ResponseEntity<AuthResponse> {
         val response = authService.registrar(request)
         return ResponseEntity.status(HttpStatus.CREATED).body(response)
     }
 
-    @Operation(summary = "Autentica um usuário com email e senha")
+    @Operation(
+        summary = "Autentica um usuário com email e senha",
+        description = "Nome oficial da rota: `/auth/signin`. O caminho `/auth/login` é um alias " +
+            "mantido por compatibilidade com os clientes já publicados e se comporta exatamente igual. " +
+            "As credenciais são verificadas pelo Spring Security (`AuthenticationManager`); " +
+            "se válidas, a resposta traz o token JWT de acesso."
+    )
     @ApiResponse(responseCode = "200", description = "Login efetuado com sucesso")
     @ApiResponse(
         responseCode = "401",
         description = "Credenciais inválidas",
         content = [Content(schema = Schema(implementation = ProblemDetail::class))]
     )
-    @PostMapping("/login")
-    fun login(@Valid @RequestBody request: LoginRequest): ResponseEntity<AuthResponse> {
+    @PostMapping("/signin", "/login")
+    fun signin(@Valid @RequestBody request: LoginRequest): ResponseEntity<AuthResponse> {
         val response = authService.login(request)
         return ResponseEntity.ok(response)
     }

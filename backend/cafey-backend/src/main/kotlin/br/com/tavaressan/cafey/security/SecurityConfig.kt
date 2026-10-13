@@ -7,9 +7,13 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.core.env.Environment
 import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpMethod
+import org.springframework.security.authentication.AuthenticationManager
+import org.springframework.security.authentication.ProviderManager
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.http.SessionCreationPolicy
+import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.oauth2.jwt.JwtDecoder
@@ -30,6 +34,22 @@ class SecurityConfig(
     @Bean
     fun passwordEncoder(): PasswordEncoder {
         return BCryptPasswordEncoder(12)
+    }
+
+    /**
+     * `AuthenticationManager` do signin (RF-18): `DaoAuthenticationProvider` com o
+     * [UsuarioDetailsService] e o [PasswordEncoder] do projeto. Formato da documentação do Spring
+     * Security 7 ("Publish an AuthenticationManager bean"); no 7 o provider recebe o
+     * `UserDetailsService` pelo construtor.
+     */
+    @Bean
+    fun authenticationManager(
+        userDetailsService: UserDetailsService,
+        passwordEncoder: PasswordEncoder
+    ): AuthenticationManager {
+        val provider = DaoAuthenticationProvider(userDetailsService)
+        provider.setPasswordEncoder(passwordEncoder)
+        return ProviderManager(provider)
     }
 
     @Bean
