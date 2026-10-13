@@ -1,18 +1,27 @@
-# Template para gerar a partição NVS com as credenciais MQTT/TLS do dispositivo
-# (namespace "cafey_mqtt", consumido por MqttConfigStore — firmware/main/core/mqtt_config_store.*).
+# Template da partição NVS de provisionamento do dispositivo:
+#  - namespace "cafey_mqtt": endpoint, client_id e credenciais MQTT/TLS (MqttConfigStore, main/core/mqtt_config_store.*)
+#  - namespace "cafey_wifi": SSID/senha da rede (WifiCredentialsStore, main/core/wifi_credentials.*)
 #
 # Uso (ver docs/docs_arquitetura/aws-iot-core-provisioning.md §4):
 #   1. cp provisioning.csv.example provisioning.csv   (git-ignorado, NUNCA commitar)
-#   2. Preencha broker/clientid abaixo e aponte rootca/cert/key para os arquivos PEM reais
-#      gerados no §2 do runbook (um por thing/dispositivo).
-#   3. $IDF_PATH/components/nvs_flash/nvs_partition_generator/nvs_partition_gen.py generate \
-#        provisioning.csv cafey_mqtt_nvs.bin 0x6000
-#   4. esptool.py --port <porta-serial> write_flash 0x9000 cafey_mqtt_nvs.bin
+#   2. clientid = nome da thing = UUID do dispositivo no backend (minúsculas); os tópicos
+#      dispositivos/<clientid>/... precisam casar com o UUID que o backend usa.
+#      rootca/cert/key apontam para os PEM reais, relativos à pasta onde o gerador roda.
+#   3. Na pasta deste arquivo, com o mesmo ESP-IDF que compila o firmware:
+#        python $IDF_PATH/components/nvs_flash/nvs_partition_generator/nvs_partition_gen.py \
+#          generate provisioning.csv cafey_nvs.bin 0x6000
+#   4. Grave DEPOIS do firmware (idf.py flash não toca 0x9000; erase-flash apaga tudo):
+#        python -m esptool --port <porta-serial> write_flash 0x9000 cafey_nvs.bin
 #
-# key,type,encoding,value
+# O gerador ignora linhas que começam com '#', e a primeira linha restante é o cabeçalho.
+# Não deixe linhas em branco.
+key,type,encoding,value
 cafey_mqtt,namespace,,
 broker,data,string,mqtts://SEU-ENDPOINT-ats.iot.SUA-REGIAO.amazonaws.com:8883
-clientid,data,string,cafey-device-proto-01
+clientid,data,string,00000000-0000-0000-0000-000000000000
 rootca,file,string,amazon-root-ca-1.pem
-cert,file,string,cafey-device-proto-01-cert.pem
-key,file,string,cafey-device-proto-01-private.key
+cert,file,string,DISPOSITIVO-cert.pem
+key,file,string,DISPOSITIVO-private.key
+cafey_wifi,namespace,,
+ssid,data,string,SUA-REDE
+password,data,string,SUA-SENHA
