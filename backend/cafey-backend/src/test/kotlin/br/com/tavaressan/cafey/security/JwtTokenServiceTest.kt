@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Test
 import org.springframework.mock.env.MockEnvironment
+import org.springframework.security.oauth2.jwt.JwtException
 import java.security.KeyPairGenerator
 import java.util.Base64
 import java.util.UUID
@@ -84,6 +85,89 @@ class JwtTokenServiceTest {
 
         assertThrows(IllegalArgumentException::class.java) {
             JwtTokenService(JwtKeyProperties(privateKey = privateKeyBase64, publicKey = publicKeyBase64))
+        }
+    }
+
+    @Test
+    fun `validarToken devolve o Jwt de um token valido`() {
+        val service = JwtTokenService()
+        val usuarioId = UUID.randomUUID()
+
+        val jwt = service.validarToken(service.generateAccessToken(usuarioId, "test@cafey.com"))
+
+        assertEquals(usuarioId.toString(), jwt.subject)
+        assertEquals("test@cafey.com", jwt.claims["email"])
+    }
+
+    @Test
+    fun `validarToken rejeita token expirado`() {
+        val emissor = TestJwtIssuer()
+
+        assertThrows(JwtException::class.java) { emissor.service().validarToken(emissor.emitirExpirado()) }
+    }
+
+    @Test
+    fun `validarToken rejeita token assinado por outra chave`() {
+        val tokenDeOutraChave = JwtTokenService().generateAccessToken(UUID.randomUUID(), "test@cafey.com")
+
+        assertThrows(JwtException::class.java) { JwtTokenService().validarToken(tokenDeOutraChave) }
+    }
+
+    @Test
+    fun `validarToken rejeita token adulterado`() {
+        val service = JwtTokenService()
+        val (cabecalho, _, assinatura) = service.generateAccessToken(UUID.randomUUID(), "test@cafey.com").split(".")
+        val outroPayload = Base64.getUrlEncoder().withoutPadding()
+            .encodeToString("""{"sub":"${UUID.randomUUID()}","exp":4102444800}""".toByteArray())
+
+        assertThrows(JwtException::class.java) { service.validarToken("$cabecalho.$outroPayload.$assinatura") }
+    }
+
+    @Test
+    fun `validarToken rejeita token malformado ou vazio`() {
+        val service = JwtTokenService()
+
+        listOf("", "abc", "a.b.c", "nao.e.um.jwt.valido").forEach { token ->
+            assertThrows(JwtException::class.java, { service.validarToken(token) }, "token: '$token'")
+        }
+    }
+
+    @Test
+    fun `extrairUsuarioId devolve o sub como UUID`() {
+        val service = JwtTokenService()
+        val usuarioId = UUID.randomUUID()
+        val token = service.generateAccessToken(usuarioId, "test@cafey.com")
+
+        assertEquals(usuarioId, service.extrairUsuarioId(service.validarToken(token)))
+        assertEquals(usuarioId, service.extrairUsuarioId(token))
+    }
+
+    @Test
+    fun `extrairUsuarioId rejeita token sem sub`() {
+        val emissor = TestJwtIssuer()
+        val service = emissor.service()
+
+        assertThrows(JwtException::class.java) { service.extrairUsuarioId(service.validarToken(emissor.emitir(subject = null))) }
+        assertThrows(JwtException::class.java) { service.extrairUsuarioId(emissor.emitir(subject = null)) }
+    }
+
+    @Test
+    fun `extrairUsuarioId rejeita sub que nao e um UUID`() {
+        val emissor = TestJwtIssuer()
+        val service = emissor.service()
+        val token = emissor.emitir(subject = "nao-e-um-uuid")
+
+        assertThrows(JwtException::class.java) { service.extrairUsuarioId(service.validarToken(token)) }
+        assertThrows(JwtException::class.java) { service.extrairUsuarioId(token) }
+    }
+
+    @Test
+    fun `extrairUsuarioId com token em texto tambem valida a assinatura e a expiracao`() {
+        val emissor = TestJwtIssuer()
+
+        assertThrows(JwtException::class.java) { emissor.service().extrairUsuarioId(emissor.emitirExpirado()) }
+        assertThrows(JwtException::class.java) {
+            JwtTokenService().extrairUsuarioId(emissor.emitir(subject = UUID.randomUUID().toString()))
         }
     }
 
