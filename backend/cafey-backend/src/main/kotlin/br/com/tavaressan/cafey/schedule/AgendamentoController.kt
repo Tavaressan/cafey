@@ -42,6 +42,17 @@ class AgendamentoController(
         return ResponseEntity.ok(list)
     }
 
+    @Operation(summary = "Obtém um agendamento pelo ID")
+    @GetMapping("/{agendamentoId}")
+    fun obterPorId(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable dispositivoId: UUID,
+        @PathVariable agendamentoId: UUID
+    ): ResponseEntity<AgendamentoResponse> {
+        val usuarioId = UUID.fromString(jwt.subject)
+        return ResponseEntity.ok(agendamentoService.obterPorId(dispositivoId, agendamentoId, usuarioId))
+    }
+
     @Operation(summary = "Cria um agendamento para um dispositivo")
     @ApiResponse(responseCode = "201", description = "Agendamento criado com sucesso")
     @PostMapping

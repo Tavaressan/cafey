@@ -5,6 +5,7 @@ import br.com.tavaressan.cafey.exception.BadCredentialsException
 import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
 import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import br.com.tavaressan.cafey.exception.ServicoIndisponivelException
+import br.com.tavaressan.cafey.mapper.DispositivoMapper
 import br.com.tavaressan.cafey.mqtt.ComandoPayload
 import br.com.tavaressan.cafey.mqtt.MqttClientService
 import br.com.tavaressan.cafey.schedule.AgendamentosAlteradosEvent
@@ -12,7 +13,6 @@ import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -21,13 +21,14 @@ class DispositivoService(
     private val usuarioDispositivoRepository: UsuarioDispositivoRepository,
     private val usuarioRepository: UsuarioRepository,
     private val mqttClientService: MqttClientService,
-    private val eventPublisher: ApplicationEventPublisher
+    private val eventPublisher: ApplicationEventPublisher,
+    private val dispositivoMapper: DispositivoMapper
 ) {
 
     @Transactional(readOnly = true)
     fun listarDoUsuario(usuarioId: UUID): List<DispositivoResponse> {
         val vinculos = usuarioDispositivoRepository.findByUsuarioId(usuarioId)
-        return vinculos.map { toResponse(it.dispositivo, it.papel) }
+        return vinculos.map { dispositivoMapper.toResponse(it.dispositivo, it.papel) }
     }
 
     @Transactional(readOnly = true)
@@ -35,7 +36,7 @@ class DispositivoService(
         val vinculo = usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)
             ?: throw ResourceNotFoundException("Dispositivo não encontrado ou você não tem acesso")
 
-        return toResponse(vinculo.dispositivo, vinculo.papel)
+        return dispositivoMapper.toResponse(vinculo.dispositivo, vinculo.papel)
     }
 
     @Transactional(readOnly = true)
@@ -72,13 +73,7 @@ class DispositivoService(
             ResourceNotFoundException("Usuário não encontrado")
         }
 
-        val dispositivo = Dispositivo(
-            nome = request.nome.trim(),
-            timezone = request.timezone?.trim() ?: "America/Sao_Paulo",
-            duracaoPreparoS = request.duracaoPreparoS ?: 300,
-            limiarDescalcificacao = request.limiarDescalcificacao ?: 200
-        )
-        val salvo = dispositivoRepository.save(dispositivo)
+        val salvo = dispositivoRepository.save(dispositivoMapper.toEntity(request))
 
         val vinculo = UsuarioDispositivo(
             usuario = usuario,
@@ -87,7 +82,7 @@ class DispositivoService(
         )
         usuarioDispositivoRepository.save(vinculo)
 
-        return toResponse(salvo, PapelDispositivo.PROPRIETARIO)
+        return dispositivoMapper.toResponse(salvo, PapelDispositivo.PROPRIETARIO)
     }
 
     @Transactional
@@ -102,29 +97,19 @@ class DispositivoService(
         val disp = vinculo.dispositivo
         // Timezone e duração vão no payload retido de agendamentos (spec §6.2). Mudar qualquer um exige
         // nova versão: a republicação com a mesma versão é descartada pelo firmware (regra `<=`, §5.3).
-        var payloadAgendamentosAlterado = false
-        request.nome?.let { disp.nome = it.trim() }
-        request.timezone?.trim()?.let {
-            if (disp.timezone != it) {
-                disp.timezone = it
-                payloadAgendamentosAlterado = true
-            }
-        }
-        request.duracaoPreparoS?.let {
-            if (disp.duracaoPreparoS != it) {
-                disp.duracaoPreparoS = it
-                payloadAgendamentosAlterado = true
-            }
-        }
-        request.limiarDescalcificacao?.let { disp.limiarDescalcificacao = it }
+        // O mapper aplica os campos; a mudança efetiva é detectada comparando com o estado anterior.
+        val timezoneAnterior = disp.timezone
+        val duracaoAnterior = disp.duracaoPreparoS
+        dispositivoMapper.atualizar(disp, request)
+        val payloadAgendamentosAlterado =
+            disp.timezone != timezoneAnterior || disp.duracaoPreparoS != duracaoAnterior
         if (payloadAgendamentosAlterado) disp.versaoAgendamentos += 1
-        disp.atualizadoEm = Instant.now()
 
         val atualizado = dispositivoRepository.save(disp)
         if (payloadAgendamentosAlterado) {
             eventPublisher.publishEvent(AgendamentosAlteradosEvent(dispositivoId))
         }
-        return toResponse(atualizado, vinculo.papel)
+        return dispositivoMapper.toResponse(atualizado, vinculo.papel)
     }
 
     @Transactional
@@ -215,23 +200,5 @@ class DispositivoService(
         }
 
         usuarioDispositivoRepository.delete(vinculoConvidado)
-    }
-
-    private fun toResponse(dispositivo: Dispositivo, papel: PapelDispositivo): DispositivoResponse {
-        return DispositivoResponse(
-            id = dispositivo.id!!,
-            nome = dispositivo.nome,
-            timezone = dispositivo.timezone,
-            estado = dispositivo.estado,
-            online = dispositivo.online,
-            ultimoVisto = dispositivo.ultimoVisto,
-            versaoAgendamentos = dispositivo.versaoAgendamentos,
-            duracaoPreparoS = dispositivo.duracaoPreparoS,
-            limiarDescalcificacao = dispositivo.limiarDescalcificacao,
-            contadorPreparos = dispositivo.contadorPreparos,
-            papel = papel,
-            criadoEm = dispositivo.criadoEm,
-            atualizadoEm = dispositivo.atualizadoEm
-        )
     }
 }
