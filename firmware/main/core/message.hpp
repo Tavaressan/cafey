@@ -19,6 +19,9 @@ enum class MessageType : uint8_t {
     WifiConnected,
     WifiDisconnected,
     CommandReceived,
+    MqttConnected,
+    MqttDisconnected,
+    EstadoChanged, // arg: 1 = preparando, 0 = desligada (FW-21)
     // Agendador
     TimeSynced,
     ScheduleFired,

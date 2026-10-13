@@ -134,6 +134,7 @@ void WifiManager::handle_disconnected() {
     }
 
     state_ = WifiState::RECONNECTING;
+    if (on_disconnected_) on_disconnected_();
     schedule_reconnect();
 }
 
@@ -141,6 +142,7 @@ void WifiManager::handle_got_ip() {
     state_ = WifiState::CONNECTED;
     policy_.reset();
     ESP_LOGI(TAG, "Wi-Fi conectado, IP obtido");
+    if (on_connected_) on_connected_();
 }
 
 void WifiManager::schedule_reconnect() {

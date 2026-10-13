@@ -6,12 +6,17 @@
  * Sem memoria compartilhada — comunicacao so por eventos assincronos.
  *
  * Pinagem (conforme STATUS.md e esquematico KiCad):
- * - Rele (GPIO26): gatilho de nivel ALTO, R1 pull-down 10k externo
+ * - Rele (GPIO26): gatilho de nivel BAIXO (HL-52S, LOW = liga), R1 pull-up 10k externo
  * - Botao (GPIO27): pull-up externo R2 10k + C3 100nF, solto=1, pressionado=0
  * - LED RGB: catodo comum (R=21, G=22, B=23)
  */
 
+#include <string>
+
 #include "esp_log.h"
+#include "core/esp_mqtt_client.hpp"
+#include "core/mqtt_config_store.hpp"
+#include "core/mqtt_topics.hpp"
 #include "core/ntp_sync.hpp"
 #include "core/wifi_manager.hpp"
 #include "storage/schedule_store.hpp"
@@ -21,7 +26,10 @@
 #include "app/ble_event_proxy.hpp"
 #include "app/ble_service.hpp"
 #include "app/cafeteira.hpp"
+#include "app/coffee_command.hpp"
 #include "app/conectividade.hpp"
+#include "app/schedule_payload.hpp"
+#include "app/uplink_publisher.hpp"
 #include "core/esp_nimble_server.hpp"
 
 namespace {
@@ -34,7 +42,14 @@ cafey::app::Conectividade g_conectividade;
 cafey::app::Agendador g_agendador;
 
 extern "C" void app_main(void) {
+    using cafey::core::Message;
+    using cafey::core::MessageType;
+
     ESP_LOGI(TAG, "boot - Cafey IoT (Active Objects)");
+
+    // Fila da Conectividade antes de qualquer produtor (Wi-Fi, MQTT, Cafeteira):
+    // post() em fila inexistente descarta a mensagem.
+    g_conectividade.init();
 
     // Carrega agendamentos e fila de eventos persistidos em NVS (spec §5.4):
     // sobrevivem a reboot e queda de energia. Consumidos futuramente pelos
@@ -59,6 +74,12 @@ extern "C" void app_main(void) {
     // de provisionamento persistidas em NVS (UC-04). Sem credenciais gravadas,
     // fica aguardando o app/BLE provisionar via WifiManager::provision().
     static cafey::core::WifiManager wifi_manager;
+    wifi_manager.set_on_connected([] {
+        g_conectividade.post(Message{MessageType::WifiConnected, 0});
+    });
+    wifi_manager.set_on_disconnected([] {
+        g_conectividade.post(Message{MessageType::WifiDisconnected, 0});
+    });
     esp_err_t wifi_err = wifi_manager.init();
     if (wifi_err != ESP_OK) {
         ESP_LOGE(TAG, "Falha ao inicializar Wi-Fi: %d", wifi_err);
@@ -85,28 +106,99 @@ extern "C" void app_main(void) {
         g_agendador.post(cafey::core::Message{cafey::core::MessageType::TimeSynced, 0});
     });
 
+    // Handler de dominio do comando, compartilhado pelo downlink MQTT e pela
+    // caracteristica BLE (spec §6.4: sem regra de negocio no transporte).
+    static const auto handle_command = [](const cafey::app::CoffeeCommand& cmd) {
+        switch (cmd.action) {
+            case cafey::app::CoffeeAction::Ligar:
+                g_cafeteira.post(Message{MessageType::StartBrew,
+                                         static_cast<int32_t>(cmd.duracao_s)});
+                break;
+            case cafey::app::CoffeeAction::Desligar:
+            case cafey::app::CoffeeAction::Cancelar:
+                g_cafeteira.post(Message{MessageType::StopBrew, 0});
+                break;
+            case cafey::app::CoffeeAction::Unknown:
+                break;
+        }
+    };
+
+    // Lista retida de `agendamentos` vinda da nuvem: so aplica versao maior que
+    // a gravada (o AWS IoT Core reentrega o retido a cada reconexao).
+    static const auto apply_cloud_schedules = [](const std::string& payload) {
+        static cafey::storage::Schedule list[cafey::storage::ScheduleStore::kMaxSchedules];
+        size_t count = 0;
+        cafey::app::SchedulePayloadMeta meta{};
+        if (!cafey::app::parse_schedule_payload(
+                payload, list, cafey::storage::ScheduleStore::kMaxSchedules, &count, &meta)) {
+            return;
+        }
+        bool applied = false;
+        esp_err_t err = schedule_store.replace_all_if_newer(list, count, meta.version, &applied);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "falha ao gravar agendamentos: %d", err);
+            return;
+        }
+        if (!applied) {
+            ESP_LOGI(TAG, "agendamentos versao %u ignorados (gravada: %u)",
+                     static_cast<unsigned>(meta.version),
+                     static_cast<unsigned>(schedule_store.version()));
+            return;
+        }
+        g_agendador.set_schedules(list, count);
+        ESP_LOGI(TAG, "agendamentos versao %u aplicados: %u item(ns)",
+                 static_cast<unsigned>(meta.version), static_cast<unsigned>(count));
+        for (size_t i = 0; i < count; ++i) {
+            ESP_LOGI(TAG, "  %02u:%02u dias=0x%02x ativo=%d duracao=%us",
+                     list[i].hour, list[i].minute, list[i].days_of_week,
+                     list[i].active ? 1 : 0, static_cast<unsigned>(list[i].duration_s));
+        }
+    };
+
+    // MQTT/TLS ao AWS IoT Core (FW-21). Endpoint, client_id (= nome da thing) e
+    // certificados vem da NVS (namespace cafey_mqtt, #169); sem eles o
+    // dispositivo segue com BLE e preparo local.
+    static cafey::core::MqttConfigStore mqtt_config_store;
+    static cafey::core::MqttConfig mqtt_config;
+    static cafey::core::EspMqttClient mqtt_client;
+    if (mqtt_config_store.load(mqtt_config) == ESP_OK) {
+        static const cafey::core::MqttTopics topics(mqtt_config.client_id);
+        cafey::app::UplinkPublisher::make_last_will(topics, mqtt_config);
+
+        mqtt_client.set_on_connected([] {
+            g_conectividade.post(Message{MessageType::MqttConnected, 0});
+        });
+        mqtt_client.set_on_disconnected([] {
+            g_conectividade.post(Message{MessageType::MqttDisconnected, 0});
+        });
+        mqtt_client.set_on_message([](const std::string& topic, const std::string& payload) {
+            if (topic == topics.comando) {
+                handle_command(cafey::app::parse_coffee_command(payload));
+            } else if (topic == topics.agendamentos) {
+                apply_cloud_schedules(payload);
+            }
+        });
+        g_conectividade.attach_mqtt(&mqtt_client, &topics, [] {
+            return mqtt_client.start(mqtt_config) == ESP_OK;
+        });
+        ESP_LOGI(TAG, "MQTT configurado para %s", mqtt_config.client_id.c_str());
+    } else {
+        ESP_LOGW(TAG, "sem credenciais MQTT na NVS (cafey_mqtt): seguindo offline");
+    }
+
+    // Estado da cafeteira -> topico `estado` (a Conectividade publica quando
+    // houver conexao, e republica o corrente a cada CONNECT).
+    g_cafeteira.set_on_state_change([](bool brewing) {
+        g_conectividade.post(Message{MessageType::EstadoChanged, brewing ? 1 : 0});
+    });
+
     // Servico BLE (FW-17, spec §6.4): comando/estado/agendamentos delegam para
     // os mesmos handlers de dominio do caminho MQTT — sem regra de negocio na
     // camada BLE. E o proxy da fila de eventos pendentes (FW-18, spec §6.5).
     static cafey::core::EspNimbleServer ble_server(cafey::app::BleService::kServiceUuid);
     static cafey::app::BleService ble_service(
         ble_server,
-        [](const cafey::app::CoffeeCommand& cmd) {
-            using cafey::core::Message;
-            using cafey::core::MessageType;
-            switch (cmd.action) {
-                case cafey::app::CoffeeAction::Ligar:
-                    g_cafeteira.post(Message{MessageType::StartBrew,
-                                             static_cast<int32_t>(cmd.duracao_s)});
-                    break;
-                case cafey::app::CoffeeAction::Desligar:
-                case cafey::app::CoffeeAction::Cancelar:
-                    g_cafeteira.post(Message{MessageType::StopBrew, 0});
-                    break;
-                case cafey::app::CoffeeAction::Unknown:
-                    break;
-            }
-        },
+        [](const cafey::app::CoffeeCommand& cmd) { handle_command(cmd); },
         [](const cafey::storage::Schedule* list, size_t count,
            const cafey::app::SchedulePayloadMeta&) {
             // Mesmo caminho logico do downlink `agendamentos`: persiste e
@@ -123,8 +215,8 @@ extern "C" void app_main(void) {
         ESP_LOGE(TAG, "falha ao iniciar o servico BLE");
     }
 
-    g_cafeteira.start();
     g_conectividade.start();
+    g_cafeteira.start();
     g_agendador.start();
     ntp_sync.start();
 

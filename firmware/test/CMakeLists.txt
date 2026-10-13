@@ -43,6 +43,13 @@ add_executable(test_cafeteira
 )
 add_test(NAME CafeteiraActiveObjectTest COMMAND test_cafeteira)
 
+add_executable(test_conectividade
+    test_conectividade.cpp
+    ../main/core/active_object.cpp
+    ../main/app/conectividade.cpp
+)
+add_test(NAME ConectividadeTest COMMAND test_conectividade)
+
 add_executable(test_agendador
     test_agendador.cpp
     ../main/core/active_object.cpp

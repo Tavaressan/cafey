@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 
 #include "core/active_object.hpp"
 #include "drivers/relay.hpp" // tambem traz o header de GPIO (real ou mock)
@@ -45,6 +46,15 @@ public:
         return (brew_ticks_left_ + kTicksPerSecond - 1) / kTicksPerSecond;
     }
 
+    /**
+     * @brief Callback chamado a cada aplicacao de estado (rele + LED), inclusive
+     * no boot, com true = preparando. Usado para publicar `estado` (FW-21).
+     * Definir antes de start().
+     */
+    void set_on_state_change(std::function<void(bool)> on_change) {
+        on_state_change_ = std::move(on_change);
+    }
+
 protected:
     void on_start() override;
     void on_tick() override; // polling do botao com debounce
@@ -72,6 +82,7 @@ private:
     int btn_reading_ = 1;
     int btn_stable_ = 1;
     int btn_same_count_ = 0;
+    std::function<void(bool)> on_state_change_;
 };
 
 } // namespace cafey::app
