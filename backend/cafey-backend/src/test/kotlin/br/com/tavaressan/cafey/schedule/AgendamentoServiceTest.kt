@@ -6,6 +6,7 @@ import br.com.tavaressan.cafey.device.DispositivoRepository
 import br.com.tavaressan.cafey.device.PapelDispositivo
 import br.com.tavaressan.cafey.device.UsuarioDispositivo
 import br.com.tavaressan.cafey.device.UsuarioDispositivoRepository
+import br.com.tavaressan.cafey.mapper.AgendamentoMapper
 import br.com.tavaressan.cafey.mqtt.AgendamentosPayload
 import br.com.tavaressan.cafey.mqtt.DispositivoOnlineEvent
 import br.com.tavaressan.cafey.mqtt.MqttClientService
@@ -58,7 +59,7 @@ class AgendamentoServiceTest {
 
     @BeforeEach
     fun setUp() {
-        service = AgendamentoService(agendamentoRepository, dispositivoRepository, usuarioDispositivoRepository, eventPublisher)
+        service = AgendamentoService(agendamentoRepository, dispositivoRepository, usuarioDispositivoRepository, eventPublisher, AgendamentoMapper())
         syncListener = AgendamentosMqttSyncListener(dispositivoRepository, agendamentoRepository, mqttClientService)
 
         user = Usuario(id = usuarioId, nome = "User", email = "user@cafey.com", senhaHash = "hash")

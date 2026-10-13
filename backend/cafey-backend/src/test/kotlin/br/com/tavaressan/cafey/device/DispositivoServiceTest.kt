@@ -4,6 +4,7 @@ import br.com.tavaressan.cafey.exception.BadCredentialsException
 import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
 import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import br.com.tavaressan.cafey.exception.ServicoIndisponivelException
+import br.com.tavaressan.cafey.mapper.DispositivoMapper
 import br.com.tavaressan.cafey.mqtt.ComandoPayload
 import br.com.tavaressan.cafey.mqtt.MqttClientService
 import br.com.tavaressan.cafey.schedule.AgendamentosAlteradosEvent
@@ -59,7 +60,7 @@ class DispositivoServiceTest {
 
     @BeforeEach
     fun setUp() {
-        service = DispositivoService(dispositivoRepository, usuarioDispositivoRepository, usuarioRepository, mqttClientService, eventPublisher)
+        service = DispositivoService(dispositivoRepository, usuarioDispositivoRepository, usuarioRepository, mqttClientService, eventPublisher, DispositivoMapper())
 
         ownerUser = Usuario(id = ownerId, nome = "Owner", email = "owner@cafey.com", senhaHash = "hash")
         guestUser = Usuario(id = guestId, nome = "Guest", email = "guest@cafey.com", senhaHash = "hash")

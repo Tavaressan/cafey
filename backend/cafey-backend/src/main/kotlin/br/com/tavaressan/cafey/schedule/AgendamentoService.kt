@@ -5,12 +5,11 @@ import br.com.tavaressan.cafey.device.PapelDispositivo
 import br.com.tavaressan.cafey.device.UsuarioDispositivoRepository
 import br.com.tavaressan.cafey.exception.BadCredentialsException
 import br.com.tavaressan.cafey.exception.ResourceNotFoundException
+import br.com.tavaressan.cafey.mapper.AgendamentoMapper
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 import java.util.UUID
 
 data class AgendamentosAlteradosEvent(val dispositivoId: UUID)
@@ -20,14 +19,14 @@ class AgendamentoService(
     private val agendamentoRepository: AgendamentoRepository,
     private val dispositivoRepository: DispositivoRepository,
     private val usuarioDispositivoRepository: UsuarioDispositivoRepository,
-    private val eventPublisher: ApplicationEventPublisher
+    private val eventPublisher: ApplicationEventPublisher,
+    private val agendamentoMapper: AgendamentoMapper
 ) {
-    private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
     @Transactional(readOnly = true)
     fun listar(dispositivoId: UUID, usuarioId: UUID): List<AgendamentoResponse> {
         validaAcesso(dispositivoId, usuarioId)
-        return agendamentoRepository.findByDispositivoId(dispositivoId).map { toResponse(it) }
+        return agendamentoRepository.findByDispositivoId(dispositivoId).map { agendamentoMapper.toResponse(it) }
     }
 
     @Transactional
@@ -38,14 +37,7 @@ class AgendamentoService(
             ResourceNotFoundException("Dispositivo não encontrado")
         }
 
-        val agendamento = Agendamento(
-            dispositivo = dispositivo,
-            hora = LocalTime.parse(request.hora, timeFormatter),
-            diasSemana = request.diasSemana,
-            ativo = request.ativo,
-            duracaoPreparoS = request.duracaoPreparoS
-        )
-        val salvo = agendamentoRepository.save(agendamento)
+        val salvo = agendamentoRepository.save(agendamentoMapper.toEntity(request, dispositivo))
 
         // Incremento monotônico de versão
         dispositivo.versaoAgendamentos += 1
@@ -54,7 +46,7 @@ class AgendamentoService(
 
         eventPublisher.publishEvent(AgendamentosAlteradosEvent(dispositivoId))
 
-        return toResponse(salvo)
+        return agendamentoMapper.toResponse(salvo)
     }
 
     @Transactional
@@ -69,11 +61,7 @@ class AgendamentoService(
             throw ResourceNotFoundException("Agendamento não pertence a este dispositivo")
         }
 
-        request.hora?.let { agendamento.hora = LocalTime.parse(it, timeFormatter) }
-        request.diasSemana?.let { agendamento.diasSemana = it }
-        request.ativo?.let { agendamento.ativo = it }
-        request.duracaoPreparoS?.let { agendamento.duracaoPreparoS = it }
-        agendamento.atualizadoEm = Instant.now()
+        agendamentoMapper.atualizar(agendamento, request)
 
         val salvo = agendamentoRepository.save(agendamento)
 
@@ -84,7 +72,7 @@ class AgendamentoService(
 
         eventPublisher.publishEvent(AgendamentosAlteradosEvent(dispositivoId))
 
-        return toResponse(salvo)
+        return agendamentoMapper.toResponse(salvo)
     }
 
     @Transactional
@@ -112,22 +100,5 @@ class AgendamentoService(
     private fun validaAcesso(dispositivoId: UUID, usuarioId: UUID) {
         val vinculo = usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)
             ?: throw ResourceNotFoundException("Dispositivo não encontrado ou você não tem acesso")
-    }
-
-    private fun toResponse(agendamento: Agendamento): AgendamentoResponse {
-        return AgendamentoResponse(
-            id = agendamento.id!!,
-            // Seguro sem JOIN FETCH: o Hibernate resolve @Id a partir da FK já carregada na entidade
-            // dona (agendamento), sem precisar inicializar o proxy de "dispositivo". Isso vale para o
-            // proxy padrão baseado em subclasse; deixaria de valer sob bytecode enhancement, que
-            // intercepta o getter e forçaria a inicialização completa do proxy.
-            dispositivoId = agendamento.dispositivo.id!!,
-            hora = agendamento.hora.format(timeFormatter),
-            diasSemana = agendamento.diasSemana,
-            ativo = agendamento.ativo,
-            duracaoPreparoS = agendamento.duracaoPreparoS,
-            criadoEm = agendamento.criadoEm,
-            atualizadoEm = agendamento.atualizadoEm
-        )
     }
 }
