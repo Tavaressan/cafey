@@ -9,11 +9,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -30,14 +34,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.domain.model.AgendamentoResponse
 import br.com.tavaressan.cafey.shared.domain.model.DIAS_SEMANA_LABELS
+import br.com.tavaressan.cafey.shared.domain.model.DURACOES_PREPARO_S
 import br.com.tavaressan.cafey.shared.domain.model.diaAtivo
 import br.com.tavaressan.cafey.shared.ui.LocalNavShellSizeClass
 import br.com.tavaressan.cafey.shared.ui.NavShellSizeClass
@@ -48,9 +58,8 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
  * UC-10/11/12/13 — CRUD de agendamentos (APP-05). Espelha
  * `docs/docs_interface/prototype/schedule.html` (lista de cartões + formulário), simplificado por
  * escopo:
- * - O seletor "Desliga sozinha após" (4/6/8/10 min) do protótipo não tem campo correspondente em
- *   `CriarAgendamentoRequest`/`AtualizarAgendamentoRequest` (a duração de preparo é do dispositivo
- *   inteiro, não por agendamento) — omitido em vez de inventado.
+ * - O seletor "Desliga sozinha após" (4/6/8/10 min, `.seg`) grava `duracaoPreparoS` por agendamento
+ *   (issue #189); o cartão da lista ainda não exibe a duração ("desliga sozinha após 8 min").
  * - O seletor de hora é um campo de texto validado (HH:mm) em vez do "wheel" animado do protótipo.
  */
 @Composable
@@ -72,6 +81,7 @@ fun ScheduleScreen() {
                 saving = state.saving,
                 onHoraChange = viewModel::onHoraChange,
                 onDiaToggle = viewModel::onDiaToggle,
+                onDuracaoChange = viewModel::onDuracaoChange,
                 onSave = viewModel::submit,
                 onCancel = viewModel::cancelEdit,
             )
@@ -106,6 +116,7 @@ fun ScheduleScreen() {
                         saving = state.saving,
                         onHoraChange = viewModel::onHoraChange,
                         onDiaToggle = viewModel::onDiaToggle,
+                        onDuracaoChange = viewModel::onDuracaoChange,
                         onSave = viewModel::submit,
                         onCancel = viewModel::cancelEdit,
                     )
@@ -235,6 +246,7 @@ private fun ScheduleForm(
     saving: Boolean,
     onHoraChange: (String) -> Unit,
     onDiaToggle: (Int) -> Unit,
+    onDuracaoChange: (Int) -> Unit,
     onSave: () -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -280,6 +292,19 @@ private fun ScheduleForm(
             Text(it, color = CafeyTheme.colors.brandDeep, style = CafeyTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
         }
 
+        Text("Desliga sozinha após", style = CafeyTheme.typography.body, color = CafeyTheme.colors.ink2, modifier = Modifier.padding(top = 20.dp))
+        DurationSegmentedControl(
+            selected = form.duracaoPreparoS,
+            onSelect = onDuracaoChange,
+            modifier = Modifier.padding(top = 10.dp),
+        )
+        Text(
+            "Não há sensor de água na base, então é o temporizador que encerra o preparo.",
+            style = CafeyTheme.typography.bodySmall,
+            color = CafeyTheme.colors.dim,
+            modifier = Modifier.padding(top = 10.dp),
+        )
+
         Row(modifier = Modifier.fillMaxWidth().padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
                 onClick = onSave,
@@ -296,6 +321,45 @@ private fun ScheduleForm(
             }
             OutlinedButton(onClick = onCancel, shape = CafeyTheme.shapes.small) {
                 Text("Cancelar")
+            }
+        }
+    }
+}
+
+/**
+ * `.seg` de cafey.css — controle segmentado de seleção única "Desliga sozinha após" (4/6/8/10 min).
+ * Cada opção reporta os segundos que o backend aceita. [selected] `null` = nenhuma opção marcada
+ * (agendamento antigo, sem duração própria). `internal` para ser exercitado em `desktopTest`.
+ */
+@Composable
+internal fun DurationSegmentedControl(selected: Int?, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val optionShape = RoundedCornerShape(11.dp)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(CafeyTheme.colors.sunken, RoundedCornerShape(14.dp))
+            .padding(4.dp)
+            .selectableGroup(),
+    ) {
+        DURACOES_PREPARO_S.forEach { duracaoS ->
+            val on = duracaoS == selected
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(38.dp)
+                    .then(if (on) Modifier.shadow(2.dp, optionShape) else Modifier)
+                    .background(if (on) CafeyTheme.colors.surface else Color.Transparent, optionShape)
+                    .selectable(selected = on, role = Role.RadioButton, onClick = { onSelect(duracaoS) }),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "${duracaoS / 60} min",
+                    style = CafeyTheme.typography.bodySmall.copy(
+                        fontSize = 13.5.sp,
+                        fontWeight = if (on) FontWeight.SemiBold else FontWeight.Medium,
+                    ),
+                    color = if (on) CafeyTheme.colors.ink else CafeyTheme.colors.muted,
+                )
             }
         }
     }

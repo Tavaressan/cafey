@@ -3,6 +3,8 @@ package br.com.tavaressan.cafey.shared.domain.model
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** Round-trip de (de)serialização dos modelos de domínio contra o shape real do backend. */
 class SerializationTest {
@@ -56,6 +58,44 @@ class SerializationTest {
         assertEquals("Base da cozinha", decoded.nome)
         assertEquals(PapelDispositivo.PROPRIETARIO, decoded.papel)
         assertEquals(DeviceState.Idle, DeviceState.from(decoded.estado))
+    }
+
+    // Issue #189 — o JSON do app e o do backend não falham alto se o nome do campo divergir
+    // (`ignoreUnknownKeys` aqui, Jackson ignora chaves desconhecidas lá): o campo só some.
+    @Test
+    fun criarAgendamentoRequest_encodesDuracaoPreparoSKey() {
+        val request = CriarAgendamentoRequest(hora = "07:30", diasSemana = 62, duracaoPreparoS = 480)
+        val encoded = json.encodeToString(CriarAgendamentoRequest.serializer(), request)
+        assertTrue(""""duracaoPreparoS":480""" in encoded, encoded)
+    }
+
+    @Test
+    fun atualizarAgendamentoRequest_encodesDuracaoPreparoSKey() {
+        val request = AtualizarAgendamentoRequest(duracaoPreparoS = 360)
+        val encoded = json.encodeToString(AtualizarAgendamentoRequest.serializer(), request)
+        assertTrue(""""duracaoPreparoS":360""" in encoded, encoded)
+    }
+
+    @Test
+    fun agendamentoResponse_decodesBackendShape() {
+        // Shape real de br.com.tavaressan.cafey.schedule.AgendamentoResponse (ScheduleDto.kt).
+        val comDuracao = """
+            {
+              "id":"22222222-2222-2222-2222-222222222222",
+              "dispositivoId":"11111111-1111-1111-1111-111111111111",
+              "hora":"07:00",
+              "diasSemana":62,
+              "ativo":true,
+              "duracaoPreparoS":480,
+              "criadoEm":"2026-09-09T10:00:00Z",
+              "atualizadoEm":"2026-09-09T10:00:00Z"
+            }
+        """.trimIndent()
+        assertEquals(480, json.decodeFromString(AgendamentoResponse.serializer(), comDuracao).duracaoPreparoS)
+
+        // Agendamento antigo (V4) sem duração: o backend devolve null explícito.
+        val semDuracao = comDuracao.replace(""""duracaoPreparoS":480""", """"duracaoPreparoS":null""")
+        assertNull(json.decodeFromString(AgendamentoResponse.serializer(), semDuracao).duracaoPreparoS)
     }
 
     @Test

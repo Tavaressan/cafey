@@ -26,6 +26,10 @@ class Agendamento(
     @Column(nullable = false)
     var ativo: Boolean = true,
 
+    // null = usa Dispositivo.duracaoPreparoS no disparo
+    @Column(name = "duracao_preparo_s")
+    var duracaoPreparoS: Int? = null,
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     var criadoEm: Instant = Instant.now(),
 

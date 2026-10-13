@@ -17,7 +17,7 @@ import org.testcontainers.junit.jupiter.Testcontainers
 import java.util.UUID
 
 /**
- * Suíte de integração que roda as migrações Flyway reais (V1..V6) contra um
+ * Suíte de integração que roda as migrações Flyway reais (V1..V7) contra um
  * PostgreSQL real via Testcontainers, validando recursos específicos do
  * banco (citext, tipos de data, índices únicos) que o H2 usado nos testes
  * unitários não reproduz fielmente.
@@ -41,13 +41,13 @@ class PostgresIntegrationTest {
     private lateinit var jdbcTemplate: JdbcTemplate
 
     @Test
-    fun `flyway aplica as migracoes V1 a V6 no schema_version`() {
+    fun `flyway aplica as migracoes V1 a V7 no schema_version`() {
         val versions = jdbcTemplate.queryForList(
             "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank",
             String::class.java,
         )
 
-        assertEquals(listOf("1", "2", "3", "4", "5", "6"), versions)
+        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7"), versions)
     }
 
     @Test

@@ -280,13 +280,27 @@ penetração na peça impressa, **8,1 mm** de folga sob o tampo (a banda de
 nervura); e `check_peca1_3d.py` valida que nenhuma nervura/coluna colide com
 os volumes internos (folga mínima 2,1 mm ≥ `folga_comp_reforco`).
 
+**Modelos visuais.** Para 11 dos 13 componentes, `build_arranjo_3d.py` coloca
+um modelo STEP/IGES de `models/` (tabela `MODELS`) sobre o volume de referência
+e oculta a caixa. O modelo é só representação: a validação continua sobre as
+caixas, e o build imprime quanto cada modelo passa do seu volume. Origem,
+licença e divergências modelo × peça real estão em
+[`models/FONTES.md`](models/FONTES.md). O `models/esp32-devkit-v1.step` é
+montado por `make_esp32_devkit_v1.py` a partir da biblioteca 3D do KiCad. O `freecadcmd` não lê as cores dos
+modelos; para gerar o FCStd e o STEP coloridos, rode o mesmo script pela GUI
+do FreeCAD sem janela:
+
+```
+QT_QPA_PLATFORM=offscreen FreeCAD mechanical/scripts/build_arranjo_3d.py
+```
+
 ### Entregáveis (`build/`, fora do versionamento)
 
 | Arquivo | Conteúdo |
 |---|---|
 | `peca1_3d.FCStd` / `.step` / `.stl` | Peça 1 impressa (sólido único) |
 | `peca2_3d.FCStd` / `.step` / `.stl` | Peça 2, fundo plano impresso |
-| `arranjo_3d.FCStd` / `.step` | Peça 1 + Peça 2 + divisória + 13 volumes de referência |
+| `arranjo_3d.FCStd` / `.step` | Peça 1 + Peça 2 + divisória + 13 volumes de referência (11 ocultos sob modelos visuais; o STEP leva só os visíveis, sem as peças) |
 
 ### Estado / limitações
 

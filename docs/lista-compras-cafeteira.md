@@ -66,6 +66,8 @@ conector de alavanca. Continuidade cabo→tomada é o item crítico de seguranç
 | M4 | Barra de pinos fêmea | 2 | `barra de pinos femea 1x40 2,54mm` | Passo 2,54 mm, cortável | Passo 2,00 mm; barra empilhável alta |
 | M5 | Barra de pinos macho | 1 | `barra de pinos macho 1x40 2,54mm` | Passo 2,54 mm | Passo 2,00 mm |
 | M6 | Fio rígido para montagem | 1 kit | `fio rigido 22AWG kit cores jumper solda` | 22 AWG, rígido, ≥3 cores | Fio flexível fino sem estanhar |
+| M7 | Conectores JST-XH (rabichos do LED e do botão) | 4 vias: 2 conjuntos; 2 vias: 2 conjuntos (1 + reserva cada) | `conector JST XH 4 vias cabo pre crimpado header 180 graus` / `... 2 vias ...` | Passo 2,5 mm; header macho PTH vertical (180°) + cabo pré-crimpado ≥ 10 cm (4 vias) e ≥ 15 cm (2 vias) | JST-PH (passo 2,0 mm); JST-SM; header SMD |
+| M8 | Cabo extensor micro-USB de painel `MEDIR` | 1 | `cabo extensor micro usb painel macho femea com parafuso` | Micro-B macho → micro-B fêmea com flange de fixação por parafuso; 20–30 cm; dados (não só carga) | Só carga; USB-C; sem flange de painel |
 
 ## Verificar em estoque antes de comprar (Alfabra)
 
@@ -87,8 +89,12 @@ Comprar somente o que não existir:
 - ESP32 DEVKIT V1 — kit LAFVIN + 1 sobressalente
 - Módulo de relé **2 canais** 10 A — kit LAFVIN + 1 sobressalente (usa 1 canal;
   é **active-low** / gatilho de nível BAIXO — HL-52S)
-- LED RGB 5 mm, pushbutton de protoboard, resistores 220 Ω e 10 kΩ, protoboard
+- LED RGB 5 mm, pushbutton de protoboard, resistores 220 Ω, protoboard
   MB-102, jumpers, cabo USB — kit LAFVIN
+- Resistores 10 kΩ (R1, R2) — em estoque, fora do kit LAFVIN, que só traz
+  220 Ω (confirmado em 08/10/2026; ver `docs_materiais/esp32_kit.md`, A1)
+- Capacitores C1 470 µF / 16 V eletrolítico, C2 e C3 100 nF — Alfabra
+  (confirmado em 08/10/2026)
 - Filamento PETG e ASA — Alfabra
 - Estanho para solda — Alfabra
 - Alicate de crimpar terminal tubular — Alfabra
