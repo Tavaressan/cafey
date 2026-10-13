@@ -106,6 +106,71 @@ class RateLimitingFilterTest {
     }
 
     @Test
+    fun `signin e limitado com os mesmos limites do login`() {
+        val filter = RateLimitingFilter(properties, objectMapper)
+        repeat(3) { performRequest(filter, "/auth/signin") }
+
+        val (response, chain) = performRequest(filter, "/auth/signin")
+
+        assertNull(chain.request)
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), response.status)
+    }
+
+    @Test
+    fun `login e signin dividem o balde com os limites padrao e a 6a tentativa recebe 429`() {
+        val filter = RateLimitingFilter(RateLimitProperties(), objectMapper)
+        val rotas = listOf("/auth/login", "/auth/signin")
+
+        repeat(5) { index ->
+            val (response, chain) = performRequest(filter, rotas[index % 2])
+            assertNotNull(chain.request)
+            assertEquals(HttpStatus.OK.value(), response.status)
+        }
+        val (response, chain) = performRequest(filter, rotas[5 % 2])
+
+        assertNull(chain.request)
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), response.status)
+    }
+
+    @Test
+    fun `signup e registrar dividem o balde com os limites padrao e a 11a tentativa recebe 429`() {
+        val filter = RateLimitingFilter(RateLimitProperties(), objectMapper)
+        val rotas = listOf("/auth/registrar", "/auth/signup")
+
+        repeat(10) { index ->
+            val (response, chain) = performRequest(filter, rotas[index % 2])
+            assertNotNull(chain.request)
+            assertEquals(HttpStatus.OK.value(), response.status)
+        }
+        val (response, chain) = performRequest(filter, rotas[10 % 2])
+
+        assertNull(chain.request)
+        assertEquals(HttpStatus.TOO_MANY_REQUESTS.value(), response.status)
+    }
+
+    @Test
+    fun `signin e signup nao dividem balde entre si`() {
+        val filter = RateLimitingFilter(properties, objectMapper)
+        repeat(3) { performRequest(filter, "/auth/signin") }
+
+        val (response, chain) = performRequest(filter, "/auth/signup")
+
+        assertNotNull(chain.request)
+        assertEquals(HttpStatus.OK.value(), response.status)
+    }
+
+    @Test
+    fun `esgotar o balde do signin de um IP nao limita outro IP`() {
+        val filter = RateLimitingFilter(properties, objectMapper)
+        repeat(3) { performRequest(filter, "/auth/signin", ip = "10.0.0.1") }
+
+        val (response, chain) = performRequest(filter, "/auth/login", ip = "10.0.0.2")
+
+        assertNotNull(chain.request)
+        assertEquals(HttpStatus.OK.value(), response.status)
+    }
+
+    @Test
     fun `deve ignorar rate limit quando desabilitado`() {
         properties.enabled = false
         val filter = RateLimitingFilter(properties, objectMapper)

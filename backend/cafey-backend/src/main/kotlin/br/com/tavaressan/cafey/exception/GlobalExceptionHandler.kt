@@ -2,6 +2,8 @@ package br.com.tavaressan.cafey.exception
 
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
+import org.springframework.security.authentication.AuthenticationServiceException
+import org.springframework.security.core.AuthenticationException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -26,6 +28,30 @@ class GlobalExceptionHandler {
         problemDetail.type = URI.create("about:blank")
         return problemDetail
     }
+
+    /**
+     * Falha de autenticação do Spring Security (o signin passa pelo `AuthenticationManager`). A
+     * mensagem é genérica e fixa: não repete a da exceção, para nunca revelar se o e-mail existe.
+     * Atenção ao nome: a [BadCredentialsException] própria do projeto (mesmo pacote) é outra
+     * classe, tratada acima, e não passa por aqui.
+     */
+    @ExceptionHandler(AuthenticationException::class)
+    fun handleAuthentication(ex: AuthenticationException, request: WebRequest): ProblemDetail {
+        val problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Email ou senha inválidos")
+        problemDetail.title = "Unauthorized"
+        problemDetail.type = URI.create("about:blank")
+        return problemDetail
+    }
+
+    /**
+     * Erro de infraestrutura durante a autenticação (por exemplo, banco fora do ar ao carregar o
+     * usuário; o `DaoAuthenticationProvider` o embrulha em `InternalAuthenticationServiceException`,
+     * subclasse desta). É erro do servidor, nunca "senha errada". Por ser mais específico que
+     * [AuthenticationException], este handler tem precedência sobre o de 401.
+     */
+    @ExceptionHandler(AuthenticationServiceException::class)
+    fun handleAuthenticationService(ex: AuthenticationServiceException, request: WebRequest): ProblemDetail =
+        handleAllExceptions(ex, request)
 
     @ExceptionHandler(RequisicaoInvalidaException::class)
     fun handleRequisicaoInvalida(ex: RequisicaoInvalidaException, request: WebRequest): ProblemDetail {

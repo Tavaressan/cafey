@@ -22,7 +22,13 @@ class RateLimitConfig {
         objectMapper: ObjectMapper
     ): FilterRegistrationBean<RateLimitingFilter> {
         val registration = FilterRegistrationBean(RateLimitingFilter(properties, objectMapper))
-        registration.setUrlPatterns(listOf("/auth/login", "/auth/registrar", "/auth/recuperar-senha"))
+        registration.setUrlPatterns(
+            listOf(
+                "/auth/signin", "/auth/login",
+                "/auth/signup", "/auth/registrar",
+                "/auth/recuperar-senha"
+            )
+        )
         registration.order = Ordered.HIGHEST_PRECEDENCE
         return registration
     }

@@ -36,6 +36,18 @@ class OpenApiDocsTest(@Autowired private val mockMvc: MockMvc) {
     }
 
     @Test
+    fun `signin e signup sao publicos e documentados como nomes oficiais`() {
+        mockMvc.perform(get("/v3/api-docs"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.paths['/auth/signin'].post.security", org.hamcrest.Matchers.empty<Any>()))
+            .andExpect(jsonPath("$.paths['/auth/signup'].post.security", org.hamcrest.Matchers.empty<Any>()))
+            .andExpect(jsonPath("$.paths['/auth/signin'].post.description", org.hamcrest.Matchers.containsString("/auth/signin")))
+            .andExpect(jsonPath("$.paths['/auth/signin'].post.description", org.hamcrest.Matchers.containsString("alias")))
+            .andExpect(jsonPath("$.paths['/auth/signup'].post.description", org.hamcrest.Matchers.containsString("/auth/signup")))
+            .andExpect(jsonPath("$.paths['/auth/signup'].post.description", org.hamcrest.Matchers.containsString("alias")))
+    }
+
+    @Test
     fun `GET de agendamento por id deve aparecer no schema com 404 em problem details`() {
         val operacao = "$.paths['/dispositivos/{dispositivoId}/agendamentos/{agendamentoId}'].get"
         mockMvc.perform(get("/v3/api-docs"))
