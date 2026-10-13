@@ -11,13 +11,13 @@ class Dispositivo(
     @GeneratedValue(strategy = GenerationType.UUID)
     var id: UUID? = null,
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     var nome: String,
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     var timezone: String = "America/Sao_Paulo",
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     var estado: String = "DESLIGADO",
 
     @Column(nullable = false)
