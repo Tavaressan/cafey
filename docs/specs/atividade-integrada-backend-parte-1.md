@@ -491,7 +491,7 @@ Sem autenticação válida, uma rota protegida responde sempre 401 (nunca 403), 
 **Acceptance Criteria:**
 
 - [ ] Rota protegida, cabeçalho `Authorization` ausente: 401.
-- [ ] Rota protegida, esquema diferente de Bearer (ex.: `Authorization: Basic dXNlcjpzZW5oYQ==`): 401.
+- [ ] Rota protegida, esquema diferente de Bearer (ex.: `Authorization: Basic <usuario:senha em base64>`, montado em tempo de execução no teste): 401.
 - [ ] Rota protegida, `Authorization: Bearer ` com token vazio: 401.
 - [ ] Rota protegida, Bearer malformado (ex.: `Bearer abc`): 401.
 - [ ] Rota protegida, Bearer com assinatura inválida (adulterado, ou assinado por outra chave): 401.
