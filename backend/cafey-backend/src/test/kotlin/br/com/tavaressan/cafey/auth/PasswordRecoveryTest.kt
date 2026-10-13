@@ -19,6 +19,7 @@ import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.mail.MailSendException
+import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.crypto.password.PasswordEncoder
 import java.time.Instant
 import java.time.temporal.ChronoUnit
@@ -40,6 +41,9 @@ class PasswordRecoveryTest {
     private lateinit var passwordEncoder: PasswordEncoder
 
     @Mock
+    private lateinit var authenticationManager: AuthenticationManager
+
+    @Mock
     private lateinit var jwtTokenService: JwtTokenService
 
     private lateinit var emailSenderService: FakeEmailSenderService
@@ -57,6 +61,7 @@ class PasswordRecoveryTest {
             refreshTokenRepository,
             passwordResetTokenRepository,
             passwordEncoder,
+            authenticationManager,
             jwtTokenService,
             emailSenderService
         )
@@ -97,6 +102,7 @@ class PasswordRecoveryTest {
             refreshTokenRepository,
             passwordResetTokenRepository,
             passwordEncoder,
+            authenticationManager,
             jwtTokenService,
             failingSender
         )
