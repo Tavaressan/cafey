@@ -182,6 +182,9 @@ OPEN_QUESTION
 'Iniciar enxágue' e 'Já fiz isso' não têm confirmação visual (sucesso, ou erro se a base não responder) definida.
 Impact: O usuário pode não saber se a ação realmente foi registrada pela base.
 
+OPEN_QUESTION
+Comportamento quando dois ou mais cuidados estão igualmente urgentes (ex.: enxágue e filtro no mesmo momento) não está definido — só um cartão de destaque existe na tela.
+Impact: Pode ser preciso decidir um critério de priorização (ordem, múltiplos destaques) antes de implementar.
 CONFIRMED (2026-10-02, issue #190)
 O cuidado com a maior fração contador/limiar é o destaque; limiares: enxágue 40 preparos, filtro 300.
 Source: comentário do dono do projeto na issue #190 (2026-10-02).
