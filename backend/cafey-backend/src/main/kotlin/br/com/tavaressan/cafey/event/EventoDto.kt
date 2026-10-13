@@ -1,7 +1,10 @@
 package br.com.tavaressan.cafey.event
 
+import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Size
 import java.time.Instant
 import java.util.UUID
 
@@ -68,5 +71,10 @@ data class CuidadosResponse(
 )
 
 data class ProxyBleEventosRequest(
+    // A fila offline do firmware comporta 32 eventos (EventQueueStore::kCapacity) e o app a envia de
+    // uma vez; 100 dá folga para um aumento futuro. @Valid cascateia as regras de cada elemento.
+    @field:Valid
+    @field:NotEmpty(message = "Lote de eventos não pode ser vazio")
+    @field:Size(max = 100, message = "Lote de eventos deve ter no máximo 100 eventos")
     val eventos: List<IngestaoEventoRequest>
 )
