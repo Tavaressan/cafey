@@ -25,7 +25,9 @@ data class AgendamentoItemPayload(
     val id: String,
     val hora: String,
     val diasSemana: Int,
-    val ativo: Boolean
+    val ativo: Boolean,
+    // Já resolvido: duração do agendamento ou, na falta, a do dispositivo.
+    val duracaoS: Int
 )
 
 data class AgendamentosPayload(

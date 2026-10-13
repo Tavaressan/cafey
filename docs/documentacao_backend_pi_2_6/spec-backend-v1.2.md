@@ -184,6 +184,7 @@ default no meio da faixa de 60 a 90 ciclos citada no §7.3.
 | hora | time | Interpretada no `timezone` do dispositivo |
 | dias_semana | smallint | **Mudou.** Bitmask; bit 0 = domingo … bit 6 = sábado |
 | ativo | boolean | |
+| duracao_preparo_s | integer | **Novo (V7).** Nullable; `null` = usa `dispositivos.duracao_preparo_s`. Aceita 240/360/480/600 (4/6/8/10 min), validado no request |
 | criado_por | uuid | FK usuarios |
 
 Bitmask em vez de conjunto porque JPA não mapeia tipo conjunto do Postgres sem
@@ -431,10 +432,16 @@ compartilhado, versionado junto de ambos os lados (§9 da spec, manutenibilidade
   "timezone": "America/Sao_Paulo",
   "duracaoS": 300,
   "agendamentos": [
-    { "id": "uuid", "hora": "07:00", "diasSemana": 62, "ativo": true }
+    { "id": "uuid", "hora": "07:00", "diasSemana": 62, "ativo": true, "duracaoS": 480 }
   ]
 }
 ```
+
+`duracaoS` por item é a duração do agendamento (`agendamentos.duracao_preparo_s`) ou,
+quando nula, a do dispositivo — o backend já resolve o fallback. O `duracaoS` do
+topo permanece como a duração padrão do dispositivo. Os dois precisam serializar
+nessa ordem (topo antes de `agendamentos`): o `mini_json` do firmware devolve a
+primeira ocorrência da chave.
 
 `versao` é monotônico. O firmware ignora mensagem com versão menor ou igual à
 que já tem gravada em NVS — protege contra retain antigo entregue na reconexão.
