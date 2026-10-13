@@ -36,6 +36,15 @@ class OpenApiDocsTest(@Autowired private val mockMvc: MockMvc) {
     }
 
     @Test
+    fun `GET de agendamento por id deve aparecer no schema com 404 em problem details`() {
+        val operacao = "$.paths['/dispositivos/{dispositivoId}/agendamentos/{agendamentoId}'].get"
+        mockMvc.perform(get("/v3/api-docs"))
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$operacao.summary").value("Obtém um agendamento pelo ID"))
+            .andExpect(jsonPath("$operacao.responses['404']").exists())
+    }
+
+    @Test
     fun `schema deve declarar bearerAuth como requisito de seguranca global`() {
         mockMvc.perform(get("/v3/api-docs"))
             .andExpect(status().isOk)
