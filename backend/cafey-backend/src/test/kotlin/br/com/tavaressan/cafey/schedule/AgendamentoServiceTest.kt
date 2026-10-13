@@ -6,6 +6,7 @@ import br.com.tavaressan.cafey.device.DispositivoRepository
 import br.com.tavaressan.cafey.device.PapelDispositivo
 import br.com.tavaressan.cafey.device.UsuarioDispositivo
 import br.com.tavaressan.cafey.device.UsuarioDispositivoRepository
+import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import br.com.tavaressan.cafey.mapper.AgendamentoMapper
 import br.com.tavaressan.cafey.mqtt.AgendamentosPayload
 import br.com.tavaressan.cafey.mqtt.DispositivoOnlineEvent
@@ -14,6 +15,7 @@ import br.com.tavaressan.cafey.user.Usuario
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
@@ -140,6 +142,95 @@ class AgendamentoServiceTest {
         val res = service.atualizar(dispositivoId, agendamentoId, AtualizarAgendamentoRequest(ativo = false), usuarioId)
 
         assertEquals(360, res.duracaoPreparoS)
+    }
+
+    @Test
+    fun `should get agendamento by id`() {
+        agendamento.duracaoPreparoS = 480
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(link)
+        `when`(agendamentoRepository.findById(agendamentoId)).thenReturn(Optional.of(agendamento))
+
+        val res = service.obterPorId(dispositivoId, agendamentoId, usuarioId)
+
+        assertEquals(agendamentoId, res.id)
+        assertEquals(dispositivoId, res.dispositivoId)
+        assertEquals("07:00", res.hora)
+        assertEquals(62.toShort(), res.diasSemana)
+        assertTrue(res.ativo)
+        assertEquals(480, res.duracaoPreparoS)
+    }
+
+    @Test
+    fun `should reject get by id when agendamento does not exist`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(link)
+        `when`(agendamentoRepository.findById(agendamentoId)).thenReturn(Optional.empty())
+
+        val ex = assertThrows<ResourceNotFoundException> {
+            service.obterPorId(dispositivoId, agendamentoId, usuarioId)
+        }
+
+        assertEquals("Agendamento não encontrado", ex.message)
+    }
+
+    @Test
+    fun `should reject get by id when agendamento belongs to another dispositivo`() {
+        val outroDispositivo = Dispositivo(id = UUID.randomUUID(), nome = "Outra cafeteira")
+        agendamento.dispositivo = outroDispositivo
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(link)
+        `when`(agendamentoRepository.findById(agendamentoId)).thenReturn(Optional.of(agendamento))
+
+        val ex = assertThrows<ResourceNotFoundException> {
+            service.obterPorId(dispositivoId, agendamentoId, usuarioId)
+        }
+
+        assertEquals("Agendamento não pertence a este dispositivo", ex.message)
+    }
+
+    @Test
+    fun `should reject get by id when user has no link with dispositivo`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(null)
+
+        val ex = assertThrows<ResourceNotFoundException> {
+            service.obterPorId(dispositivoId, agendamentoId, usuarioId)
+        }
+
+        assertEquals("Dispositivo não encontrado ou você não tem acesso", ex.message)
+        verifyNoInteractions(agendamentoRepository)
+    }
+
+    @Test
+    fun `should reject update and delete when agendamento does not exist`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(link)
+        `when`(agendamentoRepository.findById(agendamentoId)).thenReturn(Optional.empty())
+
+        val aoAtualizar = assertThrows<ResourceNotFoundException> {
+            service.atualizar(dispositivoId, agendamentoId, AtualizarAgendamentoRequest(ativo = false), usuarioId)
+        }
+        val aoExcluir = assertThrows<ResourceNotFoundException> {
+            service.excluir(dispositivoId, agendamentoId, usuarioId)
+        }
+
+        assertEquals("Agendamento não encontrado", aoAtualizar.message)
+        assertEquals("Agendamento não encontrado", aoExcluir.message)
+    }
+
+    @Test
+    fun `should reject update and delete when agendamento belongs to another dispositivo`() {
+        agendamento.dispositivo = Dispositivo(id = UUID.randomUUID(), nome = "Outra cafeteira")
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(link)
+        `when`(agendamentoRepository.findById(agendamentoId)).thenReturn(Optional.of(agendamento))
+
+        val aoAtualizar = assertThrows<ResourceNotFoundException> {
+            service.atualizar(dispositivoId, agendamentoId, AtualizarAgendamentoRequest(ativo = false), usuarioId)
+        }
+        val aoExcluir = assertThrows<ResourceNotFoundException> {
+            service.excluir(dispositivoId, agendamentoId, usuarioId)
+        }
+
+        assertEquals("Agendamento não pertence a este dispositivo", aoAtualizar.message)
+        assertEquals("Agendamento não pertence a este dispositivo", aoExcluir.message)
+        verify(agendamentoRepository, never()).save(any(Agendamento::class.java))
+        verify(agendamentoRepository, never()).delete(any(Agendamento::class.java))
     }
 
     @Test

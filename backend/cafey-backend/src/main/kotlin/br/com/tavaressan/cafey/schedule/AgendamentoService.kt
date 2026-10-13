@@ -29,6 +29,12 @@ class AgendamentoService(
         return agendamentoRepository.findByDispositivoId(dispositivoId).map { agendamentoMapper.toResponse(it) }
     }
 
+    @Transactional(readOnly = true)
+    fun obterPorId(dispositivoId: UUID, agendamentoId: UUID, usuarioId: UUID): AgendamentoResponse {
+        validaAcesso(dispositivoId, usuarioId)
+        return agendamentoMapper.toResponse(buscarDoDispositivo(dispositivoId, agendamentoId))
+    }
+
     @Transactional
     fun criar(dispositivoId: UUID, request: CriarAgendamentoRequest, usuarioId: UUID): AgendamentoResponse {
         validaAcesso(dispositivoId, usuarioId)
@@ -53,13 +59,7 @@ class AgendamentoService(
     fun atualizar(dispositivoId: UUID, agendamentoId: UUID, request: AtualizarAgendamentoRequest, usuarioId: UUID): AgendamentoResponse {
         validaAcesso(dispositivoId, usuarioId)
 
-        val agendamento = agendamentoRepository.findById(agendamentoId).orElseThrow {
-            ResourceNotFoundException("Agendamento não encontrado")
-        }
-
-        if (agendamento.dispositivo.id != dispositivoId) {
-            throw ResourceNotFoundException("Agendamento não pertence a este dispositivo")
-        }
+        val agendamento = buscarDoDispositivo(dispositivoId, agendamentoId)
 
         agendamentoMapper.atualizar(agendamento, request)
 
@@ -79,13 +79,7 @@ class AgendamentoService(
     fun excluir(dispositivoId: UUID, agendamentoId: UUID, usuarioId: UUID) {
         validaAcesso(dispositivoId, usuarioId)
 
-        val agendamento = agendamentoRepository.findById(agendamentoId).orElseThrow {
-            ResourceNotFoundException("Agendamento não encontrado")
-        }
-
-        if (agendamento.dispositivo.id != dispositivoId) {
-            throw ResourceNotFoundException("Agendamento não pertence a este dispositivo")
-        }
+        val agendamento = buscarDoDispositivo(dispositivoId, agendamentoId)
 
         val disp = agendamento.dispositivo
         agendamentoRepository.delete(agendamento)
@@ -95,6 +89,17 @@ class AgendamentoService(
         dispositivoRepository.save(disp)
 
         eventPublisher.publishEvent(AgendamentosAlteradosEvent(dispositivoId))
+    }
+
+    private fun buscarDoDispositivo(dispositivoId: UUID, agendamentoId: UUID): Agendamento {
+        val agendamento = agendamentoRepository.findById(agendamentoId).orElseThrow {
+            ResourceNotFoundException("Agendamento não encontrado")
+        }
+
+        if (agendamento.dispositivo.id != dispositivoId) {
+            throw ResourceNotFoundException("Agendamento não pertence a este dispositivo")
+        }
+        return agendamento
     }
 
     private fun validaAcesso(dispositivoId: UUID, usuarioId: UUID) {
