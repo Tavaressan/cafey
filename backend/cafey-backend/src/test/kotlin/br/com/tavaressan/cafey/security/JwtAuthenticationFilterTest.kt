@@ -148,7 +148,7 @@ class JwtAuthenticationFilterTest {
     @Test
     fun `token invalido limpa um contexto de seguranca que ja existia`() {
         val contexto = SecurityContextHolder.createEmptyContext()
-        contexto.authentication = UsernamePasswordAuthenticationToken.authenticated("alguem", "x", emptyList())
+        contexto.authentication = UsernamePasswordAuthenticationToken.authenticated("alguem", null, emptyList())
         SecurityContextHolder.setContext(contexto)
 
         val passagem = executar("Bearer abc")
