@@ -7,7 +7,9 @@ import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import br.com.tavaressan.cafey.exception.ServicoIndisponivelException
 import br.com.tavaressan.cafey.mqtt.ComandoPayload
 import br.com.tavaressan.cafey.mqtt.MqttClientService
+import br.com.tavaressan.cafey.schedule.AgendamentosAlteradosEvent
 import br.com.tavaressan.cafey.user.UsuarioRepository
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -18,7 +20,8 @@ class DispositivoService(
     private val dispositivoRepository: DispositivoRepository,
     private val usuarioDispositivoRepository: UsuarioDispositivoRepository,
     private val usuarioRepository: UsuarioRepository,
-    private val mqttClientService: MqttClientService
+    private val mqttClientService: MqttClientService,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
 
     @Transactional(readOnly = true)
@@ -97,13 +100,30 @@ class DispositivoService(
         }
 
         val disp = vinculo.dispositivo
+        // Timezone e duração vão no payload retido de agendamentos (spec §6.2). Mudar qualquer um exige
+        // nova versão: a republicação com a mesma versão é descartada pelo firmware (regra `<=`, §5.3).
+        var payloadAgendamentosAlterado = false
         request.nome?.let { disp.nome = it.trim() }
-        request.timezone?.let { disp.timezone = it.trim() }
-        request.duracaoPreparoS?.let { disp.duracaoPreparoS = it }
+        request.timezone?.trim()?.let {
+            if (disp.timezone != it) {
+                disp.timezone = it
+                payloadAgendamentosAlterado = true
+            }
+        }
+        request.duracaoPreparoS?.let {
+            if (disp.duracaoPreparoS != it) {
+                disp.duracaoPreparoS = it
+                payloadAgendamentosAlterado = true
+            }
+        }
         request.limiarDescalcificacao?.let { disp.limiarDescalcificacao = it }
+        if (payloadAgendamentosAlterado) disp.versaoAgendamentos += 1
         disp.atualizadoEm = Instant.now()
 
         val atualizado = dispositivoRepository.save(disp)
+        if (payloadAgendamentosAlterado) {
+            eventPublisher.publishEvent(AgendamentosAlteradosEvent(dispositivoId))
+        }
         return toResponse(atualizado, vinculo.papel)
     }
 
