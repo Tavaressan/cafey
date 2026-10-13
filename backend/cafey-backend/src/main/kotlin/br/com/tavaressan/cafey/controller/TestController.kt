@@ -5,6 +5,7 @@ import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import io.swagger.v3.oas.annotations.Hidden
 import jakarta.validation.Valid
 import jakarta.validation.constraints.NotBlank
+import org.springframework.context.annotation.Profile
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
@@ -13,8 +14,11 @@ import org.springframework.web.bind.annotation.RestController
 data class TestDto(@field:NotBlank(message = "must not be blank") val name: String?)
 
 // Scaffolding de desenvolvimento para exercitar o GlobalExceptionHandler; oculto da documentação pública.
+// @Profile("!prod") (issue #185): sem essa guarda, o bean é registrado em qualquer ambiente,
+// incluindo produção, e `/test/**` fica acessível sem autenticação (permitAll em SecurityConfig).
 @Hidden
 @RestController
+@Profile("!prod")
 class TestController {
     @GetMapping("/test/not-found")
     fun notFound(): String {

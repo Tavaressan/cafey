@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import br.com.tavaressan.cafey.shared.domain.model.AgendamentoResponse
 import br.com.tavaressan.cafey.shared.domain.model.AtualizarAgendamentoRequest
 import br.com.tavaressan.cafey.shared.domain.model.CriarAgendamentoRequest
+import br.com.tavaressan.cafey.shared.domain.model.DURACAO_PREPARO_PADRAO_S
 import br.com.tavaressan.cafey.shared.domain.model.diaAtivo
 import br.com.tavaressan.cafey.shared.domain.model.diasSemanaMask
 import br.com.tavaressan.cafey.shared.domain.validation.ScheduleFormErrors
@@ -23,8 +24,21 @@ data class ScheduleFormState(
     val hora: String = "07:00",
     // Índice 0 = domingo … 6 = sábado. Seg-sex ligado por padrão, o caso mais comum (UC-10).
     val diasAtivos: List<Boolean> = List(7) { it in 1..5 },
+    // null = agendamento sem duração própria (usa a do dispositivo); só nasce de uma edição.
+    val duracaoPreparoS: Int? = DURACAO_PREPARO_PADRAO_S,
     val errors: ScheduleFormErrors = ScheduleFormErrors(),
-)
+) {
+    companion object {
+        fun forEdit(agendamento: AgendamentoResponse) = ScheduleFormState(
+            agendamentoId = agendamento.id,
+            hora = agendamento.hora,
+            diasAtivos = (0..6).map { agendamento.diasSemana.diaAtivo(it) },
+            // Não pré-seleciona o padrão: salvar só a hora de um agendamento antigo não deve
+            // trocar a duração dele (a do dispositivo) por 8 min.
+            duracaoPreparoS = agendamento.duracaoPreparoS,
+        )
+    }
+}
 
 data class ScheduleUiState(
     val loading: Boolean = true,
@@ -65,10 +79,7 @@ class ScheduleViewModel(
     }
 
     fun startEdit(agendamento: AgendamentoResponse) {
-        val diasAtivos = (0..6).map { agendamento.diasSemana.diaAtivo(it) }
-        _uiState.update {
-            it.copy(editing = ScheduleFormState(agendamentoId = agendamento.id, hora = agendamento.hora, diasAtivos = diasAtivos))
-        }
+        _uiState.update { it.copy(editing = ScheduleFormState.forEdit(agendamento)) }
     }
 
     fun cancelEdit() {
@@ -88,6 +99,10 @@ class ScheduleViewModel(
         }
     }
 
+    fun onDuracaoChange(duracaoPreparoS: Int) {
+        _uiState.update { state -> state.editing?.let { state.copy(editing = it.copy(duracaoPreparoS = duracaoPreparoS)) } ?: state }
+    }
+
     fun submit() {
         val state = _uiState.value
         val deviceId = state.deviceId ?: return
@@ -103,12 +118,15 @@ class ScheduleViewModel(
         viewModelScope.launch {
             try {
                 if (form.agendamentoId == null) {
-                    scheduleApi.criar(deviceId, CriarAgendamentoRequest(hora = form.hora, diasSemana = diasSemana))
+                    scheduleApi.criar(
+                        deviceId,
+                        CriarAgendamentoRequest(hora = form.hora, diasSemana = diasSemana, duracaoPreparoS = form.duracaoPreparoS),
+                    )
                 } else {
                     scheduleApi.atualizar(
                         deviceId,
                         form.agendamentoId,
-                        AtualizarAgendamentoRequest(hora = form.hora, diasSemana = diasSemana),
+                        AtualizarAgendamentoRequest(hora = form.hora, diasSemana = diasSemana, duracaoPreparoS = form.duracaoPreparoS),
                     )
                 }
                 _uiState.update { it.copy(saving = false, editing = null) }

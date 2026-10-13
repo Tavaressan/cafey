@@ -1,6 +1,7 @@
 package br.com.tavaressan.cafey.auth
 
 import br.com.tavaressan.cafey.exception.GlobalExceptionHandler
+import br.com.tavaressan.cafey.mail.FakeEmailSenderService
 import br.com.tavaressan.cafey.security.JwtTokenService
 import br.com.tavaressan.cafey.security.RefreshToken
 import br.com.tavaressan.cafey.security.RefreshTokenRepository
@@ -37,6 +38,8 @@ class AuthControllerTest {
     @Mock
     private lateinit var passwordResetTokenRepository: br.com.tavaressan.cafey.security.PasswordResetTokenRepository
 
+    private lateinit var emailSenderService: FakeEmailSenderService
+
     private lateinit var passwordEncoder: BCryptPasswordEncoder
     private lateinit var jwtTokenService: JwtTokenService
     private lateinit var authService: AuthService
@@ -46,12 +49,14 @@ class AuthControllerTest {
     fun setUp() {
         passwordEncoder = BCryptPasswordEncoder(12)
         jwtTokenService = JwtTokenService()
+        emailSenderService = FakeEmailSenderService()
         authService = AuthService(
             usuarioRepository,
             refreshTokenRepository,
             passwordResetTokenRepository,
             passwordEncoder,
-            jwtTokenService
+            jwtTokenService,
+            emailSenderService
         )
         val authController = AuthController(authService)
 

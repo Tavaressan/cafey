@@ -43,7 +43,8 @@ class AgendamentosMqttSyncListener(
                 id = it.id.toString(),
                 hora = it.hora.format(timeFormatter),
                 diasSemana = it.diasSemana.toInt(),
-                ativo = it.ativo
+                ativo = it.ativo,
+                duracaoS = it.duracaoPreparoS ?: dispositivo.duracaoPreparoS
             )
         }
 

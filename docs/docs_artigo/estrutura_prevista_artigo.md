@@ -13,6 +13,7 @@ Contexto do parque instalado de cafeteiras não programáveis; a alternativa usu
 2.3 Fragmentação e interoperabilidade em automação residencial [4, 5]
 2.4 Comunicação em dispositivos restritos: MQTT, QoS e TLS [7, 8, 10]
 2.5 Autonomia local e dependência de nuvem [6]
+2.6 Arquitetura de software embarcado orientada a eventos [11]
  
 3. Materiais e Métodos
  

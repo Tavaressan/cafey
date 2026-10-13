@@ -25,6 +25,13 @@ public:
     // Default de `duracaoS` quando o comando nao informa (spec-backend P9).
     static constexpr uint32_t kDefaultDurationS = 300;
 
+    // Teto de seguranca para `duracaoS`, independente do backend: cobre o
+    // fallback BLE (spec §6.4), que pode comandar a base sem passar pelo
+    // `@Max(900)` de `ComandoRequest` (BE-27, PR #142). Ver issue #143.
+    // A issue #8 (HW-06) vai medir o tempo real de extracao e os dois tetos
+    // devem ser revistos juntos quando ela fechar.
+    static constexpr uint32_t kMaxDurationS = 900;
+
     explicit Cafeteira(gpio_num_t relay_pin = GPIO_NUM_26,
                        gpio_num_t button_pin = GPIO_NUM_27,
                        gpio_num_t led_r = GPIO_NUM_21,

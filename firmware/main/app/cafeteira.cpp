@@ -5,6 +5,10 @@ namespace cafey::app {
 using cafey::core::Message;
 using cafey::core::MessageType;
 
+namespace {
+constexpr const char* TAG = "cafeteira";
+} // namespace
+
 Cafeteira::Cafeteira(gpio_num_t relay_pin, gpio_num_t button_pin,
                      gpio_num_t led_r, gpio_num_t led_g, gpio_num_t led_b)
     : ActiveObject("cafeteira", 16, 4096, 5, /*tick_period_ms=*/10),
@@ -32,6 +36,14 @@ void Cafeteira::apply_state() {
 
 void Cafeteira::start_brew(uint32_t duration_s) {
     if (duration_s == 0) duration_s = kDefaultDurationS;
+    // Teto de seguranca independente do backend (issue #143): cobre o comando
+    // MQTT, o fallback BLE (spec §6.4) e o disparo de agendamento local, que
+    // convergem todos para este ponto unico antes de acionar o rele.
+    if (duration_s > kMaxDurationS) {
+        ESP_LOGW(TAG, "duracaoS %u acima do teto; clampando para %u s",
+                 static_cast<unsigned>(duration_s), static_cast<unsigned>(kMaxDurationS));
+        duration_s = kMaxDurationS;
+    }
     brew_ticks_left_ = duration_s * kTicksPerSecond;
     last_result_ = Result::None;
     state_ = State::On;

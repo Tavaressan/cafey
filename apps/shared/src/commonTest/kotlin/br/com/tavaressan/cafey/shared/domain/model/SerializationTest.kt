@@ -3,6 +3,8 @@ package br.com.tavaressan.cafey.shared.domain.model
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /** Round-trip de (de)serialização dos modelos de domínio contra o shape real do backend. */
 class SerializationTest {
@@ -58,11 +60,96 @@ class SerializationTest {
         assertEquals(DeviceState.Idle, DeviceState.from(decoded.estado))
     }
 
+    // Issue #189 — o JSON do app e o do backend não falham alto se o nome do campo divergir
+    // (`ignoreUnknownKeys` aqui, Jackson ignora chaves desconhecidas lá): o campo só some.
+    @Test
+    fun criarAgendamentoRequest_encodesDuracaoPreparoSKey() {
+        val request = CriarAgendamentoRequest(hora = "07:30", diasSemana = 62, duracaoPreparoS = 480)
+        val encoded = json.encodeToString(CriarAgendamentoRequest.serializer(), request)
+        assertTrue(""""duracaoPreparoS":480""" in encoded, encoded)
+    }
+
+    @Test
+    fun atualizarAgendamentoRequest_encodesDuracaoPreparoSKey() {
+        val request = AtualizarAgendamentoRequest(duracaoPreparoS = 360)
+        val encoded = json.encodeToString(AtualizarAgendamentoRequest.serializer(), request)
+        assertTrue(""""duracaoPreparoS":360""" in encoded, encoded)
+    }
+
+    @Test
+    fun agendamentoResponse_decodesBackendShape() {
+        // Shape real de br.com.tavaressan.cafey.schedule.AgendamentoResponse (ScheduleDto.kt).
+        val comDuracao = """
+            {
+              "id":"22222222-2222-2222-2222-222222222222",
+              "dispositivoId":"11111111-1111-1111-1111-111111111111",
+              "hora":"07:00",
+              "diasSemana":62,
+              "ativo":true,
+              "duracaoPreparoS":480,
+              "criadoEm":"2026-09-09T10:00:00Z",
+              "atualizadoEm":"2026-09-09T10:00:00Z"
+            }
+        """.trimIndent()
+        assertEquals(480, json.decodeFromString(AgendamentoResponse.serializer(), comDuracao).duracaoPreparoS)
+
+        // Agendamento antigo (V4) sem duração: o backend devolve null explícito.
+        val semDuracao = comDuracao.replace(""""duracaoPreparoS":480""", """"duracaoPreparoS":null""")
+        assertNull(json.decodeFromString(AgendamentoResponse.serializer(), semDuracao).duracaoPreparoS)
+    }
+
     @Test
     fun deviceState_normalizesUnknownStrings() {
         assertEquals(DeviceState.Idle, DeviceState.from("desligado"))
         assertEquals(DeviceState.Brewing, DeviceState.from("PREPARANDO"))
         assertEquals(DeviceState.Error, DeviceState.from("erro"))
         assertEquals(DeviceState.Unknown("MANUTENCAO"), DeviceState.from("MANUTENCAO"))
+    }
+
+    @Test
+    fun cuidadosResponse_decodesBackendShape() {
+        // Shape de br.com.tavaressan.cafey.event.CuidadosResponse (GET /dispositivos/{id}/cuidados), conferido
+        // contra CuidadosIntegrationTest (issue #190). Json estrito: nomes de campo, tipos e valores do enum
+        // atuais precisam decodificar sem `ignoreUnknownKeys`. O literal é escrito à mão, então um campo novo
+        // no backend não quebra este teste — ele trava só o contrato de hoje.
+        val backendJson = """
+            {
+              "descalcificacao":{
+                "contadorPreparos":60,
+                "limiarDescalcificacao":400,
+                "precisaDescalcificar":false,
+                "percentualUso":15.0
+              },
+              "enxague":{
+                "contadorPreparos":34,
+                "limiarPreparos":40,
+                "precisaAtencao":false,
+                "percentualUso":85.0
+              },
+              "filtro":{
+                "contadorPreparos":210,
+                "limiarPreparos":300,
+                "precisaAtencao":false,
+                "percentualUso":70.0
+              },
+              "destaque":"ENXAGUE"
+            }
+        """.trimIndent()
+        val decoded = Json.decodeFromString(CuidadosResponse.serializer(), backendJson)
+        assertEquals(34, decoded.enxague.contadorPreparos)
+        assertEquals(40, decoded.enxague.limiarPreparos)
+        assertEquals(300, decoded.filtro.limiarPreparos)
+        assertEquals(400, decoded.descalcificacao.limiarDescalcificacao)
+        assertEquals(TipoCuidado.ENXAGUE, decoded.destaque)
+    }
+
+    @Test
+    fun statusCuidadoResponse_decodesBaixaShape() {
+        // Shape real de StatusCuidadoResponse (POST /dispositivos/{id}/enxague|filtro/baixa).
+        val backendJson = """
+            {"contadorPreparos":0,"limiarPreparos":300,"precisaAtencao":false,"percentualUso":0.0}
+        """.trimIndent()
+        val decoded = Json.decodeFromString(StatusCuidadoResponse.serializer(), backendJson)
+        assertEquals(StatusCuidadoResponse(0, 300, false, 0.0), decoded)
     }
 }

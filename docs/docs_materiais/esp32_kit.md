@@ -61,6 +61,8 @@ A página **Packing List (p. 1/137) do PDF é apenas imagem, sem camada de texto
 > 2. **Resistor externo de 10 kΩ** — exige aquisição, mas dá valor determinístico (o pull-up interno do ESP32 é especificado em faixa ampla, tipicamente dezenas de kΩ) e resistência a ruído em cabo longo.
 >
 > A decisão é do projeto; a alternativa mais simples fica sinalizada. Enquanto não for decidida, o protótipo de bancada pode usar o pull-up interno sem bloquear a Seção 4 do artigo.
+>
+> **Atualização (08/10/2026):** há resistores de 10 kΩ em estoque, fora do kit. A opção 2 deixa de exigir compra, e o R1 (pull-up do relé) e o R2 (pull-up do botão) do esquemático ficam cobertos.
 
 **A2 — Dois módulos não cobertos pelo manual.** O módulo de desvio de obstáculo (IR) e o módulo de resistor fotossensível (LDR) constam na lista mas **não aparecem em nenhum dos 10 projetos** do manual. Não têm aplicação prevista no Cafey; ficam como reserva.
 

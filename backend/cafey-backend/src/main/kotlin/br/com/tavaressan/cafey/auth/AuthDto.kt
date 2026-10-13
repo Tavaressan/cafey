@@ -54,6 +54,5 @@ data class RedefinirSenhaRequest(
 )
 
 data class RecuperacaoSenhaResponse(
-    val mensagem: String,
-    val token: String? = null
+    val mensagem: String
 )
