@@ -4,7 +4,14 @@
     {
       "Effect": "Allow",
       "Action": "iot:Connect",
-      "Resource": "arn:aws:iot:*:*:client/${iot:Connection.Thing.ThingName}"
+      "Resource": "arn:aws:iot:*:*:client/${iot:Connection.Thing.ThingName}",
+      "Condition": {
+        "ForAllValues:StringEquals": {
+          "iot:ConnectAttributes": [
+            "LastWill"
+          ]
+        }
+      }
     },
     {
       "Effect": "Allow",
@@ -22,7 +29,10 @@
         "iot:Publish",
         "iot:RetainPublish"
       ],
-      "Resource": "arn:aws:iot:*:*:topic/dispositivos/${iot:Connection.Thing.ThingName}/estado"
+      "Resource": [
+        "arn:aws:iot:*:*:topic/dispositivos/${iot:Connection.Thing.ThingName}/estado",
+        "arn:aws:iot:*:*:topic/dispositivos/${iot:Connection.Thing.ThingName}/saude"
+      ]
     },
     {
       "Effect": "Allow",
