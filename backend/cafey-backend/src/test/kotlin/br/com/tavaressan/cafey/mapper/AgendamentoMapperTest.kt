@@ -22,7 +22,7 @@ class AgendamentoMapperTest {
     @Test
     fun `toEntity converte o formato HH mm e vincula ao dispositivo`() {
         val entity = mapper.toEntity(
-            CriarAgendamentoRequest(hora = "07:30", diasSemana = 62, ativo = false, duracaoPreparoS = 480),
+            CriarAgendamentoRequest(hora = "07:30", diasSemana = 62, ativo = false, duracaoPreparoS = 480, descricao = "  Café  "),
             dispositivo
         )
 
@@ -31,6 +31,7 @@ class AgendamentoMapperTest {
         assertEquals(62.toShort(), entity.diasSemana)
         assertFalse(entity.ativo)
         assertEquals(480, entity.duracaoPreparoS)
+        assertEquals("Café", entity.descricao)
     }
 
     @Test
@@ -93,6 +94,18 @@ class AgendamentoMapperTest {
     }
 
     @Test
+    fun `descricao nula preserva e texto vazio limpa`() {
+        val entity = Agendamento(dispositivo = dispositivo, hora = LocalTime.of(7, 0), diasSemana = 62, descricao = "Manhã")
+        mapper.atualizar(entity, AtualizarAgendamentoRequest(descricao = null))
+        assertEquals("Manhã", entity.descricao)
+        mapper.atualizar(entity, AtualizarAgendamentoRequest(descricao = ""))
+        assertNull(entity.descricao)
+        entity.descricao = "Manhã"
+        mapper.atualizar(entity, AtualizarAgendamentoRequest(descricao = "   "))
+        assertNull(entity.descricao)
+    }
+
+    @Test
     fun `toResponse preenche todos os campos`() {
         val id = UUID.randomUUID()
         val criadoEm = Instant.parse("2026-10-01T10:00:00Z")
@@ -104,6 +117,7 @@ class AgendamentoMapperTest {
             diasSemana = 31,
             ativo = false,
             duracaoPreparoS = 480,
+            descricao = "Café da manhã",
             criadoEm = criadoEm,
             atualizadoEm = atualizadoEm
         )
@@ -116,6 +130,7 @@ class AgendamentoMapperTest {
         assertEquals(31.toShort(), response.diasSemana)
         assertFalse(response.ativo)
         assertEquals(480, response.duracaoPreparoS)
+        assertEquals("Café da manhã", response.descricao)
         assertEquals(criadoEm, response.criadoEm)
         assertEquals(atualizadoEm, response.atualizadoEm)
     }

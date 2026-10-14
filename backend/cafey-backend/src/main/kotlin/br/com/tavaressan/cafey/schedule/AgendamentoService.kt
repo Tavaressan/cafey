@@ -30,6 +30,12 @@ class AgendamentoService(
     }
 
     @Transactional(readOnly = true)
+    fun buscarPorDescricao(dispositivoId: UUID, usuarioId: UUID, descricao: String): List<AgendamentoResponse> {
+        validaAcesso(dispositivoId, usuarioId)
+        return agendamentoRepository.buscarPorDescricao(dispositivoId, descricao).map { agendamentoMapper.toResponse(it) }
+    }
+
+    @Transactional(readOnly = true)
     fun obterPorId(dispositivoId: UUID, agendamentoId: UUID, usuarioId: UUID): AgendamentoResponse {
         validaAcesso(dispositivoId, usuarioId)
         return agendamentoMapper.toResponse(buscarDoDispositivo(dispositivoId, agendamentoId))

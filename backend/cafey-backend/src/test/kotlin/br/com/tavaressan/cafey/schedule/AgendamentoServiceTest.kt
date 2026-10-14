@@ -25,6 +25,7 @@ import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.context.ApplicationEventPublisher
 import software.amazon.awssdk.crt.mqtt.QualityOfService
+import tools.jackson.module.kotlin.jacksonObjectMapper
 import java.time.LocalTime
 import java.util.Optional
 import java.util.UUID
@@ -237,7 +238,8 @@ class AgendamentoServiceTest {
     fun `should publish agendamento duration with fallback to dispositivo duration`() {
         device.duracaoPreparoS = 300
         val comDuracao = Agendamento(
-            id = UUID.randomUUID(), dispositivo = device, hora = LocalTime.of(7, 0), diasSemana = 62, duracaoPreparoS = 480
+            id = UUID.randomUUID(), dispositivo = device, hora = LocalTime.of(7, 0), diasSemana = 62,
+            duracaoPreparoS = 480, descricao = "Café da manhã"
         )
         val semDuracao = Agendamento(
             id = UUID.randomUUID(), dispositivo = device, hora = LocalTime.of(8, 0), diasSemana = 62, duracaoPreparoS = null
@@ -258,6 +260,7 @@ class AgendamentoServiceTest {
         val items = captor.value.agendamentos
         assertEquals(480, items[0].duracaoS)
         assertEquals(300, items[1].duracaoS)
+        assertFalse(jacksonObjectMapper().writeValueAsString(captor.value).contains("\"descricao\""))
     }
 
     @Test

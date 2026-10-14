@@ -63,7 +63,8 @@ class AgendamentoControllerTest @Autowired constructor(
         }
         agendamento = agendamentoRepository.save(
             Agendamento(
-                dispositivo = dispositivo, hora = LocalTime.of(7, 30), diasSemana = 62, ativo = true, duracaoPreparoS = 480
+                dispositivo = dispositivo, hora = LocalTime.of(7, 30), diasSemana = 62, ativo = true, duracaoPreparoS = 480,
+                descricao = "Cafe da manha"
             )
         )
         agendamentoDoOutro = agendamentoRepository.save(
@@ -99,6 +100,7 @@ class AgendamentoControllerTest @Autowired constructor(
             .andExpect(jsonPath("$.diasSemana").value(62))
             .andExpect(jsonPath("$.ativo").value(true))
             .andExpect(jsonPath("$.duracaoPreparoS").value(480))
+            .andExpect(jsonPath("$.descricao").value("Cafe da manha"))
     }
 
     @Test
@@ -138,5 +140,35 @@ class AgendamentoControllerTest @Autowired constructor(
     fun `deve responder 401 sem token`() {
         mockMvc.perform(get("/dispositivos/${dispositivo.id}/agendamentos/${agendamento.id}"))
             .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `lista agendamentos filtrando descricao e trata parametro em branco como lista completa`() {
+        mockMvc.perform(
+            get("/dispositivos/${dispositivo.id}/agendamentos")
+                .param("descricao", "  manha  ")
+                .header(HttpHeaders.AUTHORIZATION, bearerTokenPara(proprietario))
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].descricao").value("Cafe da manha"))
+
+        mockMvc.perform(
+            get("/dispositivos/${dispositivo.id}/agendamentos")
+                .param("descricao", "   ")
+                .header(HttpHeaders.AUTHORIZATION, bearerTokenPara(proprietario))
+        )
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$[0].id").value(agendamento.id.toString()))
+    }
+
+    @Test
+    fun `busca com descricao em branco ainda retorna 404 para usuario sem vinculo`() {
+        mockMvc.perform(
+            get("/dispositivos/${dispositivo.id}/agendamentos")
+                .param("descricao", "")
+                .header(HttpHeaders.AUTHORIZATION, bearerTokenPara(estranho))
+        )
+            .andExpect(status().isNotFound)
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
     }
 }

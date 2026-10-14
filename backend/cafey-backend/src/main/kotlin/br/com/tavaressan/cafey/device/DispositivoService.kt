@@ -32,6 +32,15 @@ class DispositivoService(
     }
 
     @Transactional(readOnly = true)
+    fun buscarPorNome(usuarioId: UUID, nome: String): List<DispositivoResponse> {
+        val papeisPorDispositivo = usuarioDispositivoRepository.findByUsuarioId(usuarioId)
+            .associate { it.dispositivo.id!! to it.papel }
+        return dispositivoRepository.buscarPorNomeDoUsuario(usuarioId, nome).map { dispositivo ->
+            dispositivoMapper.toResponse(dispositivo, papeisPorDispositivo.getValue(dispositivo.id!!))
+        }
+    }
+
+    @Transactional(readOnly = true)
     fun obterPorId(dispositivoId: UUID, usuarioId: UUID): DispositivoResponse {
         val vinculo = usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)
             ?: throw ResourceNotFoundException("Dispositivo não encontrado ou você não tem acesso")

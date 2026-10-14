@@ -1,6 +1,7 @@
 package br.com.tavaressan.cafey.device
 
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -28,9 +29,14 @@ class DispositivoController(
 
     @Operation(summary = "Lista os dispositivos do usuário autenticado")
     @GetMapping
-    fun listar(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<List<DispositivoResponse>> {
+    fun listar(
+        @AuthenticationPrincipal jwt: Jwt,
+        @Parameter(description = "Trecho do nome do dispositivo") @RequestParam(required = false) nome: String?
+    ): ResponseEntity<List<DispositivoResponse>> {
         val usuarioId = UUID.fromString(jwt.subject)
-        val dispositivos = dispositivoService.listarDoUsuario(usuarioId)
+        val termo = nome?.trim().orEmpty()
+        val dispositivos = if (termo.isEmpty()) dispositivoService.listarDoUsuario(usuarioId)
+        else dispositivoService.buscarPorNome(usuarioId, termo)
         return ResponseEntity.ok(dispositivos)
     }
 

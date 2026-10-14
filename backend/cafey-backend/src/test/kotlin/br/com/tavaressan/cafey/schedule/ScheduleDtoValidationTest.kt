@@ -22,6 +22,18 @@ class ScheduleDtoValidationTest {
 
     private fun criar(duracao: Int?) = CriarAgendamentoRequest(hora = "07:00", diasSemana = 62, duracaoPreparoS = duracao)
 
+    @Test
+    fun `descricao aceita 100 e rejeita 101 caracteres em criar e atualizar`() {
+        assertTrue(validator.validate(CriarAgendamentoRequest("07:00", 62, descricao = "a".repeat(100))).isEmpty())
+        assertTrue(validator.validate(AtualizarAgendamentoRequest(descricao = "a".repeat(100))).isEmpty())
+        val criar = validator.validate(CriarAgendamentoRequest("07:00", 62, descricao = "a".repeat(101)))
+        val atualizar = validator.validate(AtualizarAgendamentoRequest(descricao = "a".repeat(101)))
+        assertEquals("Descrição deve ter no máximo 100 caracteres", criar.single().message)
+        assertEquals("descricao", criar.single().propertyPath.toString())
+        assertEquals("Descrição deve ter no máximo 100 caracteres", atualizar.single().message)
+        assertEquals("descricao", atualizar.single().propertyPath.toString())
+    }
+
     @ParameterizedTest
     @ValueSource(ints = [240, 360, 480, 600])
     fun `should accept allowed duracaoPreparoS`(duracao: Int) {
