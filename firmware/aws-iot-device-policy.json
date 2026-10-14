@@ -4,14 +4,7 @@
     {
       "Effect": "Allow",
       "Action": "iot:Connect",
-      "Resource": "arn:aws:iot:*:*:client/${iot:Connection.Thing.ThingName}",
-      "Condition": {
-        "ForAllValues:StringEquals": {
-          "iot:ConnectAttributes": [
-            "LastWill"
-          ]
-        }
-      }
+      "Resource": "arn:aws:iot:*:*:client/${iot:Connection.Thing.ThingName}"
     },
     {
       "Effect": "Allow",
