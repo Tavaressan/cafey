@@ -160,6 +160,67 @@ int test_fire_passes_schedule_duration() {
     return 0;
 }
 
+// FW-23: com o fuso de Sao Paulo (UTC-3), 07:00 locais dispara as 10:00 UTC.
+int test_applies_utc_offset() {
+    FakeClock clock;
+    int fired = 0;
+    TestableAgendador age(clock, [&](const cafey::storage::Schedule&) { ++fired; });
+    age.init();
+    age.post(Message{MessageType::TimeSynced, 0});
+    age.process_pending();
+    age.set_utc_offset(-3 * 3600);
+
+    cafey::storage::Schedule s{};
+    s.hour = 7;
+    s.minute = 0;
+    s.days_of_week = 0x7F;
+    s.active = true;
+    age.set_schedules(&s, 1);
+
+    clock.value = kWed0730Utc - 30 * 60; // 07:00 UTC = 04:00 locais
+    age.tick();
+    TEST_ASSERT(fired == 0, "nao dispara as 07:00 UTC");
+
+    clock.value = kWed0730Utc + 150 * 60; // 10:00 UTC = 07:00 locais
+    age.tick();
+    TEST_ASSERT(fired == 1, "dispara as 10:00 UTC");
+
+    std::cout << "[PASS] test_applies_utc_offset" << std::endl;
+    return 0;
+}
+
+// FW-23: o dia da semana tambem e local. Terca 22:00 em Sao Paulo ja e quarta
+// 01:00 UTC; um agendamento so de terca precisa disparar nesse instante.
+int test_local_weekday_across_utc_midnight() {
+    FakeClock clock;
+    int fired = 0;
+    TestableAgendador age(clock, [&](const cafey::storage::Schedule&) { ++fired; });
+    age.init();
+    age.post(Message{MessageType::TimeSynced, 0});
+    age.process_pending();
+    age.set_utc_offset(-3 * 3600);
+
+    cafey::storage::Schedule s{};
+    s.hour = 22;
+    s.minute = 0;
+    s.days_of_week = 0x04; // apenas terca
+    s.active = true;
+    age.set_schedules(&s, 1);
+
+    const std::time_t wed0000Utc = kWed0730Utc - (7 * 3600 + 30 * 60);
+
+    clock.value = wed0000Utc - 2 * 3600; // terca 22:00 UTC = terca 19:00 locais
+    age.tick();
+    TEST_ASSERT(fired == 0, "nao dispara as 22:00 UTC de terca");
+
+    clock.value = wed0000Utc + 3600; // quarta 01:00 UTC = terca 22:00 locais
+    age.tick();
+    TEST_ASSERT(fired == 1, "dispara na terca 22:00 local (quarta 01:00 UTC)");
+
+    std::cout << "[PASS] test_local_weekday_across_utc_midnight" << std::endl;
+    return 0;
+}
+
 int main() {
     std::cout << "Running Cafey Agendador (FW-14) Unit Tests..." << std::endl;
     if (test_fires_when_clock_matches_schedule()) return 1;
@@ -167,6 +228,8 @@ int main() {
     if (test_does_not_fire_on_unscheduled_day()) return 1;
     if (test_inactive_schedule_does_not_fire()) return 1;
     if (test_fire_passes_schedule_duration()) return 1;
+    if (test_applies_utc_offset()) return 1;
+    if (test_local_weekday_across_utc_midnight()) return 1;
     std::cout << "All Agendador tests PASSED!" << std::endl;
     return 0;
 }

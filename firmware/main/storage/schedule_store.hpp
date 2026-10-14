@@ -19,6 +19,8 @@ namespace cafey::storage {
 class ScheduleStore {
 public:
     static constexpr size_t kMaxSchedules = 16;
+    // `timezone` IANA da lista, com terminador; 50 = tamanho da coluna no backend.
+    static constexpr size_t kTimezoneLength = 50;
 
     ScheduleStore();
 
@@ -34,7 +36,7 @@ public:
      * @return ESP_OK on success, ESP_ERR_INVALID_SIZE if `count` exceeds
      * kMaxSchedules, or ESP-IDF error code from the NVS write.
      */
-    esp_err_t replace_all(const Schedule* schedules, size_t count);
+    esp_err_t replace_all(const Schedule* schedules, size_t count, const char* timezone = "");
 
     /**
      * @brief Aplica a lista somente se `version` for maior que a gravada em NVS
@@ -50,7 +52,8 @@ public:
      * da escrita em NVS.
      */
     esp_err_t replace_all_if_newer(const Schedule* schedules, size_t count,
-                                   uint64_t version, bool* applied = nullptr);
+                                   uint64_t version, bool* applied = nullptr,
+                                   const char* timezone = "");
 
     [[nodiscard]] size_t count() const noexcept { return count_; }
     [[nodiscard]] const Schedule& at(size_t index) const { return schedules_[index]; }
@@ -58,12 +61,17 @@ public:
     /** Versao da lista de agendamentos atualmente gravada (0 = nada gravado). */
     [[nodiscard]] uint64_t version() const noexcept { return version_; }
 
+    /** Fuso IANA gravado junto da lista (FW-23); vazio se nada foi gravado. */
+    [[nodiscard]] const char* timezone() const noexcept { return timezone_; }
+
 private:
     // Prefixo de schema gravado no início do blob (FW-19). Permite detectar um
     // blob de layout antigo (sem prefixo, tamanho diferente) ou corrompido e
     // tratá-lo como store vazio, deixando o backend republicar a lista retida.
     static constexpr uint32_t kScheduleMagic = 0x53464143;   // 'CAFS' LE
-    static constexpr uint16_t kScheduleSchemaVersion = 2; // v2: Schedule::duration_s (#200)
+    // v2: Schedule::duration_s (#200) e timezone (FW-23). O timezone entrou no
+    // v2 sem subir a versao porque nenhuma placa chegou a gravar um blob v2.
+    static constexpr uint16_t kScheduleSchemaVersion = 2;
 
     struct PersistedLayout {
         uint32_t magic;
@@ -71,6 +79,7 @@ private:
         uint16_t reserved;
         uint64_t version;
         uint32_t count;
+        char timezone[kTimezoneLength];
         Schedule schedules[kMaxSchedules];
     };
 
@@ -78,6 +87,7 @@ private:
     Schedule schedules_[kMaxSchedules];
     size_t count_;
     uint64_t version_ = 0;
+    char timezone_[kTimezoneLength] = {0};
 };
 
 } // namespace cafey::storage

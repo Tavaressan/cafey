@@ -41,8 +41,11 @@ void Agendador::on_tick() {
     if (minute == last_checked_minute_) return; // ja avaliado neste minuto
     last_checked_minute_ = minute;
 
+    // NTP entrega UTC, e o backend manda `hora` no fuso do dispositivo (FW-23):
+    // desloca antes de decompor, para que hora e dia da semana saiam locais.
+    const std::time_t local = t + utc_offset_s_;
     std::tm tm_now{};
-    gmtime_r(&t, &tm_now); // NTP entrega UTC; conversao de fuso e responsabilidade do backend
+    gmtime_r(&local, &tm_now);
     const uint8_t dow_bit = static_cast<uint8_t>(1u << tm_now.tm_wday); // bit0=domingo
 
     for (size_t i = 0; i < count_; ++i) {

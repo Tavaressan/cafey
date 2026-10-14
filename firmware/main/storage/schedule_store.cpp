@@ -7,6 +7,12 @@ namespace cafey::storage {
 namespace {
 constexpr const char* kNamespace = "cafey_sched";
 constexpr const char* kKey = "list";
+
+// Copia truncando e sempre termina em '\0' (fronteira: string vinda do payload).
+void copy_timezone(char* dst, const char* src) {
+    std::strncpy(dst, src != nullptr ? src : "", ScheduleStore::kTimezoneLength - 1);
+    dst[ScheduleStore::kTimezoneLength - 1] = '\0';
+}
 } // namespace
 
 ScheduleStore::ScheduleStore()
@@ -14,8 +20,8 @@ ScheduleStore::ScheduleStore()
       count_(0) {}
 
 esp_err_t ScheduleStore::init() {
-    static_assert(sizeof(PersistedLayout) == 696,
-                  "layout v2 (#200, com duration_s) deve ter 696 bytes (v1: 664, pre-FW-19: 656)");
+    static_assert(sizeof(PersistedLayout) == 744,
+                  "layout v2 (duration_s #200 + timezone FW-23) deve ter 744 bytes (v1: 664, pre-FW-19: 656)");
 
     esp_err_t err = nvs_.init();
     if (err != ESP_OK) {
@@ -58,10 +64,12 @@ esp_err_t ScheduleStore::init() {
     count_ = layout.count > kMaxSchedules ? kMaxSchedules : layout.count;
     std::memcpy(schedules_, layout.schedules, count_ * sizeof(Schedule));
     version_ = layout.version;
+    copy_timezone(timezone_, layout.timezone);
     return ESP_OK;
 }
 
-esp_err_t ScheduleStore::replace_all(const Schedule* schedules, size_t count) {
+esp_err_t ScheduleStore::replace_all(const Schedule* schedules, size_t count,
+                                     const char* timezone) {
     if (count > kMaxSchedules) {
         return ESP_ERR_INVALID_SIZE;
     }
@@ -71,6 +79,7 @@ esp_err_t ScheduleStore::replace_all(const Schedule* schedules, size_t count) {
     layout.schema_version = kScheduleSchemaVersion;
     layout.version = version_; // replace_all nao mexe na versao monotonica
     layout.count = static_cast<uint32_t>(count);
+    copy_timezone(layout.timezone, timezone);
     if (count > 0) {
         std::memcpy(layout.schedules, schedules, count * sizeof(Schedule));
     }
@@ -80,6 +89,7 @@ esp_err_t ScheduleStore::replace_all(const Schedule* schedules, size_t count) {
         return err;
     }
 
+    copy_timezone(timezone_, layout.timezone);
     count_ = count;
     if (count > 0) {
         std::memcpy(schedules_, schedules, count * sizeof(Schedule));
@@ -88,7 +98,8 @@ esp_err_t ScheduleStore::replace_all(const Schedule* schedules, size_t count) {
 }
 
 esp_err_t ScheduleStore::replace_all_if_newer(const Schedule* schedules, size_t count,
-                                              uint64_t version, bool* applied) {
+                                              uint64_t version, bool* applied,
+                                              const char* timezone) {
     if (applied != nullptr) {
         *applied = false;
     }
@@ -107,6 +118,7 @@ esp_err_t ScheduleStore::replace_all_if_newer(const Schedule* schedules, size_t 
     layout.schema_version = kScheduleSchemaVersion;
     layout.version = version;
     layout.count = static_cast<uint32_t>(count);
+    copy_timezone(layout.timezone, timezone);
     if (count > 0) {
         std::memcpy(layout.schedules, schedules, count * sizeof(Schedule));
     }
@@ -116,6 +128,7 @@ esp_err_t ScheduleStore::replace_all_if_newer(const Schedule* schedules, size_t 
         return err;
     }
 
+    copy_timezone(timezone_, layout.timezone);
     version_ = version;
     count_ = count;
     if (count > 0) {

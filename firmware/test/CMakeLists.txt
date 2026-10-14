@@ -129,6 +129,12 @@ add_executable(test_schedule_payload
 )
 add_test(NAME SchedulePayloadTest COMMAND test_schedule_payload)
 
+add_executable(test_timezone_offset
+    test_timezone_offset.cpp
+    ../main/app/timezone_offset.cpp
+)
+add_test(NAME TimezoneOffsetTest COMMAND test_timezone_offset)
+
 add_executable(test_ble_service
     test_ble_service.cpp
     ../main/app/coffee_command.cpp

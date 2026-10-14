@@ -28,6 +28,7 @@ bool parse_schedule_payload(const std::string& json, cafey::storage::Schedule* o
         parsed_meta.duracao_s = static_cast<uint32_t>(duracao);
         parsed_meta.has_duracao = true;
     }
+    mj::get_string(json, "timezone", parsed_meta.timezone);
 
     const std::vector<std::string> items = mj::object_array(json, "agendamentos");
     size_t count = 0;

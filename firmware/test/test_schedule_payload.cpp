@@ -28,6 +28,7 @@ static void test_parses_metadata() {
     assert(meta.version == 7);
     assert(meta.has_duracao);
     assert(meta.duracao_s == 300);
+    assert(meta.timezone == "America/Sao_Paulo"); // FW-23
     std::cout << "OK: test_parses_metadata\n";
 }
 
@@ -58,6 +59,7 @@ static void test_empty_list_replaces_with_zero() {
     assert(parse_schedule_payload(R"({"versao":9,"agendamentos":[]})", list, 16, &count, &meta));
     assert(count == 0);
     assert(meta.version == 9);
+    assert(meta.timezone.empty()); // sem `timezone` no payload
     std::cout << "OK: test_empty_list_replaces_with_zero\n";
 }
 

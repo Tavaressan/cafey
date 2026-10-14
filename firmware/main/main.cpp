@@ -29,6 +29,7 @@
 #include "app/coffee_command.hpp"
 #include "app/conectividade.hpp"
 #include "app/schedule_payload.hpp"
+#include "app/timezone_offset.hpp"
 #include "app/uplink_publisher.hpp"
 #include "core/esp_nimble_server.hpp"
 
@@ -93,11 +94,24 @@ extern "C" void app_main(void) {
                                               static_cast<int32_t>(s.duration_s)});
     });
 
+    // `hora` dos agendamentos vem no fuso do dispositivo (FW-23); fuso
+    // desconhecido cai em UTC com aviso.
+    static const auto apply_timezone = [](const char* timezone) {
+        int32_t offset_s = 0;
+        if (!cafey::app::utc_offset_s(timezone, &offset_s)) {
+            ESP_LOGW(TAG, "fuso '%s' desconhecido: agendamentos avaliados em UTC", timezone);
+        }
+        g_agendador.set_utc_offset(offset_s);
+        ESP_LOGI(TAG, "fuso dos agendamentos: '%s' (offset %ld s)", timezone,
+                 static_cast<long>(offset_s));
+    };
+
     // Carrega os agendamentos persistidos para o Agendador executar offline.
     {
         static cafey::storage::Schedule loaded[cafey::storage::ScheduleStore::kMaxSchedules];
         const size_t n = schedule_store.count();
         for (size_t i = 0; i < n; ++i) loaded[i] = schedule_store.at(i);
+        apply_timezone(schedule_store.timezone());
         g_agendador.set_schedules(loaded, n);
     }
 
@@ -134,7 +148,8 @@ extern "C" void app_main(void) {
             return;
         }
         bool applied = false;
-        esp_err_t err = schedule_store.replace_all_if_newer(list, count, meta.version, &applied);
+        esp_err_t err = schedule_store.replace_all_if_newer(list, count, meta.version, &applied,
+                                                            meta.timezone.c_str());
         if (err != ESP_OK) {
             ESP_LOGE(TAG, "falha ao gravar agendamentos: %d", err);
             return;
@@ -145,6 +160,7 @@ extern "C" void app_main(void) {
                      static_cast<unsigned>(schedule_store.version()));
             return;
         }
+        apply_timezone(schedule_store.timezone());
         g_agendador.set_schedules(list, count);
         ESP_LOGI(TAG, "agendamentos versao %u aplicados: %u item(ns)",
                  static_cast<unsigned>(meta.version), static_cast<unsigned>(count));
@@ -200,10 +216,11 @@ extern "C" void app_main(void) {
         ble_server,
         [](const cafey::app::CoffeeCommand& cmd) { handle_command(cmd); },
         [](const cafey::storage::Schedule* list, size_t count,
-           const cafey::app::SchedulePayloadMeta&) {
+           const cafey::app::SchedulePayloadMeta& meta) {
             // Mesmo caminho logico do downlink `agendamentos`: persiste e
             // recarrega o Agendador com a lista completa (idempotente).
-            schedule_store.replace_all(list, count);
+            schedule_store.replace_all(list, count, meta.timezone.c_str());
+            apply_timezone(schedule_store.timezone());
             g_agendador.set_schedules(list, count);
         });
     static cafey::app::BleEventProxy ble_event_proxy(ble_server, event_queue_store);

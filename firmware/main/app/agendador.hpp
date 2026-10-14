@@ -42,6 +42,12 @@ public:
     /** Define o callback de disparo apos a construcao (AO com storage estatico). */
     void set_on_fire(FireHandler on_fire) { on_fire_ = std::move(on_fire); }
 
+    /**
+     * Deslocamento do fuso dos agendamentos em relacao a UTC, em segundos
+     * (FW-23). `hora` e `diasSemana` sao avaliados nesse horario local.
+     */
+    void set_utc_offset(int32_t offset_s) { utc_offset_s_ = offset_s; }
+
     static cafey::core::Clock& default_clock();
 
 protected:
@@ -53,6 +59,7 @@ private:
     FireHandler on_fire_;
     cafey::storage::Schedule schedules_[kMaxSchedules];
     size_t count_ = 0;
+    int32_t utc_offset_s_ = 0;
     State state_ = State::Unsynced;
     std::time_t last_checked_minute_ = -1;
     int fired_count_ = 0;

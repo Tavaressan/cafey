@@ -21,6 +21,7 @@ idf_component_register(
         "app/agendador.cpp"
         "app/coffee_command.cpp"
         "app/schedule_payload.cpp"
+        "app/timezone_offset.cpp"
     INCLUDE_DIRS
         "."
         "drivers"

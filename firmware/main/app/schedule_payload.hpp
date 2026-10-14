@@ -13,6 +13,7 @@ struct SchedulePayloadMeta {
     uint32_t version = 0;     // `versao` monotonica
     uint32_t duracao_s = 0;   // `duracaoS` do topo: duracao padrao do dispositivo
     bool has_duracao = false;
+    std::string timezone;     // `timezone` IANA em que `hora` foi escrita (FW-23)
 };
 
 /**

@@ -210,7 +210,7 @@ int test_incompatible_blob_is_treated_as_empty() {
     nvs_handle_t handle = 0;
     TEST_ASSERT(nvs_open("cafey_sched", NVS_READWRITE, &handle) == ESP_OK, "open mock ns");
     // Layout pré-#129 (sem prefixo de schema): 656 bytes, != sizeof(PersistedLayout)
-    // atual (696). Qualquer tamanho diferente do layout atual cai no ramo "incompativel".
+    // atual (744). Qualquer tamanho diferente do layout atual cai no ramo "incompativel".
     std::vector<uint8_t> legacy_blob(656, 0xAB);
     TEST_ASSERT(nvs_set_blob(handle, "list", legacy_blob.data(), legacy_blob.size()) == ESP_OK,
                 "write synthetic legacy blob");
@@ -264,6 +264,35 @@ int test_schema_v1_blob_is_treated_as_empty() {
     return 0;
 }
 
+// FW-23: o fuso e gravado junto da lista e sobrevive ao reboot; uma lista
+// ignorada por versao antiga nao troca o fuso.
+int test_timezone_survives_reload_and_follows_version() {
+    MockNvs::reset();
+    Schedule s = make_schedule("11111111-1111-1111-1111-111111111111", 7, 0, 0x7f, true);
+    {
+        ScheduleStore store;
+        TEST_ASSERT(store.init() == ESP_OK, "init");
+        TEST_ASSERT(std::strcmp(store.timezone(), "") == 0, "sem fuso antes da primeira lista");
+        TEST_ASSERT(store.replace_all_if_newer(&s, 1, 3, nullptr, "America/Sao_Paulo") == ESP_OK,
+                    "persist");
+        TEST_ASSERT(std::strcmp(store.timezone(), "America/Sao_Paulo") == 0, "fuso em RAM");
+
+        bool applied = true;
+        TEST_ASSERT(store.replace_all_if_newer(&s, 1, 2, &applied, "America/Manaus") == ESP_OK,
+                    "versao antiga");
+        TEST_ASSERT(!applied, "versao antiga ignorada");
+        TEST_ASSERT(std::strcmp(store.timezone(), "America/Sao_Paulo") == 0,
+                    "fuso intacto quando a lista e ignorada");
+    }
+    ScheduleStore reloaded;
+    TEST_ASSERT(reloaded.init() == ESP_OK, "reload");
+    TEST_ASSERT(std::strcmp(reloaded.timezone(), "America/Sao_Paulo") == 0,
+                "fuso preservado no reboot");
+
+    std::cout << "[PASS] test_timezone_survives_reload_and_follows_version" << std::endl;
+    return 0;
+}
+
 int main() {
     std::cout << "Running Cafey ScheduleStore Unit Tests..." << std::endl;
 
@@ -279,6 +308,7 @@ int main() {
     if (test_incompatible_blob_is_treated_as_empty()) return 1;
     if (test_duration_survives_reload()) return 1;
     if (test_schema_v1_blob_is_treated_as_empty()) return 1;
+    if (test_timezone_survives_reload_and_follows_version()) return 1;
 
     std::cout << "All ScheduleStore tests PASSED!" << std::endl;
     return 0;
