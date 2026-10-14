@@ -28,6 +28,8 @@ data class LoginRequest(
 
 data class RefreshRequest(
     @field:NotBlank(message = "RefreshToken é obrigatório")
+    // O token emitido pelo JwtTokenService tem 72 caracteres (dois UUIDs); 100 dá folga sem aceitar lixo.
+    @field:Size(max = 100, message = "RefreshToken inválido")
     val refreshToken: String
 )
 
