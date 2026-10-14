@@ -53,8 +53,9 @@ class DispositivoRepositoryBuscaTest @Autowired constructor(
 
         assertEquals(listOf("Cafeteira da Cozinha"), resultadoA.map { it.nome })
         assertEquals(listOf("Cafeteira da Cozinha", "Cafeteira da Cozinha 2"), resultadoB.map { it.nome })
+        // "Cafeteira da Cozinha 2" também casa com o termo, mas é só do usuarioB.
         assertEquals(
-            listOf("Cafeteira da Cozinha", "Cafeteira da Cozinha 2", "Cafeteira do Escritório"),
+            listOf("Cafeteira da Cozinha", "Cafeteira do Escritório"),
             dispositivoRepository.buscarPorNomeDoUsuario(usuarioA.id!!, "Cafeteira").map { it.nome }
         )
         assertTrue(dispositivoRepository.buscarPorNomeDoUsuario(usuarioA.id!!, "sem resultado").isEmpty())

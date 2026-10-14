@@ -35,6 +35,13 @@ class AgendamentoMapperTest {
     }
 
     @Test
+    fun `toEntity grava descricao so com espacos como null`() {
+        val entity = mapper.toEntity(CriarAgendamentoRequest(hora = "07:30", diasSemana = 62, descricao = "   "), dispositivo)
+
+        assertNull(entity.descricao)
+    }
+
+    @Test
     fun `toEntity usa os padroes quando ativo e duracao sao omitidos`() {
         val entity = mapper.toEntity(CriarAgendamentoRequest(hora = "07:05", diasSemana = 1), dispositivo)
 

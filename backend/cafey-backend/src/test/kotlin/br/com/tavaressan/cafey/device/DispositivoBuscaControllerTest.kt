@@ -3,6 +3,7 @@ package br.com.tavaressan.cafey.device
 import br.com.tavaressan.cafey.security.JwtTokenService
 import br.com.tavaressan.cafey.user.Usuario
 import br.com.tavaressan.cafey.user.UsuarioRepository
+import org.hamcrest.Matchers.hasSize
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -60,41 +61,47 @@ class DispositivoBuscaControllerTest @Autowired constructor(
 
     @Test
     fun `filtro de nome trata ausencia branco e espacos e mantem papeis e escopo`() {
-        requisicao(proprietario, "?nome=coz")
+        requisicao(proprietario, "coz")
             .andExpect(status().isOk)
+            .andExpect(jsonPath("$", hasSize<Any>(1)))
             .andExpect(jsonPath("$[0].nome").value("Cafeteira da Cozinha"))
-            .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
+
+        requisicao(proprietario, "sem correspondencia")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$", hasSize<Any>(0)))
 
         requisicao(proprietario)
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)))
-            .andExpect(jsonPath("$[0].papel").value("PROPRIETARIO"))
-            .andExpect(jsonPath("$[1].papel").value("PROPRIETARIO"))
-
-        requisicao(proprietario, "?nome=")
+            .andExpect(jsonPath("$", hasSize<Any>(2)))
+        requisicao(proprietario, "")
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)))
-        requisicao(proprietario, "?nome=%20%20")
+            .andExpect(jsonPath("$", hasSize<Any>(2)))
+        requisicao(proprietario, "  ")
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)))
-        requisicao(proprietario, "?nome=%20coz%20")
+            .andExpect(jsonPath("$", hasSize<Any>(2)))
+        requisicao(proprietario, " coz ")
             .andExpect(status().isOk)
+            .andExpect(jsonPath("$", hasSize<Any>(1)))
             .andExpect(jsonPath("$[0].nome").value("Cafeteira da Cozinha"))
-            .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
 
-        requisicao(convidado)
+        // A busca ordena por nome, então o papel de cada item pode ser conferido pela posição.
+        requisicao(convidado, "co")
             .andExpect(status().isOk)
-            .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(2)))
+            .andExpect(jsonPath("$", hasSize<Any>(2)))
+            .andExpect(jsonPath("$[0].nome").value("Cafeteira da Cozinha"))
             .andExpect(jsonPath("$[0].papel").value("CONVIDADO"))
+            .andExpect(jsonPath("$[1].nome").value("Moedor do Convidado"))
             .andExpect(jsonPath("$[1].papel").value("PROPRIETARIO"))
-        requisicao(outroUsuario, "?nome=coz")
+        requisicao(outroUsuario, "coz")
             .andExpect(status().isOk)
+            .andExpect(jsonPath("$", hasSize<Any>(1)))
             .andExpect(jsonPath("$[0].nome").value("Cafeteira da Cozinha Privada"))
-            .andExpect(jsonPath("$", org.hamcrest.Matchers.hasSize(1)))
     }
 
-    private fun requisicao(usuario: Usuario, query: String = "") = mockMvc.perform(
-        get("/dispositivos$query").header(HttpHeaders.AUTHORIZATION, bearer(usuario))
+    private fun requisicao(usuario: Usuario, nome: String? = null) = mockMvc.perform(
+        get("/dispositivos")
+            .apply { if (nome != null) param("nome", nome) }
+            .header(HttpHeaders.AUTHORIZATION, bearer(usuario))
     )
 
     private fun bearer(usuario: Usuario) =
