@@ -1,8 +1,11 @@
 #include <iostream>
 
+#include "mock_esp_nvs.hpp"
 #include "app/agendador.hpp"
 #include "app/cafeteira.hpp"
 #include "app/conectividade.hpp"
+#include "storage/event_queue_store.hpp"
+#include "storage/event_id_generator.hpp"
 
 #define TEST_ASSERT(cond, msg)                                                  \
     do {                                                                       \
@@ -182,6 +185,82 @@ int test_cafeteira_start_brew_boundary_at_max_duration() {
     return 0;
 }
 
+int test_cafeteira_enqueues_event_on_brew_finish() {
+    MockNvs::reset();
+    MockGpio::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+
+    cafey::storage::EventQueueStore queue;
+    queue.init();
+    cafey::storage::EventIdGenerator id_gen;
+    id_gen.init(0x12345678);
+
+    TestableCafeteira caf;
+    caf.attach_event_queue(&queue, &id_gen);
+    caf.boot();
+
+    int event_queued_count = 0;
+    caf.set_on_event_queued([&] { ++event_queued_count; });
+
+    // Inicia preparo via comando com 2 segundos
+    caf.post(Message{MessageType::StartBrew, 2, static_cast<int32_t>(cafey::storage::EventOrigin::APP)});
+    caf.process_pending();
+
+    // Ticks ate concluir
+    for (int i = 0; i < 250; ++i) caf.tick();
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "preparo encerrado");
+    TEST_ASSERT(queue.size() == 1, "evento enfileirado na conclusao");
+    TEST_ASSERT(event_queued_count == 1, "notificacao on_event_queued chamada");
+
+    cafey::storage::Event evt{};
+    TEST_ASSERT(queue.front(&evt) == ESP_OK, "leitura do evento enfileirado");
+    TEST_ASSERT(evt.resultado == cafey::storage::EventResult::CONCLUIDO, "resultado CONCLUIDO");
+    TEST_ASSERT(evt.origem == cafey::storage::EventOrigin::APP, "origem APP");
+    TEST_ASSERT(evt.duracao_s == 2, "duracaoS gravada");
+    TEST_ASSERT(std::string(evt.evento_id).rfind("12345678:", 0) == 0, "evento_id com bootId");
+
+    std::cout << "[PASS] test_cafeteira_enqueues_event_on_brew_finish" << std::endl;
+    return 0;
+}
+
+int test_cafeteira_enqueues_event_on_brew_cancel() {
+    MockNvs::reset();
+    MockGpio::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+
+    cafey::storage::EventQueueStore queue;
+    queue.init();
+    cafey::storage::EventIdGenerator id_gen;
+    id_gen.init(0xabcdef01);
+
+    TestableCafeteira caf;
+    caf.attach_event_queue(&queue, &id_gen);
+    caf.boot();
+
+    // Inicia preparo pelo botao
+    caf.post(Message{MessageType::ButtonPressed, 0});
+    caf.process_pending();
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::On, "preparo iniciado pelo botao");
+
+    // Corre 50 ticks (0.5 s)
+    for (int i = 0; i < 50; ++i) caf.tick();
+
+    // Cancela pelo botao
+    caf.post(Message{MessageType::ButtonPressed, 0});
+    caf.process_pending();
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "preparo cancelado");
+    TEST_ASSERT(queue.size() == 1, "evento de cancelamento enfileirado");
+
+    cafey::storage::Event evt{};
+    TEST_ASSERT(queue.front(&evt) == ESP_OK, "leitura do evento cancelado");
+    TEST_ASSERT(evt.resultado == cafey::storage::EventResult::CANCELADO, "resultado CANCELADO");
+    TEST_ASSERT(evt.origem == cafey::storage::EventOrigin::BOTAO, "origem BOTAO");
+    TEST_ASSERT(std::string(evt.evento_id).rfind("abcdef01:", 0) == 0, "evento_id com bootId");
+
+    std::cout << "[PASS] test_cafeteira_enqueues_event_on_brew_cancel" << std::endl;
+    return 0;
+}
+
 int test_skeleton_active_objects() {
     cafey::app::Conectividade con;
     con.start();
@@ -211,6 +290,8 @@ int main() {
     if (test_cafeteira_start_brew_without_duration_uses_default()) return 1;
     if (test_cafeteira_start_brew_clamps_duration_above_max()) return 1;
     if (test_cafeteira_start_brew_boundary_at_max_duration()) return 1;
+    if (test_cafeteira_enqueues_event_on_brew_finish()) return 1;
+    if (test_cafeteira_enqueues_event_on_brew_cancel()) return 1;
     if (test_skeleton_active_objects()) return 1;
     std::cout << "All Cafeteira AO tests PASSED!" << std::endl;
     return 0;

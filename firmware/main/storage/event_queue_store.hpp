@@ -76,9 +76,9 @@ public:
     [[nodiscard]] bool full() const noexcept { return count_ == kCapacity; }
 
 private:
-    // Prefixo de schema gravado no início do blob (FW-19).
+    // Prefixo de schema gravado no início do blob (FW-19 / FW-22).
     static constexpr uint32_t kEventQueueMagic = 0x51464143;  // 'CAFQ' LE
-    static constexpr uint16_t kEventQueueSchemaVersion = 1;
+    static constexpr uint16_t kEventQueueSchemaVersion = 2;
 
     struct PersistedLayout {
         uint32_t magic;
@@ -89,17 +89,27 @@ private:
         Event events[kCapacity];
     };
 
-    // Layout gravado antes da PR #129: idêntico ao atual byte a byte, apenas sem
-    // o prefixo magic/schema_version/reserved no início do blob. O `sizeof(Event)`
-    // não mudou entre pré e pós-#124 (o padding do struct absorveu o campo
-    // `horario_provisorio`), então o mesmo tamanho de 392 bytes cobre os dois
-    // casos e a flag pode já estar gravada com valor válido. A migração é só
-    // reprefixar: copiar head/count/events verbatim e regravar com o prefixo,
-    // sem zerar nada (FW-19).
+    struct LegacyEventV1 {
+        uint32_t timestamp_inicio;
+        uint32_t timestamp_fim;
+        EventOrigin origem;
+        bool horario_provisorio;
+    };
+
+    struct LegacyPersistedLayoutV1 {
+        uint32_t magic;
+        uint16_t schema_version;
+        uint16_t reserved;
+        uint32_t head;
+        uint32_t count;
+        LegacyEventV1 events[kCapacity];
+    };
+
+    // Layout gravado antes da PR #129: sem prefixo magic/schema_version/reserved.
     struct LegacyPersistedLayoutV0 {
         uint32_t head;
         uint32_t count;
-        Event events[kCapacity];
+        LegacyEventV1 events[kCapacity];
     };
 
     esp_err_t persist();

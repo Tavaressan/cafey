@@ -35,7 +35,7 @@ void Cafeteira::apply_state() {
     if (on_state_change_) on_state_change_(state_ == State::On);
 }
 
-void Cafeteira::start_brew(uint32_t duration_s) {
+void Cafeteira::start_brew(uint32_t duration_s, cafey::storage::EventOrigin origin) {
     if (duration_s == 0) duration_s = kDefaultDurationS;
     // Teto de seguranca independente do backend (issue #143): cobre o comando
     // MQTT, o fallback BLE (spec §6.4) e o disparo de agendamento local, que
@@ -45,16 +45,54 @@ void Cafeteira::start_brew(uint32_t duration_s) {
                  static_cast<unsigned>(duration_s), static_cast<unsigned>(kMaxDurationS));
         duration_s = kMaxDurationS;
     }
-    brew_ticks_left_ = duration_s * kTicksPerSecond;
+    brew_ticks_total_ = duration_s * kTicksPerSecond;
+    brew_ticks_left_ = brew_ticks_total_;
+    current_origin_ = origin;
+    brew_start_epoch_ = clock_ ? static_cast<uint32_t>(clock_->now()) : 0;
     last_result_ = Result::None;
     state_ = State::On;
     apply_state();
 }
 
+void Cafeteira::enqueue_brew_event(cafey::storage::EventResult result, uint32_t duration_s) {
+    if (event_queue_ == nullptr || event_id_gen_ == nullptr) return;
+
+    char id_buf[cafey::storage::EventIdGenerator::kMaxIdLen];
+    esp_err_t err = event_id_gen_->next(id_buf, sizeof(id_buf));
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "falha ao gerar evento_id: %d", err);
+        return;
+    }
+
+    const uint32_t now_epoch = clock_ ? static_cast<uint32_t>(clock_->now()) : 0;
+    const uint32_t start_epoch = brew_start_epoch_ != 0 ? brew_start_epoch_ : now_epoch;
+    const uint32_t end_epoch = now_epoch >= start_epoch ? now_epoch : (start_epoch + duration_s);
+
+    cafey::storage::Event evt = cafey::storage::make_brew_event(
+        id_buf, current_origin_, result, duration_s,
+        start_epoch, end_epoch, ntp_synced_);
+
+    err = event_queue_->push(evt);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "falha ao enfileirar evento de preparo: %d", err);
+        return;
+    }
+
+    if (on_event_queued_) on_event_queued_();
+}
+
 void Cafeteira::cancel_brew() {
     // Corte por botao/comando enquanto preparava -> CANCELADO (UC-09).
-    if (state_ == State::On) last_result_ = Result::Cancelado;
+    if (state_ == State::On) {
+        last_result_ = Result::Cancelado;
+        const uint32_t elapsed_ticks = (brew_ticks_total_ > brew_ticks_left_)
+                                           ? (brew_ticks_total_ - brew_ticks_left_)
+                                           : 0;
+        const uint32_t elapsed_s = elapsed_ticks / kTicksPerSecond;
+        enqueue_brew_event(cafey::storage::EventResult::CANCELADO, elapsed_s);
+    }
     brew_ticks_left_ = 0;
+    brew_ticks_total_ = 0;
     state_ = State::Off;
     apply_state();
 }
@@ -63,8 +101,11 @@ void Cafeteira::finish_brew() {
     // Fim do preparo pelo temporizador local. Sem sensor de extracao, o corte
     // de energia da carga tem o mesmo desfecho: resultado CONCLUIDO
     // (spec-backend §14 / P7).
+    const uint32_t duracao_s = brew_ticks_total_ / kTicksPerSecond;
     brew_ticks_left_ = 0;
+    brew_ticks_total_ = 0;
     last_result_ = Result::Concluido;
+    enqueue_brew_event(cafey::storage::EventResult::CONCLUIDO, duracao_s);
     state_ = State::Off;
     apply_state();
 }
@@ -125,20 +166,31 @@ void Cafeteira::dispatch(const Message& msg) {
         case MessageType::ButtonPressed:
             // Toque curto: liga (inicia preparo) / desliga (cancela).
             if (state_ == State::Off) {
-                start_brew(kDefaultDurationS);
+                start_brew(kDefaultDurationS, cafey::storage::EventOrigin::BOTAO);
             } else {
                 cancel_brew();
             }
             break;
-        case MessageType::StartBrew:
+        case MessageType::StartBrew: {
             // msg.arg = duracaoS enviado pelo comando/agendamento.
-            start_brew(msg.arg > 0 ? static_cast<uint32_t>(msg.arg) : kDefaultDurationS);
+            const uint32_t dur = msg.arg > 0 ? static_cast<uint32_t>(msg.arg) : kDefaultDurationS;
+            cafey::storage::EventOrigin origin = cafey::storage::EventOrigin::APP;
+            if (msg.arg2 == static_cast<int32_t>(cafey::storage::EventOrigin::AGENDAMENTO)) {
+                origin = cafey::storage::EventOrigin::AGENDAMENTO;
+            } else if (msg.arg2 == static_cast<int32_t>(cafey::storage::EventOrigin::BOTAO)) {
+                origin = cafey::storage::EventOrigin::BOTAO;
+            }
+            start_brew(dur, origin);
             break;
+        }
         case MessageType::StopBrew:
             cancel_brew();
             break;
         case MessageType::BrewFinished:
             finish_brew();
+            break;
+        case MessageType::TimeSynced:
+            ntp_synced_ = true;
             break;
         default:
             break;

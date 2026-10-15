@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
+#include <ctime>
 #include <string>
 
 #include "core/mqtt_client.hpp"
@@ -51,13 +53,34 @@ public:
         return sent;
     }
 
-    /** @brief Serializa o evento no formato de `dispositivos/{id}/eventos` (spec §6.2). */
+    /**
+     * @brief Formata segundos Unix em ISO-8601 UTC (ex: "2026-09-01T13:00:04Z").
+     */
+    static std::string to_iso8601_utc(uint32_t epoch_s) {
+        time_t raw_time = static_cast<time_t>(epoch_s);
+        struct tm tm_buf{};
+#if defined(_WIN32)
+        gmtime_s(&tm_buf, &raw_time);
+#else
+        gmtime_r(&raw_time, &tm_buf);
+#endif
+        char buf[32];
+        size_t len = std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", &tm_buf);
+        return std::string(buf, len);
+    }
+
+    /**
+     * @brief Serializa o evento no formato de `EventoPayload` (spec-backend §6.2 / FW-22).
+     */
     static std::string serialize(const cafey::storage::Event& event) {
-        std::string json = "{\"inicio\":" + std::to_string(event.timestamp_inicio) +
-                           ",\"fim\":" + std::to_string(event.timestamp_fim) +
-                           ",\"origem\":\"" + origin_name(event.origem) + "\"";
-        // FW-15: sinaliza ao backend que o carimbo e provisorio (preparo antes
-        // do sync NTP). Ausente quando o horario ja e confiavel.
+        const uint32_t ts = event.timestamp_inicio != 0 ? event.timestamp_inicio : event.timestamp_fim;
+        std::string json = "{\"eventoId\":\"" + std::string(event.evento_id) +
+                           "\",\"tipo\":\"PREPARO\"" +
+                           ",\"resultado\":\"" + result_name(event.resultado) + "\"" +
+                           ",\"origem\":\"" + origin_name(event.origem) + "\"" +
+                           ",\"duracaoS\":" + std::to_string(event.duracao_s) +
+                           ",\"timestamp\":\"" + to_iso8601_utc(ts) + "\"";
+        // FW-15 / FW-22: carimbo provisorio quando o preparo ocorreu sem sincronizacao NTP.
         if (event.horario_provisorio) {
             json += ",\"relogioProvisorio\":true";
         }
@@ -73,6 +96,15 @@ private:
             case cafey::storage::EventOrigin::BOTAO: return "BOTAO";
         }
         return "APP";
+    }
+
+    static const char* result_name(cafey::storage::EventResult result) {
+        switch (result) {
+            case cafey::storage::EventResult::CONCLUIDO: return "CONCLUIDO";
+            case cafey::storage::EventResult::CANCELADO: return "CANCELADO";
+            case cafey::storage::EventResult::ERRO: return "ERRO";
+        }
+        return "CONCLUIDO";
     }
 
     cafey::storage::EventQueueStore& store_;
