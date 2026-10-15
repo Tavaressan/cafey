@@ -73,9 +73,10 @@ class RateLimitingFilter(
         }
         val routeLimit = routeLimitFor(route)
 
-        // Sem proxy reverso confiável na topologia atual: usar remoteAddr diretamente. Não fazemos
-        // parsing de X-Forwarded-For aqui de propósito — confiar nesse header sem um proxy validado
-        // na frente permitiria bypass do rate limit por spoofing. Revisitar se um proxy for adicionado.
+        // Com `server.forward-headers-strategy: native` (issue #230), o RemoteIpValve do Tomcat
+        // confia nos proxies internos (como o Caddy na rede Docker) e preenche `request.remoteAddr`
+        // com o IP real do cliente a partir de X-Forwarded-For de forma protegida contra spoofing.
+        // Não fazemos parsing manual de headers aqui de propósito: o container já valida a cadeia.
         val ip = request.remoteAddr
         val key = "$ip:$route"
         val now = System.currentTimeMillis()
