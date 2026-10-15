@@ -179,7 +179,7 @@
         (name "EN" (effects (font (size 0.7874 0.7874))))
         (number "15" (effects (font (size 0.7874 0.7874))))
       )
-      (pin output line (at 17.78 13.335 270) (length 2.54)
+      (pin power_out line (at 17.78 13.335 270) (length 2.54)
         (name "3.3v" (effects (font (size 0.7874 0.7874))))
         (number "16" (effects (font (size 0.7874 0.7874))))
       )
