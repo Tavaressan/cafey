@@ -29,8 +29,8 @@ mecânico (`mechanical/`). As decisões de revisão estão registradas em
 |---|---|---|---|---|---|
 | E1 | Cabo de força com plugue | 1 | `cabo de força tripolar 3G1,0mm 2P+T NBR 14136 1,5m` | 2P+T, 10 A, **condutor 1,0 mm²**, comprimento 1,2–2,0 m, **⌀ externo ≤ 8 mm** (tem de entrar no PG9 do E10) | Bitola 0,75 mm²; **1,5 mm² (⌀ externo grande demais para PG9)**; plugue sem terra; padrão americano/europeu |
 | E2 | Tomada fêmea de painel `MEDIR` | 1 | `tomada femea painel 2P+T 10A NBR 14136` | **10 A** (pinos 4,0 mm), fixação em painel ou embutir | Versão 20 A (pinos 4,8 mm); tomada de parede sem furação frontal |
-| E3 | Conector de emenda com alavanca | 4 | `conector emenda WAGO 221-412 2 vias` | 2 vias, até 4 mm², com alavanca | Modelos push-in sem alavanca (773/2273) |
-| E4 | Conector de emenda com alavanca | 2 | `conector emenda WAGO 221-413 3 vias` | 3 vias, até 4 mm², com alavanca | Idem E3 |
+| E3 | Conector de emenda com alavanca | 4 | `conector emenda WAGO 221-412 2 vias` | 2 vias, até 4 mm², com alavanca — **confirmado:** [WAGO 221-412 (Casa do Eletricista)](https://www.casadoeletricistasc.com.br/con-p-emenda-c-alav-2-fios-4mm-wago/p/4134) | Modelos push-in sem alavanca (773/2273) |
+| E4 | Conector de emenda com alavanca | 2 | `conector emenda WAGO 221-413 3 vias` | 3 vias, até 4 mm², com alavanca — **confirmado:** [WAGO 221-413 (Casa do Eletricista)](https://www.casadoeletricistasc.com.br/con-p-emenda-c-alav-3-fios-4mm-wago/p/4135) | Idem E3 |
 | E5 | Cabo flexível preto | 1 m | `cabo flexivel 1,5mm 750V preto` | 1,5 mm², isolação 750 V | 300 V; cabo rígido |
 | E6 | Cabo flexível azul | 1 m | `cabo flexivel 1,5mm 750V azul` | Idem E5 | Idem E5 |
 | E7 | Cabo flexível verde-amarelo | 1 m | `cabo flexivel 1,5mm 750V verde amarelo` | Idem E5 | Verde liso (terra deve ser verde-amarelo) |
@@ -38,7 +38,7 @@ mecânico (`mechanical/`). As decisões de revisão estão registradas em
 | E9 | Termorretrátil | 1 m ⌀2,5 + 1 m ⌀4 | `tubo termorretratil 2,5mm 4mm kit` | Razão 2:1 | — |
 | E10 | Prensa-cabo `MEDIR` | 1 | `prensa cabo PG9 nylon com porca` | PG9, faixa de aperto compatível com o ⌀ externo de E1 | Metálico (rosca em plástico impresso); PG7 ou PG11 sem conferir o cabo |
 | E11 | Módulo AC-DC | 2 | `HLK-PM01 fonte AC-DC 5V 3W` | Saída 5 V, 600 mA, entrada 100–240 V. **1 em uso + 1 reserva** (não é arquitetura de duas fontes) | HLK-PM03 (3,3 V); HLK-PM12 (12 V); HLK-5M05 (formato diferente) |
-| E12 | Porta-fusível **in-line** | 1 | `porta fusivel 5x20 in-line com rabicho` | Para fusível 5×20 mm, **corpo fechado, com rabicho, para fixação por abraçadeira** | **Porta-fusível de painel** (exige furo que o modelo mecânico proíbe); de PCB; de engate rápido |
+| E12 | Porta-fusível **in-line** | 1 | `porta fusivel 5x20 in-line com rabicho` | Para fusível 5×20 mm, **corpo fechado, com rabicho, para fixação por abraçadeira** — **confirmado:** [F-103C (Eletrodex)](https://www.eletrodex.net/acessorios/passivos/fusiveis/porta-fusivel-meio-de-fio-f103c) | **Porta-fusível de painel** (exige furo que o modelo mecânico proíbe); de PCB; de engate rápido |
 | E13 | Fusível de vidro | 5 | `fusivel vidro 5x20 10A retardado` | 5×20 mm, **10 A**, retardado (tipo T) | Ação rápida (F); ≤ 6,3 A (abre com a carga); acima de 10 A |
 | E14 | Borne de aterramento DIN | 1 | `borne aterramento trilho DIN verde amarelo 4mm` | Verde-amarelo, para trilho DIN 35 mm, 4–6 mm² | Borne comum (não identificado como terra); tipo parafuso de chapa |
 | E15 | Trilho DIN + travas | 1 | `trilho DIN 35mm + trava fim de trilho` | ~5 cm de trilho 35 mm + 2 travas de fim de trilho | — (alternativa: dispensar e projetar clipe no boss impresso — decisão do modelo mecânico) |
@@ -116,6 +116,16 @@ Nós de rede e o que se junta em cada um:
 
 Necessário: 2× 221-412 + 2× 221-413. A lista pede 4× + 2× — os 2× 221-412
 extras ficam como reserva.
+
+## Links e modelos confirmados para compra
+
+Itens com modelo, especificações e fornecedor já verificados e aprovados para o projeto:
+
+| ID | Item | Qtd | Modelo validado | Fornecedor / Link |
+|---|---|---|---|---|
+| E3 | Conector de emenda com alavanca 2 vias | 4 | WAGO Legítimo 221-412 (até 4 mm²) | [Casa do Eletricista](https://www.casadoeletricistasc.com.br/con-p-emenda-c-alav-2-fios-4mm-wago/p/4134) |
+| E4 | Conector de emenda com alavanca 3 vias | 2 | WAGO Legítimo 221-413 (até 4 mm²) | [Casa do Eletricista](https://www.casadoeletricistasc.com.br/con-p-emenda-c-alav-3-fios-4mm-wago/p/4135) |
+| E12 | Porta-fusível in-line 5×20 mm com rabicho | 1 | Modelo F-103C cilíndrico aéreo | [Eletrodex](https://www.eletrodex.net/acessorios/passivos/fusiveis/porta-fusivel-meio-de-fio-f103c) |
 
 ## Sequenciamento
 
