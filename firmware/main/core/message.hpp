@@ -22,6 +22,7 @@ enum class MessageType : uint8_t {
     MqttConnected,
     MqttDisconnected,
     EstadoChanged, // arg: 1 = preparando, 0 = desligada (FW-21)
+    EventQueued,   // novo evento enfileirado no storage (FW-22)
     // Agendador
     TimeSynced,
     ScheduleFired,
@@ -34,6 +35,7 @@ enum class MessageType : uint8_t {
 struct Message {
     MessageType type = MessageType::None;
     int32_t arg = 0;
+    int32_t arg2 = 0;
 };
 
 } // namespace cafey::core

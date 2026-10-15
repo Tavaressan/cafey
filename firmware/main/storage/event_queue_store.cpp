@@ -16,9 +16,11 @@ EventQueueStore::EventQueueStore()
 
 esp_err_t EventQueueStore::init() {
     static_assert(sizeof(LegacyPersistedLayoutV0) == 392,
-                  "layout legado do FW-19 deve ter 392 bytes");
-    static_assert(sizeof(PersistedLayout) == 400,
-                  "layout novo do FW-19 deve ter 400 bytes");
+                  "layout legado V0 deve ter 392 bytes");
+    static_assert(sizeof(LegacyPersistedLayoutV1) == 400,
+                  "layout legado V1 deve ter 400 bytes");
+    static_assert(sizeof(PersistedLayout) == 1296,
+                  "layout novo V2 deve ter 1296 bytes");
 
     esp_err_t err = nvs_.init();
     if (err != ESP_OK) {
@@ -55,12 +57,53 @@ esp_err_t EventQueueStore::init() {
         return ESP_OK;
     }
 
+    if (stored_size == sizeof(LegacyPersistedLayoutV1)) {
+        LegacyPersistedLayoutV1 legacy{};
+        err = nvs_.load_blob(kKey, &legacy, sizeof(legacy));
+        if (err != ESP_OK) {
+            return err;
+        }
+        if (legacy.magic != kEventQueueMagic || legacy.schema_version != 1) {
+            ESP_LOGW("EventQueueStore", "magic/schema V1 invalido, fila zerada");
+            head_ = 0;
+            count_ = 0;
+            return ESP_OK;
+        }
+
+        size_t migrated_head = legacy.head % kCapacity;
+        size_t migrated_count = legacy.count > kCapacity ? kCapacity : legacy.count;
+
+        PersistedLayout layout{};
+        layout.magic = kEventQueueMagic;
+        layout.schema_version = kEventQueueSchemaVersion;
+        layout.head = static_cast<uint32_t>(migrated_head);
+        layout.count = static_cast<uint32_t>(migrated_count);
+        for (size_t i = 0; i < kCapacity; ++i) {
+            layout.events[i].timestamp_inicio = legacy.events[i].timestamp_inicio;
+            layout.events[i].timestamp_fim = legacy.events[i].timestamp_fim;
+            layout.events[i].duracao_s = (legacy.events[i].timestamp_fim >= legacy.events[i].timestamp_inicio)
+                                             ? (legacy.events[i].timestamp_fim - legacy.events[i].timestamp_inicio)
+                                             : 0;
+            layout.events[i].origem = legacy.events[i].origem;
+            layout.events[i].resultado = EventResult::CONCLUIDO;
+            layout.events[i].horario_provisorio = legacy.events[i].horario_provisorio;
+            layout.events[i].evento_id[0] = '\0';
+        }
+
+        err = nvs_.save_blob(kKey, &layout, sizeof(layout));
+        if (err != ESP_OK) {
+            return err;
+        }
+
+        head_ = migrated_head;
+        count_ = migrated_count;
+        std::memcpy(events_, layout.events, sizeof(events_));
+        ESP_LOGW("EventQueueStore", "fila legada V1 migrada (%u eventos)",
+                 static_cast<unsigned>(count_));
+        return ESP_OK;
+    }
+
     if (stored_size == sizeof(LegacyPersistedLayoutV0)) {
-        // Blob pré-#129: mesmo layout de bytes do `Event` atual, só sem o prefixo
-        // de schema. Relê os 392 bytes, copia head/count/events verbatim (sem
-        // tocar em `horario_provisorio`, que firmwares pós-#124 já gravam com
-        // valor válido) e regrava com o prefixo. Persiste ANTES de comitar a RAM;
-        // um persist falho retorna o erro sem deixar RAM inconsistente (FW-19).
         LegacyPersistedLayoutV0 legacy{};
         err = nvs_.load_blob(kKey, &legacy, sizeof(legacy));
         if (err != ESP_OK) {
@@ -75,7 +118,17 @@ esp_err_t EventQueueStore::init() {
         layout.schema_version = kEventQueueSchemaVersion;
         layout.head = static_cast<uint32_t>(migrated_head);
         layout.count = static_cast<uint32_t>(migrated_count);
-        std::memcpy(layout.events, legacy.events, sizeof(layout.events));
+        for (size_t i = 0; i < kCapacity; ++i) {
+            layout.events[i].timestamp_inicio = legacy.events[i].timestamp_inicio;
+            layout.events[i].timestamp_fim = legacy.events[i].timestamp_fim;
+            layout.events[i].duracao_s = (legacy.events[i].timestamp_fim >= legacy.events[i].timestamp_inicio)
+                                             ? (legacy.events[i].timestamp_fim - legacy.events[i].timestamp_inicio)
+                                             : 0;
+            layout.events[i].origem = legacy.events[i].origem;
+            layout.events[i].resultado = EventResult::CONCLUIDO;
+            layout.events[i].horario_provisorio = legacy.events[i].horario_provisorio;
+            layout.events[i].evento_id[0] = '\0';
+        }
 
         err = nvs_.save_blob(kKey, &layout, sizeof(layout));
         if (err != ESP_OK) {
@@ -84,8 +137,8 @@ esp_err_t EventQueueStore::init() {
 
         head_ = migrated_head;
         count_ = migrated_count;
-        std::memcpy(events_, legacy.events, sizeof(events_));
-        ESP_LOGW("EventQueueStore", "fila legada migrada (%u eventos)",
+        std::memcpy(events_, layout.events, sizeof(events_));
+        ESP_LOGW("EventQueueStore", "fila legada V0 migrada (%u eventos)",
                  static_cast<unsigned>(count_));
         return ESP_OK;
     }

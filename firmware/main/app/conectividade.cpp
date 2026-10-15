@@ -1,6 +1,7 @@
 #include "app/conectividade.hpp"
 
 #include "app/downlink_subscriber.hpp"
+#include "app/pending_event_publisher.hpp"
 #include "app/uplink_publisher.hpp"
 
 namespace cafey::app {
@@ -50,6 +51,9 @@ void Conectividade::dispatch(const Message& msg) {
             brewing_ = msg.arg != 0;
             publish_estado();
             break;
+        case MessageType::EventQueued:
+            drain_events();
+            break;
         default:
             break;
     }
@@ -66,6 +70,7 @@ void Conectividade::on_mqtt_connected() {
     // `saude` online faz o backend republicar a lista de agendamentos.
     UplinkPublisher(*mqtt_, *topics_).publish_saude(kSaudeOnline);
     publish_estado();
+    drain_events();
 }
 
 void Conectividade::publish_estado() {
@@ -73,6 +78,12 @@ void Conectividade::publish_estado() {
     if (mqtt_ == nullptr || topics_ == nullptr || !mqtt_->is_connected()) return;
     UplinkPublisher(*mqtt_, *topics_)
         .publish_estado(brewing_ ? kEstadoPreparando : kEstadoDesligado);
+}
+
+void Conectividade::drain_events() {
+    if (mqtt_ == nullptr || topics_ == nullptr || event_queue_ == nullptr) return;
+    if (!mqtt_->is_connected()) return;
+    PendingEventPublisher(*event_queue_, *mqtt_, topics_->eventos).drain();
 }
 
 } // namespace cafey::app

@@ -40,6 +40,10 @@ add_executable(test_cafeteira
     ../main/app/conectividade.cpp
     ../main/app/agendador.cpp
     ../main/drivers/relay.cpp
+    ../main/storage/event_queue_store.cpp
+    ../main/storage/event_id_generator.cpp
+    ../main/storage/nvs_store.cpp
+    ../main/core/mutex_lock.cpp
 )
 add_test(NAME CafeteiraActiveObjectTest COMMAND test_cafeteira)
 
@@ -47,6 +51,9 @@ add_executable(test_conectividade
     test_conectividade.cpp
     ../main/core/active_object.cpp
     ../main/app/conectividade.cpp
+    ../main/storage/event_queue_store.cpp
+    ../main/storage/nvs_store.cpp
+    ../main/core/mutex_lock.cpp
 )
 add_test(NAME ConectividadeTest COMMAND test_conectividade)
 

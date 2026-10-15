@@ -10,7 +10,52 @@
 using cafey::app::PendingEventPublisher;
 using cafey::storage::Event;
 using cafey::storage::EventOrigin;
+using cafey::storage::EventResult;
 using cafey::storage::EventQueueStore;
+
+static Event make_test_event(const char* id, EventOrigin origem, EventResult resultado,
+                             uint32_t duracao_s, uint32_t ts_inicio, bool provisorio) {
+    Event e{};
+    if (id) {
+        std::strncpy(e.evento_id, id, sizeof(e.evento_id) - 1);
+    }
+    e.origem = origem;
+    e.resultado = resultado;
+    e.duracao_s = duracao_s;
+    e.timestamp_inicio = ts_inicio;
+    e.timestamp_fim = ts_inicio + duracao_s;
+    e.horario_provisorio = provisorio;
+    return e;
+}
+
+static void test_serialize_matches_backend_evento_payload() {
+    // 1788267604 = 2026-09-01T13:00:04Z
+    const uint32_t epoch = 1788267604;
+    Event event = make_test_event("a3f10c42:7", EventOrigin::BOTAO, EventResult::CONCLUIDO,
+                                  300, epoch, /*provisorio=*/false);
+
+    const std::string json = PendingEventPublisher::serialize(event);
+    const std::string expected =
+        "{\"eventoId\":\"a3f10c42:7\",\"tipo\":\"PREPARO\",\"resultado\":\"CONCLUIDO\","
+        "\"origem\":\"BOTAO\",\"duracaoS\":300,\"timestamp\":\"2026-09-01T13:00:04Z\"}";
+
+    assert(json == expected);
+    std::cout << "OK: test_serialize_matches_backend_evento_payload\n";
+}
+
+static void test_serialize_canceled_event_matches_backend_evento_payload() {
+    const uint32_t epoch = 1788267604;
+    Event event = make_test_event("a3f10c42:8", EventOrigin::APP, EventResult::CANCELADO,
+                                  45, epoch, /*provisorio=*/false);
+
+    const std::string json = PendingEventPublisher::serialize(event);
+    const std::string expected =
+        "{\"eventoId\":\"a3f10c42:8\",\"tipo\":\"PREPARO\",\"resultado\":\"CANCELADO\","
+        "\"origem\":\"APP\",\"duracaoS\":45,\"timestamp\":\"2026-09-01T13:00:04Z\"}";
+
+    assert(json == expected);
+    std::cout << "OK: test_serialize_canceled_event_matches_backend_evento_payload\n";
+}
 
 static void test_events_are_queued_while_offline() {
     MockNvs::reset();
@@ -20,8 +65,10 @@ static void test_events_are_queued_while_offline() {
     client.connected = false;
 
     PendingEventPublisher pub(store, client, "dispositivos/cafey-001/eventos");
-    assert(pub.enqueue(Event{100, 130, EventOrigin::BOTAO}) == ESP_OK);
-    assert(pub.enqueue(Event{200, 240, EventOrigin::AGENDAMENTO}) == ESP_OK);
+    assert(pub.enqueue(make_test_event("evt:1", EventOrigin::BOTAO, EventResult::CONCLUIDO,
+                                       30, 100, false)) == ESP_OK);
+    assert(pub.enqueue(make_test_event("evt:2", EventOrigin::AGENDAMENTO, EventResult::CONCLUIDO,
+                                       40, 200, false)) == ESP_OK);
 
     // Offline: drain nao publica nada e a fila permanece.
     assert(pub.drain() == 0);
@@ -38,8 +85,10 @@ static void test_drain_publishes_all_pending_on_reconnect_fifo() {
     client.connected = false;
 
     PendingEventPublisher pub(store, client, "dispositivos/cafey-001/eventos");
-    pub.enqueue(Event{100, 130, EventOrigin::BOTAO});
-    pub.enqueue(Event{200, 240, EventOrigin::AGENDAMENTO});
+    pub.enqueue(make_test_event("evt:1", EventOrigin::BOTAO, EventResult::CONCLUIDO,
+                                30, 100, false));
+    pub.enqueue(make_test_event("evt:2", EventOrigin::AGENDAMENTO, EventResult::CONCLUIDO,
+                                40, 200, false));
 
     client.connected = true;
     assert(pub.drain() == 2);
@@ -49,10 +98,10 @@ static void test_drain_publishes_all_pending_on_reconnect_fifo() {
     assert(client.publishes[0].topic == "dispositivos/cafey-001/eventos");
     assert(client.publishes[0].qos == 1);
     assert(client.publishes[0].retain == false);
-    assert(client.publishes[0].payload ==
-           "{\"inicio\":100,\"fim\":130,\"origem\":\"BOTAO\"}");
-    assert(client.publishes[1].payload ==
-           "{\"inicio\":200,\"fim\":240,\"origem\":\"AGENDAMENTO\"}");
+    assert(client.publishes[0].payload == PendingEventPublisher::serialize(
+               make_test_event("evt:1", EventOrigin::BOTAO, EventResult::CONCLUIDO, 30, 100, false)));
+    assert(client.publishes[1].payload == PendingEventPublisher::serialize(
+               make_test_event("evt:2", EventOrigin::AGENDAMENTO, EventResult::CONCLUIDO, 40, 200, false)));
     std::cout << "OK: test_drain_publishes_all_pending_on_reconnect_fifo\n";
 }
 
@@ -63,9 +112,9 @@ static void test_drain_stops_on_publish_failure_and_keeps_remaining() {
     FakeMqttClient client;
 
     PendingEventPublisher pub(store, client, "dispositivos/cafey-001/eventos");
-    pub.enqueue(Event{1, 2, EventOrigin::APP});
-    pub.enqueue(Event{3, 4, EventOrigin::APP});
-    pub.enqueue(Event{5, 6, EventOrigin::APP});
+    pub.enqueue(make_test_event("evt:1", EventOrigin::APP, EventResult::CONCLUIDO, 1, 100, false));
+    pub.enqueue(make_test_event("evt:2", EventOrigin::APP, EventResult::CONCLUIDO, 1, 200, false));
+    pub.enqueue(make_test_event("evt:3", EventOrigin::APP, EventResult::CONCLUIDO, 1, 300, false));
 
     client.fail_publish_after = 1; // primeira publicacao ok, segunda falha
 
@@ -74,7 +123,7 @@ static void test_drain_stops_on_publish_failure_and_keeps_remaining() {
 
     Event front{};
     store.front(&front);
-    assert(front.timestamp_inicio == 3);
+    assert(std::string(front.evento_id) == "evt:2");
     std::cout << "OK: test_drain_stops_on_publish_failure_and_keeps_remaining\n";
 }
 
@@ -86,7 +135,7 @@ static void test_drain_survives_reboot_via_persisted_queue() {
         FakeMqttClient offline;
         offline.connected = false;
         PendingEventPublisher pub(store, offline, "dispositivos/cafey-001/eventos");
-        pub.enqueue(Event{42, 50, EventOrigin::BOTAO});
+        pub.enqueue(make_test_event("boot1:42", EventOrigin::BOTAO, EventResult::CONCLUIDO, 8, 42, false));
     }
     {
         EventQueueStore store;
@@ -95,13 +144,13 @@ static void test_drain_survives_reboot_via_persisted_queue() {
         PendingEventPublisher pub(store, client, "dispositivos/cafey-001/eventos");
         assert(store.size() == 1);
         assert(pub.drain() == 1);
-        assert(client.publishes[0].payload ==
-               "{\"inicio\":42,\"fim\":50,\"origem\":\"BOTAO\"}");
+        assert(client.publishes[0].payload == PendingEventPublisher::serialize(
+                   make_test_event("boot1:42", EventOrigin::BOTAO, EventResult::CONCLUIDO, 8, 42, false)));
     }
     std::cout << "OK: test_drain_survives_reboot_via_persisted_queue\n";
 }
 
-// FW-15: preparo antes do sync NTP -> horario provisorio, distinguivel na drenagem.
+// FW-15 / FW-22: preparo antes do sync NTP -> horario provisorio, distinguivel na drenagem.
 
 static void test_provisional_event_is_flagged_on_publish() {
     MockNvs::reset();
@@ -110,12 +159,15 @@ static void test_provisional_event_is_flagged_on_publish() {
     FakeMqttClient client;
 
     PendingEventPublisher pub(store, client, "dispositivos/cafey-001/eventos");
-    // Preparo pelo botao antes do NTP: relogio interno ainda nao confiavel.
-    pub.enqueue(cafey::storage::make_brew_event(EventOrigin::BOTAO, 5, 305, /*ntp_synced=*/false));
+    Event prov = make_test_event("prov:1", EventOrigin::BOTAO, EventResult::CONCLUIDO,
+                                 300, 5, /*provisorio=*/true);
+    pub.enqueue(prov);
 
     assert(pub.drain() == 1);
-    assert(client.publishes[0].payload ==
-           "{\"inicio\":5,\"fim\":305,\"origem\":\"BOTAO\",\"relogioProvisorio\":true}");
+    const std::string payload = client.publishes[0].payload;
+    assert(payload.find("\"relogioProvisorio\":true") != std::string::npos);
+    assert(payload.find("\"eventoId\":\"prov:1\"") != std::string::npos);
+    assert(payload.find("\"tipo\":\"PREPARO\"") != std::string::npos);
     std::cout << "OK: test_provisional_event_is_flagged_on_publish\n";
 }
 
@@ -126,11 +178,14 @@ static void test_synced_event_has_no_provisional_flag() {
     FakeMqttClient client;
 
     PendingEventPublisher pub(store, client, "dispositivos/cafey-001/eventos");
-    pub.enqueue(cafey::storage::make_brew_event(EventOrigin::AGENDAMENTO, 1000, 1300, /*ntp_synced=*/true));
+    Event synced = make_test_event("sync:1", EventOrigin::AGENDAMENTO, EventResult::CONCLUIDO,
+                                   300, 1000, /*provisorio=*/false);
+    pub.enqueue(synced);
 
     assert(pub.drain() == 1);
-    assert(client.publishes[0].payload ==
-           "{\"inicio\":1000,\"fim\":1300,\"origem\":\"AGENDAMENTO\"}");
+    const std::string payload = client.publishes[0].payload;
+    assert(payload.find("\"relogioProvisorio\"") == std::string::npos);
+    assert(payload.find("\"eventoId\":\"sync:1\"") != std::string::npos);
     std::cout << "OK: test_synced_event_has_no_provisional_flag\n";
 }
 
@@ -142,7 +197,8 @@ static void test_provisional_flag_survives_reboot() {
         FakeMqttClient offline;
         offline.connected = false;
         PendingEventPublisher pub(store, offline, "dispositivos/cafey-001/eventos");
-        pub.enqueue(cafey::storage::make_brew_event(EventOrigin::BOTAO, 7, 42, /*ntp_synced=*/false));
+        pub.enqueue(make_test_event("boot1:7", EventOrigin::BOTAO, EventResult::CANCELADO,
+                                    35, 7, /*provisorio=*/true));
     }
     {
         EventQueueStore store;
@@ -150,13 +206,16 @@ static void test_provisional_flag_survives_reboot() {
         FakeMqttClient client;
         PendingEventPublisher pub(store, client, "dispositivos/cafey-001/eventos");
         assert(pub.drain() == 1);
-        assert(client.publishes[0].payload ==
-               "{\"inicio\":7,\"fim\":42,\"origem\":\"BOTAO\",\"relogioProvisorio\":true}");
+        const std::string payload = client.publishes[0].payload;
+        assert(payload.find("\"relogioProvisorio\":true") != std::string::npos);
+        assert(payload.find("\"resultado\":\"CANCELADO\"") != std::string::npos);
     }
     std::cout << "OK: test_provisional_flag_survives_reboot\n";
 }
 
 int main() {
+    test_serialize_matches_backend_evento_payload();
+    test_serialize_canceled_event_matches_backend_evento_payload();
     test_events_are_queued_while_offline();
     test_drain_publishes_all_pending_on_reconnect_fifo();
     test_drain_stops_on_publish_failure_and_keeps_remaining();

@@ -3,12 +3,14 @@
 #include <string>
 
 #include "app/ble_event_proxy.hpp"
+#include "app/pending_event_publisher.hpp"
 #include "mock_ble_server.hpp"
 #include "mock_esp_nvs.hpp"
 #include "storage/event.hpp"
 #include "storage/event_queue_store.hpp"
 
 using cafey::app::BleEventProxy;
+using cafey::app::PendingEventPublisher;
 using cafey::storage::Event;
 using cafey::storage::EventOrigin;
 using cafey::storage::EventQueueStore;
@@ -17,6 +19,7 @@ static Event make_event(uint32_t inicio, uint32_t fim, EventOrigin origem) {
     Event e{};
     e.timestamp_inicio = inicio;
     e.timestamp_fim = fim;
+    e.duracao_s = fim >= inicio ? (fim - inicio) : 0;
     e.origem = origem;
     return e;
 }
@@ -33,8 +36,9 @@ static void test_publishes_pending_queue_as_json_array() {
     proxy.begin();
 
     const std::string json = server.read(BleEventProxy::kPendingUuid);
-    assert(json.find("\"inicio\":100") != std::string::npos);
-    assert(json.find("\"inicio\":300") != std::string::npos);
+    assert(json.find(PendingEventPublisher::to_iso8601_utc(100)) != std::string::npos);
+    assert(json.find(PendingEventPublisher::to_iso8601_utc(300)) != std::string::npos);
+    assert(json.find("\"tipo\":\"PREPARO\"") != std::string::npos);
     assert(json.front() == '[' && json.back() == ']');
     std::cout << "OK: test_publishes_pending_queue_as_json_array\n";
 }
@@ -62,8 +66,8 @@ static void test_confirm_removes_only_confirmed_subset() {
 
     // Fila republicada apos a confirmacao.
     const std::string json = server.read(BleEventProxy::kPendingUuid);
-    assert(json.find("\"inicio\":200") != std::string::npos);
-    assert(json.find("\"inicio\":100") == std::string::npos);
+    assert(json.find(PendingEventPublisher::to_iso8601_utc(200)) != std::string::npos);
+    assert(json.find(PendingEventPublisher::to_iso8601_utc(100)) == std::string::npos);
     std::cout << "OK: test_confirm_removes_only_confirmed_subset\n";
 }
 

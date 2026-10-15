@@ -45,7 +45,11 @@ void Agendador::on_tick() {
     // desloca antes de decompor, para que hora e dia da semana saiam locais.
     const std::time_t local = t + utc_offset_s_;
     std::tm tm_now{};
+#if defined(_WIN32)
+    gmtime_s(&tm_now, &local);
+#else
     gmtime_r(&local, &tm_now);
+#endif
     const uint8_t dow_bit = static_cast<uint8_t>(1u << tm_now.tm_wday); // bit0=domingo
 
     for (size_t i = 0; i < count_; ++i) {

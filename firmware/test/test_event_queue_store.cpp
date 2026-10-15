@@ -1,5 +1,6 @@
 #include <cassert>
 #include <iostream>
+#include <vector>
 
 #include "mock_esp_nvs.hpp"
 #include "event_queue_store.hpp"
@@ -14,7 +15,9 @@
 
 using cafey::storage::Event;
 using cafey::storage::EventOrigin;
+using cafey::storage::EventResult;
 using cafey::storage::EventQueueStore;
+using cafey::storage::make_brew_event;
 
 int test_starts_empty_when_nothing_persisted() {
     MockNvs::reset();
@@ -32,8 +35,8 @@ int test_push_pop_is_fifo() {
     EventQueueStore store;
     store.init();
 
-    Event e1{100, 130, EventOrigin::AGENDAMENTO};
-    Event e2{200, 210, EventOrigin::BOTAO};
+    Event e1 = make_brew_event("id:1", EventOrigin::AGENDAMENTO, EventResult::CONCLUIDO, 30, 100, 130, true);
+    Event e2 = make_brew_event("id:2", EventOrigin::BOTAO, EventResult::CANCELADO, 10, 200, 210, true);
 
     TEST_ASSERT(store.push(e1) == ESP_OK, "push(e1) should succeed");
     TEST_ASSERT(store.push(e2) == ESP_OK, "push(e2) should succeed");
@@ -43,9 +46,13 @@ int test_push_pop_is_fifo() {
     TEST_ASSERT(store.pop(&out) == ESP_OK, "pop() should succeed");
     TEST_ASSERT(out.timestamp_inicio == 100, "first popped event must be e1 (FIFO)");
     TEST_ASSERT(out.origem == EventOrigin::AGENDAMENTO, "origin must match e1");
+    TEST_ASSERT(out.resultado == EventResult::CONCLUIDO, "result must match e1");
+    TEST_ASSERT(out.duracao_s == 30, "duration must match e1");
+    TEST_ASSERT(std::string(out.evento_id) == "id:1", "evento_id must match e1");
 
     TEST_ASSERT(store.pop(&out) == ESP_OK, "pop() should succeed");
     TEST_ASSERT(out.timestamp_inicio == 200, "second popped event must be e2 (FIFO)");
+    TEST_ASSERT(out.resultado == EventResult::CANCELADO, "result must match e2");
 
     TEST_ASSERT(store.empty(), "queue should be empty after popping both events");
 
@@ -70,13 +77,13 @@ int test_push_beyond_capacity_overwrites_oldest() {
     store.init();
 
     for (uint32_t i = 0; i < EventQueueStore::kCapacity; ++i) {
-        Event e{i, i + 1, EventOrigin::APP};
+        Event e = make_brew_event("", EventOrigin::APP, EventResult::CONCLUIDO, 1, i, i + 1, true);
         TEST_ASSERT(store.push(e) == ESP_OK, "push() should succeed while filling capacity");
     }
     TEST_ASSERT(store.full(), "queue should report full at capacity");
 
     // One more push should overwrite the oldest (timestamp_inicio == 0).
-    Event overflow{9999, 10000, EventOrigin::AGENDAMENTO};
+    Event overflow = make_brew_event("ovf", EventOrigin::AGENDAMENTO, EventResult::CONCLUIDO, 1, 9999, 10000, true);
     TEST_ASSERT(store.push(overflow) == ESP_OK, "push() beyond capacity should still succeed");
     TEST_ASSERT(store.size() == EventQueueStore::kCapacity, "size() must stay bounded at kCapacity");
 
@@ -93,7 +100,7 @@ int test_queue_survives_reboot() {
     {
         EventQueueStore store;
         store.init();
-        store.push(Event{42, 50, EventOrigin::BOTAO});
+        store.push(make_brew_event("boot:42", EventOrigin::BOTAO, EventResult::CONCLUIDO, 8, 42, 50, true));
     }
 
     // Simulate reboot: new instance re-reads NVS.
@@ -106,6 +113,7 @@ int test_queue_survives_reboot() {
         TEST_ASSERT(store.pop(&out) == ESP_OK, "pop() after reboot should succeed");
         TEST_ASSERT(out.timestamp_inicio == 42, "event data must survive reboot intact");
         TEST_ASSERT(out.origem == EventOrigin::BOTAO, "event origin must survive reboot intact");
+        TEST_ASSERT(std::string(out.evento_id) == "boot:42", "evento_id must survive reboot");
     }
 
     std::cout << "[PASS] test_queue_survives_reboot" << std::endl;
@@ -117,23 +125,18 @@ int test_push_fails_if_nvs_persist_fails() {
     EventQueueStore store;
     store.init();
 
-    Event e1{100, 130, EventOrigin::AGENDAMENTO};
+    Event e1 = make_brew_event("1", EventOrigin::AGENDAMENTO, EventResult::CONCLUIDO, 30, 100, 130, true);
     TEST_ASSERT(store.push(e1) == ESP_OK, "first push() should succeed");
     TEST_ASSERT(store.size() == 1, "size() should be 1 after first push");
 
     // Inject NVS write failure for next persist().
-    Event e2{200, 210, EventOrigin::BOTAO};
+    Event e2 = make_brew_event("2", EventOrigin::BOTAO, EventResult::CONCLUIDO, 10, 200, 210, true);
     MockNvs::set_blob_ret_code = ESP_FAIL;
     esp_err_t result = store.push(e2);
     TEST_ASSERT(result == ESP_FAIL, "push() must return the persist() error");
 
-    // CRITICAL: RAM must NOT advance if persist() fails.
-    // With the fix, count_ should still be 1 (not incremented).
-    // Without the fix, count_ would be 2 (already incremented before persist failed).
     TEST_ASSERT(store.size() == 1, "size() must NOT advance when persist() fails; must stay at 1");
 
-    // Verify NVS still has only 1 event (not 2).
-    // Create a new store instance and verify it reloads only 1 event.
     MockNvs::set_blob_ret_code = ESP_OK; // restore normal operation
     {
         EventQueueStore store2;
@@ -154,22 +157,17 @@ int test_pop_fails_if_nvs_persist_fails() {
     EventQueueStore store;
     store.init();
 
-    Event e1{100, 130, EventOrigin::AGENDAMENTO};
+    Event e1 = make_brew_event("1", EventOrigin::AGENDAMENTO, EventResult::CONCLUIDO, 30, 100, 130, true);
     TEST_ASSERT(store.push(e1) == ESP_OK, "push(e1) should succeed");
     TEST_ASSERT(store.size() == 1, "size() should be 1 after push");
 
-    // Inject NVS write failure for pop's persist().
     MockNvs::set_blob_ret_code = ESP_FAIL;
     Event out{};
     esp_err_t result = store.pop(&out);
     TEST_ASSERT(result == ESP_FAIL, "pop() must return the persist() error");
 
-    // CRITICAL: RAM must NOT advance if persist() fails.
-    // With the fix, count_ should still be 1 (not decremented).
-    // Without the fix, count_ would be 0 (already decremented before persist failed).
     TEST_ASSERT(store.size() == 1, "size() must NOT advance when persist() fails; must stay at 1");
 
-    // Verify NVS still has 1 event.
     MockNvs::set_blob_ret_code = ESP_OK; // restore normal operation
     {
         EventQueueStore store2;
@@ -182,20 +180,24 @@ int test_pop_fails_if_nvs_persist_fails() {
 }
 
 namespace {
-// Réplica do layout gravado antes da PR #129 (sem prefixo de schema). O `Event`
-// aqui já está no formato atual: o campo `horario_provisorio` cabe no padding e o
-// sizeof não mudou desde pré-#124, então firmwares pós-#124 gravam a flag com
-// valor válido dentro desse mesmo blob de 392 bytes.
-struct LegacyEventV0 {
+struct LegacyEventV1 {
     uint32_t timestamp_inicio;
     uint32_t timestamp_fim;
     EventOrigin origem;
     bool horario_provisorio;
 };
+struct LegacyPersistedLayoutV1 {
+    uint32_t magic;
+    uint16_t schema_version;
+    uint16_t reserved;
+    uint32_t head;
+    uint32_t count;
+    LegacyEventV1 events[EventQueueStore::kCapacity];
+};
 struct LegacyPersistedLayoutV0 {
     uint32_t head;
     uint32_t count;
-    LegacyEventV0 events[EventQueueStore::kCapacity];
+    LegacyEventV1 events[EventQueueStore::kCapacity];
 };
 
 void write_blob(const char* key, const void* data, size_t size) {
@@ -206,10 +208,8 @@ void write_blob(const char* key, const void* data, size_t size) {
 }
 } // namespace
 
-// FW-19: blob no layout legado conhecido deve ser migrado, nao descartado, e a
-// flag `horario_provisorio` gravada por firmware pós-#124 deve ser preservada
-// verbatim (nao zerada) durante a migracao.
-int test_legacy_blob_is_migrated() {
+// FW-19 / FW-22: migracao de V0 (392 bytes) para V2 (1296 bytes).
+int test_legacy_blob_v0_is_migrated() {
     MockNvs::reset();
 
     LegacyPersistedLayoutV0 legacy{};
@@ -224,35 +224,63 @@ int test_legacy_blob_is_migrated() {
 
     {
         EventQueueStore store;
-        TEST_ASSERT(store.init() == ESP_OK, "init() must migrate the legacy blob");
+        TEST_ASSERT(store.init() == ESP_OK, "init() must migrate the V0 blob");
         TEST_ASSERT(store.size() == 3, "all 3 legacy events must survive migration");
         for (size_t i = 0; i < 3; ++i) {
             Event out{};
             TEST_ASSERT(store.at(i, &out) == ESP_OK, "at() should succeed");
             TEST_ASSERT(out.horario_provisorio == expected_provisorio[i],
                         "horario_provisorio must be preserved verbatim through migration");
+            TEST_ASSERT(out.resultado == EventResult::CONCLUIDO, "resultado default CONCLUIDO");
+            TEST_ASSERT(out.duracao_s == 10, "duracao calculada de fim - inicio");
         }
-        TEST_ASSERT(store.at(0, nullptr) == ESP_OK, "first event present");
     }
 
-    // Segundo init() deve ler direto do layout novo regravado pela migração.
+    // Segundo init() deve ler direto do layout novo V2 regravado pela migração.
     {
         EventQueueStore store;
-        TEST_ASSERT(store.init() == ESP_OK, "second init() reads the rewritten new layout");
+        TEST_ASSERT(store.init() == ESP_OK, "second init() reads the rewritten V2 layout");
         TEST_ASSERT(store.size() == 3, "rewritten blob keeps the 3 events");
-        for (size_t i = 0; i < 3; ++i) {
-            Event out{};
-            TEST_ASSERT(store.at(i, &out) == ESP_OK, "at() should succeed");
-            TEST_ASSERT(out.horario_provisorio == expected_provisorio[i],
-                        "horario_provisorio must survive the rewritten new layout");
-        }
         Event out{};
         TEST_ASSERT(store.pop(&out) == ESP_OK, "pop() should succeed");
         TEST_ASSERT(out.timestamp_inicio == 10, "FIFO order preserved after migration");
         TEST_ASSERT(out.origem == EventOrigin::APP, "origin preserved after migration");
     }
 
-    std::cout << "[PASS] test_legacy_blob_is_migrated" << std::endl;
+    std::cout << "[PASS] test_legacy_blob_v0_is_migrated" << std::endl;
+    return 0;
+}
+
+// FW-22: migracao de V1 (400 bytes, schema 1) para V2 (1296 bytes, schema 2).
+int test_legacy_blob_v1_is_migrated() {
+    MockNvs::reset();
+
+    LegacyPersistedLayoutV1 v1{};
+    v1.magic = 0x51464143; // 'CAFQ'
+    v1.schema_version = 1;
+    v1.head = 0;
+    v1.count = 2;
+    v1.events[0] = {100, 150, EventOrigin::BOTAO, false};
+    v1.events[1] = {200, 300, EventOrigin::APP, true};
+    write_blob("queue", &v1, sizeof(v1));
+
+    {
+        EventQueueStore store;
+        TEST_ASSERT(store.init() == ESP_OK, "init() must migrate V1 blob to V2");
+        TEST_ASSERT(store.size() == 2, "all 2 V1 events must survive migration");
+        Event out{};
+        TEST_ASSERT(store.at(0, &out) == ESP_OK, "read first event");
+        TEST_ASSERT(out.timestamp_inicio == 100, "timestamp_inicio preserved");
+        TEST_ASSERT(out.duracao_s == 50, "duracao_s calculated 150-100");
+        TEST_ASSERT(out.resultado == EventResult::CONCLUIDO, "resultado CONCLUIDO");
+        TEST_ASSERT(!out.horario_provisorio, "horario_provisorio false");
+
+        TEST_ASSERT(store.at(1, &out) == ESP_OK, "read second event");
+        TEST_ASSERT(out.duracao_s == 100, "duracao_s calculated 300-200");
+        TEST_ASSERT(out.horario_provisorio, "horario_provisorio true");
+    }
+
+    std::cout << "[PASS] test_legacy_blob_v1_is_migrated" << std::endl;
     return 0;
 }
 
@@ -281,7 +309,8 @@ int main() {
     if (test_queue_survives_reboot()) return 1;
     if (test_push_fails_if_nvs_persist_fails()) return 1;
     if (test_pop_fails_if_nvs_persist_fails()) return 1;
-    if (test_legacy_blob_is_migrated()) return 1;
+    if (test_legacy_blob_v0_is_migrated()) return 1;
+    if (test_legacy_blob_v1_is_migrated()) return 1;
     if (test_unknown_blob_is_treated_as_empty()) return 1;
 
     std::cout << "All EventQueueStore tests PASSED!" << std::endl;

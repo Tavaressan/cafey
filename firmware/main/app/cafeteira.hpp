@@ -4,13 +4,17 @@
 #include <functional>
 
 #include "core/active_object.hpp"
+#include "core/clock.hpp"
 #include "drivers/relay.hpp" // tambem traz o header de GPIO (real ou mock)
+#include "storage/event.hpp"
+#include "storage/event_id_generator.hpp"
+#include "storage/event_queue_store.hpp"
 
 namespace cafey::app {
 
 /**
  * @brief Active Object da Cafeteira: maquina de estados do preparo,
- * acionamento do rele, LED RGB e leitura do botao fisico (por polling).
+ * acionamento do rele, LED RGB, leitura do botao fisico e enfileiramento de eventos (FW-22).
  */
 class Cafeteira : public cafey::core::ActiveObject {
 public:
@@ -47,6 +51,32 @@ public:
     }
 
     /**
+     * @brief Anexa a fila persistida e o gerador de ID para enfileirar eventos ao
+     * finalizar ou cancelar um preparo (FW-22).
+     */
+    void attach_event_queue(cafey::storage::EventQueueStore* store,
+                            cafey::storage::EventIdGenerator* id_gen,
+                            cafey::core::Clock* clock = nullptr) {
+        event_queue_ = store;
+        event_id_gen_ = id_gen;
+        if (clock != nullptr) clock_ = clock;
+    }
+
+    /**
+     * @brief Notificacao disparada apos enfileirar um novo evento (para a
+     * Conectividade drenar imediatamente via drain(), FW-22).
+     */
+    void set_on_event_queued(std::function<void()> on_event_queued) {
+        on_event_queued_ = std::move(on_event_queued);
+    }
+
+    /**
+     * @brief Informa diretamente se o NTP ja sincronizou (usado para sinalizar
+     * horario_provisorio nos eventos enfileirados).
+     */
+    void set_ntp_synced(bool synced) { ntp_synced_ = synced; }
+
+    /**
      * @brief Callback chamado a cada aplicacao de estado (rele + LED), inclusive
      * no boot, com true = preparando. Usado para publicar `estado` (FW-21).
      * Definir antes de start().
@@ -67,9 +97,11 @@ private:
 
     void apply_state();
     void led_set(bool r, bool g, bool b);
-    void start_brew(uint32_t duration_s);
+    void start_brew(uint32_t duration_s,
+                    cafey::storage::EventOrigin origin = cafey::storage::EventOrigin::APP);
     void cancel_brew();
     void finish_brew();
+    void enqueue_brew_event(cafey::storage::EventResult result, uint32_t duration_s);
 
     cafey::drivers::Relay relay_;
     gpio_num_t button_pin_;
@@ -77,8 +109,19 @@ private:
     gpio_num_t led_g_;
     gpio_num_t led_b_;
     State state_ = State::Off;
+    uint32_t brew_ticks_total_ = 0;
     uint32_t brew_ticks_left_ = 0; // ticks restantes do preparo em curso
+    uint32_t brew_start_epoch_ = 0;
     Result last_result_ = Result::None;
+    cafey::storage::EventOrigin current_origin_ = cafey::storage::EventOrigin::APP;
+    bool ntp_synced_ = false;
+
+    cafey::storage::EventQueueStore* event_queue_ = nullptr;
+    cafey::storage::EventIdGenerator* event_id_gen_ = nullptr;
+    cafey::core::SystemClock default_clock_;
+    cafey::core::Clock* clock_ = &default_clock_;
+    std::function<void()> on_event_queued_;
+
     int btn_reading_ = 1;
     int btn_stable_ = 1;
     int btn_same_count_ = 0;

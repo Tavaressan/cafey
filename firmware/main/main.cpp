@@ -14,12 +14,14 @@
 #include <string>
 
 #include "esp_log.h"
+#include "esp_random.h"
 #include "core/esp_mqtt_client.hpp"
 #include "core/mqtt_config_store.hpp"
 #include "core/mqtt_topics.hpp"
 #include "core/ntp_sync.hpp"
 #include "core/wifi_manager.hpp"
 #include "storage/schedule_store.hpp"
+#include "storage/event_id_generator.hpp"
 #include "storage/event_queue_store.hpp"
 
 #include "app/agendador.hpp"
@@ -71,6 +73,18 @@ extern "C" void app_main(void) {
         ESP_LOGI(TAG, "eventos pendentes carregados de NVS: %d", static_cast<int>(event_queue_store.size()));
     }
 
+    static cafey::storage::EventIdGenerator event_id_gen;
+    err = event_id_gen.init(esp_random());
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Falha ao inicializar gerador de ID de evento: %d", err);
+    }
+
+    g_cafeteira.attach_event_queue(&event_queue_store, &event_id_gen);
+    g_cafeteira.set_on_event_queued([] {
+        g_conectividade.post(Message{MessageType::EventQueued, 0});
+    });
+    g_conectividade.attach_event_queue(&event_queue_store);
+
     // Inicializa Wi-Fi (STA) com reconexao automatica em backoff e credenciais
     // de provisionamento persistidas em NVS (UC-04). Sem credenciais gravadas,
     // fica aguardando o app/BLE provisionar via WifiManager::provision().
@@ -91,7 +105,8 @@ extern "C" void app_main(void) {
     // A duracao vem do proprio agendamento (#200); 0 cai no default da Cafeteira.
     g_agendador.set_on_fire([](const cafey::storage::Schedule& s) {
         g_cafeteira.post(cafey::core::Message{cafey::core::MessageType::StartBrew,
-                                              static_cast<int32_t>(s.duration_s)});
+                                              static_cast<int32_t>(s.duration_s),
+                                              static_cast<int32_t>(cafey::storage::EventOrigin::AGENDAMENTO)});
     });
 
     // `hora` dos agendamentos vem no fuso do dispositivo (FW-23); fuso
@@ -115,9 +130,11 @@ extern "C" void app_main(void) {
         g_agendador.set_schedules(loaded, n);
     }
 
-    // SNTP em background: ao sincronizar, o Agendador passa a disparar por horario.
+    // SNTP em background: ao sincronizar, o Agendador passa a disparar por horario
+    // e a Cafeteira marca os eventos com horario confiavel.
     static cafey::core::NtpSync ntp_sync([] {
         g_agendador.post(cafey::core::Message{cafey::core::MessageType::TimeSynced, 0});
+        g_cafeteira.post(cafey::core::Message{cafey::core::MessageType::TimeSynced, 0});
     });
 
     // Handler de dominio do comando, compartilhado pelo downlink MQTT e pela
@@ -126,7 +143,8 @@ extern "C" void app_main(void) {
         switch (cmd.action) {
             case cafey::app::CoffeeAction::Ligar:
                 g_cafeteira.post(Message{MessageType::StartBrew,
-                                         static_cast<int32_t>(cmd.duracao_s)});
+                                         static_cast<int32_t>(cmd.duracao_s),
+                                         static_cast<int32_t>(cafey::storage::EventOrigin::APP)});
                 break;
             case cafey::app::CoffeeAction::Desligar:
             case cafey::app::CoffeeAction::Cancelar:
