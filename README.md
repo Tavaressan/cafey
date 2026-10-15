@@ -1,162 +1,208 @@
 # Cafey — Cafeteira Conectada
 
-Projeto Integrador do 6º semestre (Desenvolvimento de Software Multiplataforma, Fatec Itaquera).
+Projeto Integrador do 6º semestre — Curso Superior de Tecnologia em Desenvolvimento de Software Multiplataforma (Fatec Itaquera).
 
-Módulo IoT (Internet of Things — Internet das Coisas) externo, em formato de base de aço, que
-transforma qualquer cafeteira de chave mecânica em aparelho conectado, sem modificação interna.
-Um ESP32 aciona um relé que corta a fase da alimentação da cafeteira. Controle por app Kotlin
-Multiplataforma (web/mobile/desktop), backend Kotlin + Spring Boot, PostgreSQL, MQTT (Message
-Queuing Telemetry Transport) sobre AWS IoT Core.
+---
 
-## Estrutura
+## i) Nome do Projeto e do Grupo
 
-```
-/
-├── hardware/   KiCad — esquemático, PCB e bibliotecas do módulo eletrônico
-├── firmware/   C++ / ESP-IDF — firmware do ESP32
-├── backend/    Kotlin / Spring Boot — API e integração MQTT
-├── apps/       Kotlin Multiplataforma — app web/mobile/desktop
-└── docs/       Especificação e documentação acadêmica
-```
+- **Nome do Projeto:** Cafey — Cafeteira Conectada
+- **Grupo:** Vitor Tavares Chaves
 
-## Abrindo o esquemático
+---
 
-Requer **KiCad 10.0.5** (ou outra versão 10.0.x) — a mesma versão maior usada para criar o
-projeto. Abra `hardware/pi_dsm_26_2.kicad_pro`.
+## ii) Link do Repositório no Git
 
-A biblioteca de símbolo de terceiros usada pelo ESP32 (`ESP32_30Pin`, DOIT ESP32 DevKit V1 de 30
-pinos) está versionada em `hardware/libraries/esp32_30pin.kicad_sym` e registrada na tabela de
-bibliotecas do projeto (`hardware/sym-lib-table`) com caminho relativo — não depende de nenhuma
-biblioteca instalada fora do repositório.
+- **Repositório GitHub:** [https://github.com/Tavaressan/cafey](https://github.com/Tavaressan/cafey)
 
-## Aviso de segurança elétrica
+---
 
-O hardware envolve tensão de rede (127 V). A montagem exige validação por profissional de
-elétrica antes do primeiro uso com carga real.
+## iii) Nome dos Integrantes e Responsabilidade das Entidades
 
-## Cronograma
+- **Integrante:** Vitor Tavares Chaves (Execução individual)
+- **Entidades sob responsabilidade:**
+  - `Dispositivo`: Modelagem, persistência relacional, validação, regras de negócio e endpoints no backend; modelos de dados, repositórios e telas correspondentes no frontend.
+  - `Agendamento`: Modelagem, persistência relacional com chave estrangeira e timezone, validação, busca JPQL com LIKE no backend; sincronização de payloads e telas de agendamento no frontend.
+  - *Outras atribuições:* Arquitetura de autenticação segura (Spring Security com JWT RS256 e Ktor Client com Bearer Auth), pipeline de CI/CD, esquemático eletrônico no KiCad e firmware C++/FreeRTOS no ESP32.
 
-Execução individual, oito semanas. Hardware e software avançam em paralelo, mas nunca no mesmo
-dia: bancada e solda pedem bloco contínuo, código admite sessões curtas.
+---
 
-**Posição atual (31/08/2026):** Fase 1, esquemático elétrico validado. O gargalo do momento é a
-compra dos componentes — ela bloqueia a bancada, o desenho mecânico e a validação elétrica ao
-mesmo tempo.
+## iv) Descrição da Aplicação e Problemas que Resolve
 
-### Fase 1 — Fundação (24/08 – 04/09)
+O **Cafey** é um ecossistema IoT (Internet das Coisas) composto por um módulo de hardware externo (em formato de base de apoio para cafeteiras), um firmware embarcado com conectividade em nuvem, um backend robusto em nuvem e aplicativos multiplataforma para os usuários finais.
 
-| Estado | Entrega |
-|---|---|
-| ✅ | Especificação técnica v1.1 |
-| ✅ | Seleção da cafeteira: Britânia CP30 Inox, 800 W, 127 V, chave KCD1-106 |
-| ✅ | Decisões de hardware fechadas (alimentação, relé, LED, proteção, pinagem) |
-| ✅ | Esquemático KiCad validado nó a nó contra a especificação |
-| ✅ | Repositório e documentação de estado |
-| ⬜ | Compra dos componentes |
-| ⬜ | Conferência de bancada: serigrafia do DevKit, pinagem do módulo de relé, pernas do LED |
-| ⬜ | Protótipo do relé em bancada acionado pelo ESP32 |
-| ⬜ | Esqueleto do backend com autenticação |
+### O que a aplicação faz
+A solução transforma qualquer cafeteira comum de chave mecânica ("cafeteira convencional/burra") em uma cafeteira conectada e inteligente, **sem exigir nenhuma intervenção ou modificação nos circuitos internos do eletrodoméstico**, preservando integralmente a integridade física e a segurança do aparelho original. 
 
-### Fase 2 — Núcleo (07/09 – 25/09)
+A cafeteira é conectada à tomada de saída da base Cafey e mantida com seu interruptor físico ligado; o módulo Cafey controla a passagem de alimentação através de um relé interno acionado por um microcontrolador ESP32.
 
-| Trilha | Entrega |
-|---|---|
-| Firmware | Estrutura de Active Objects sobre FreeRTOS; persistência em NVS (Non-Volatile Storage — armazenamento não volátil) |
-| Firmware | MQTT sobre TLS (Transport Layer Security — segurança da camada de transporte) com certificado X.509; integração AWS IoT Core |
-| Backend | API REST de dispositivos, comandos e agendamentos; consumo MQTT |
-| Mobile | Operação básica: login, ligar, desligar, estado em tempo real |
-| Estrutura | Desenho mecânico da chapa e solicitação de dobra à empresa |
-| Artigo | Escrita incremental (ver trilha própria abaixo) |
+### Problemas que resolve e melhorias proporcionadas
+1. **Modernização Sustentável sem Descarte (Retrofit):** Permite usufruir de conveniências de automação e agendamento sem a necessidade de descartar aparelhos funcionais ou adquirir eletrodomésticos inteligentes proprietários de alto custo.
+2. **Acionamento Remoto com Segurança:** Permite ligar, desligar ou cancelar preparos à distância através de aplicativos para Web, Celular (Android) e Computador (Desktop), com desligamento automático configurável (evitando que a resistência fique aquecida indefinidamente).
+3. **Agendamento Autônomo e Resiliente (Offline-First):** Os agendamentos recorrentes configurados pelo usuário são armazenados na memória não-volátil do ESP32. Caso a conexão Wi-Fi ou a internet caiam, o microcontrolador mantém seu relógio sincronizado localmente e dispara o preparo do café com total independência da nuvem.
+4. **Manutenção Preventiva e Cuidados com o Aparelho:** Monitora a volumetria e contadores de ciclos de preparo, alertando o usuário sobre momentos ideais para descalcificação do reservatório, enxágue preventivo da tubulação e substituição do filtro de água.
+5. **Experiência Multiplataforma Integrada:** Permite o gerenciamento de múltiplos dispositivos e compartilhamento seguro entre membros de uma residência ou escritório com diferentes níveis de permissão (Proprietário e Convidado).
 
-### Fase 3 — Funcionalidade completa (28/09 – 09/10)
+---
 
-| Trilha | Entrega |
-|---|---|
-| Firmware | Agendamento local disparando por relógio sincronizado por NTP (Network Time Protocol — protocolo de tempo de rede) |
-| Backend | Histórico de preparos, estatísticas, contador de descalcificação |
-| Clientes | Web e desktop no nível essencial, reaproveitando composables |
-| Estrutura | Montagem da base: fixação, aterramento, separação alta/baixa tensão |
-| Segurança | Validação da montagem elétrica por profissional habilitado |
+## v) Tecnologias Utilizadas
 
-### Fase 4 — Fechamento (12/10 – 16/10)
+### Backend
+- **Linguagem & Runtime:** Kotlin `2.3.21` sobre JDK `21` (Eclipse Temurin)
+- **Framework Principal:** Spring Boot `4.1.1`
+  - Spring MVC (`spring-boot-starter-webmvc`)
+  - Spring Data JPA (`spring-boot-starter-data-jpa` com Hibernate `7.4`)
+  - Spring Security (`spring-boot-starter-security` e resource server) com tokens JWT assimétricos (RS256)
+  - Bean Validation (`spring-boot-starter-validation` com Hibernate Validator)
+  - Spring Mail (`spring-boot-starter-mail` integrado ao AWS SES em produção)
+- **Banco de Dados & Migrações:** PostgreSQL (produção/dev) com Flyway `12.4` (`flyway-database-postgresql`) e H2 Database em memória para testes unitários
+- **Documentação de API:** SpringDoc OpenAPI 3 / Swagger UI `3.1.1`
+- **Rate Limiting & Resiliência:** Bucket4j `8.19.0`
+- **Testes & Integração:** JUnit 5, Mockito, Spring Boot Test, Testcontainers `1.20.4` (PostgreSQL)
 
-| Trilha | Entrega |
-|---|---|
-| Testes | Ciclo completo com carga real; agendamento offline; queda de rede |
-| Firmware | Fallback BLE (Bluetooth Low Energy — Bluetooth de baixa energia) e proxy BLE, se o cronograma permitir |
-| Documentação | Documentação acadêmica e preparação para a banca |
+### Frontend (Apps Multiplataforma)
+- **Linguagem:** Kotlin `2.3.21` (Kotlin Multiplatform — KMP)
+- **UI Framework:** Compose Multiplatform `1.11.1` (Jetpack Compose compartilhado)
+- **Alvos Suportados:**
+  - **Android:** Android Gradle Plugin `8.13.2` (compileSdk 36, targetSdk 36, minSdk 26)
+  - **Desktop:** Compose Desktop JVM
+  - **Web:** Kotlin/Wasm (WebAssembly) executado no navegador
+- **Comunicação HTTP & Serialização:** Ktor Client `3.5.2` (com engines OkHttp para Android, CIO para Desktop e Js/Wasm para Web) e Kotlinx Serialization JSON `1.11.0`
+- **Concorrência & Tempo:** Kotlinx Coroutines `1.11.0` e Kotlinx DateTime `0.7.1`
 
-## Estrutura física
+### Firmware, Hardware & Nuvem
+- **Microcontrolador:** Espressif ESP32 (DOIT DevKit V1 de 30 pinos)
+- **Framework de Firmware:** ESP-IDF em C++ com FreeRTOS (Active Objects, RAII e NVS Storage)
+- **Protocolo IoT:** MQTT com criptografia TLS mútua (certificados X.509) sobre AWS IoT Core
+- **Desenho Eletrônico (EDA):** KiCad `10.0.5`
+- **Infraestrutura de Nuvem:**
+  - **API & Banco:** AWS Lightsail (contêineres Docker atrás de proxy reverso Caddy com terminação TLS automática)
+  - **Frontend Web:** Vercel (distribuição estática de assets Wasm)
+  - **CI/CD:** GitHub Actions com testes automatizados, verificação de segredos (GitGuardian) e deploy automatizado
 
-A base é uma chapa de aço dobrada, produzida internamente na empresa. O caminho crítico passa
-pela compra dos componentes: sem as dimensões reais das peças, o desenho não fecha.
+---
 
-| # | Atividade | Depende de |
+## vi) Camadas da Arquitetura e Estrutura de Pastas
+
+A arquitetura do projeto segue o padrão em camadas e segregação por funcionalidade/domínio:
+
+### 1. Backend (`backend/cafey-backend/src/main/kotlin/br/com/tavaressan/cafey/`)
+
+| Camada / Responsabilidade | Pacote / Pasta | Arquivos e Classes Principais |
 |---|---|---|
-| 1 | Levantar dimensões de ESP32, módulo de relé, HLK-PM01, tomada fêmea | Compras |
-| 2 | Planificação da chapa: recortes de tomada, cabo, botão e LED | 1 |
-| 3 | Definir separação física entre região de rede e região de baixa tensão | 2 |
-| 4 | Resolver posicionamento da antena (janela plástica ou antena externa) | 2 |
-| 5 | Prever fixação do terminal olhal de aterramento na chapa | 2 |
-| 6 | Solicitar dobra à empresa | 2, 3, 4, 5 |
-| 7 | Montagem: fiação de rede em bornes com tampa, fixação dos módulos | 6 |
-| 8 | Validação elétrica por profissional habilitado | 7 |
+| **Entidades de Domínio (JPA)** | `device/`, `schedule/`, `user/`, `event/` | `Dispositivo.kt`, `Agendamento.kt`, `Usuario.kt`, `EventoPreparo.kt` |
+| **Repositórios de Dados (Data JPA)** | `device/`, `schedule/`, `user/`, `event/` | `DispositivoRepository.kt` (JPQL com LIKE), `AgendamentoRepository.kt` (JPQL com LIKE), `UsuarioRepository.kt`, `EventoRepository.kt` |
+| **Serviços de Negócio** | `device/`, `schedule/`, `auth/`, `event/` | `DispositivoService.kt`, `AgendamentoService.kt`, `AuthService.kt`, `EventoService.kt` |
+| **Controladores REST (API)** | `device/`, `schedule/`, `auth/`, `event/` | `DispositivoController.kt`, `AgendamentoController.kt`, `AuthController.kt`, `EventoController.kt` |
+| **Objetos de Transferência (DTOs com Validação)** | `device/`, `schedule/`, `auth/`, `event/` | `DeviceDto.kt`, `ScheduleDto.kt`, `AuthDto.kt`, `EventoDto.kt` |
+| **Camada Mapper (Conversão Entidade ↔ DTO)** | `mapper/` | `DispositivoMapper.kt`, `AgendamentoMapper.kt` |
+| **Segurança e Filtros JWT** | `security/` | `SecurityConfig.kt` (`SecurityFilterChain`), `JwtAuthenticationFilter.kt`, `JwtTokenService.kt`, `RateLimitingFilter.kt` |
+| **Tratamento de Exceções (RFC 9457)** | `exception/` | `GlobalExceptionHandler.kt`, exceções especializadas de domínio |
+| **Configurações Gerais** | `config/` | `OpenApiConfig.kt` (SpringDoc Swagger), `RateLimitConfig.kt` |
+| **Integração MQTT / Nuvem** | `mqtt/` | `MqttService.kt`, `MqttPayloads.kt` |
+| **Migrações de Banco de Dados** | `src/main/resources/db/migration/` | `V1__init.sql` a `V8__agendamentos_descricao.sql` |
 
-O item 3 não é detalhe de acabamento: a especificação exige rede elétrica e eletrônica de baixa
-tensão em lados opostos da caixa, sem cabos de alta e baixa tensão em paralelo. O item 4 existe
-porque a estrutura metálica atenua Wi-Fi e BLE.
+### 2. Frontend / Apps Multiplataforma (`apps/`)
 
-## Artigo — EnGeTec 2026
+| Camada / Responsabilidade | Pacote / Pasta | Descrição |
+|---|---|---|
+| **Modelos de Domínio Compartilhados** | `shared/src/commonMain/.../domain/model/` | Classes de dados de domínio (`Device`, `Schedule`, `CareItem`, `UserSession`) consumidas pelas UIs |
+| **Validação de Formulários** | `shared/src/commonMain/.../domain/validation/` | Validadores de regras de negócio de entrada para telas e formulários |
+| **Rede e Consumo de API (Ktor)** | `shared/src/commonMain/.../network/` | Clientes HTTP tipados (`ApiClient.kt`, `DeviceApi.kt`, `ScheduleApi.kt`, `AuthApi.kt`) |
+| **Gerenciamento de Autenticação** | `shared/src/commonMain/.../auth/` | Gerenciamento de token Bearer em memória e preferências criptografadas |
+| **Interface com Usuário (Telas e ViewModels)** | `shared/src/commonMain/.../ui/` | Telas segregadas por módulo: `home/`, `device/`, `schedule/`, `care/`, `history/`, `account/`, `auth/` |
+| **Design System e Tema** | `shared/src/commonMain/.../ui/theme/` | `CafeyTheme.kt`, `CafeyColors.kt`, `CafeyTypography.kt`, recursos visuais e fontes |
+| **Roteamento e Navegação** | `shared/src/commonMain/.../ui/CafeyNavHost.kt` | Máquina de estados de navegação declarativa entre telas com suporte responsivo |
+| **Ponto de Entrada Android** | `apps/androidApp/` | Configurações do SDK Android, Manifest e `MainActivity.kt` |
+| **Ponto de Entrada Desktop** | `apps/desktopApp/` | Executável JVM para desktop (`Main.kt` com janela do Compose Desktop) |
+| **Ponto de Entrada Web** | `apps/webApp/` | Ponto de entrada Wasm (`main.kt`), inicializador de Canvas HTML e configuração de bundle |
 
-Submissão prevista para 20/09, dentro da Fase 2 — o período de maior carga técnica. Mitigação:
-sessões fixas de escrita às terças, quintas e sábados, alimentadas pelas decisões já registradas
-na especificação. O artigo descreve a proposta e resultados parciais; não depende do projeto
-concluído.
+---
 
-**Confirmar a data no Teams** — a orientação da disciplina remete a ela, e a data acima vem da
-especificação do projeto.
+## vii) Instruções de Instalação, Execução e Acesso
 
-| Semana | Atividade |
-|---|---|
-| 31/08 – 06/09 | Cadastro no site do evento; levantamento bibliográfico |
-| 31/08 – 06/09 | Definir recorte do artigo e estrutura das seções |
-| 07/09 – 13/09 | Fundamentação teórica e método |
-| 14/09 – 20/09 | Resultados parciais, conclusão, revisão de formatação |
-| 20/09 | Submissão |
-| a definir | Apresentação no evento (requisito para o certificado e para os anais) |
+### Pré-requisitos
+- **Java Development Kit (JDK):** Versão 21 ou superior (recomendado Eclipse Temurin 21)
+- **Docker & Docker Compose:** Versão 24+ instalada e ativa
+- **Git:** Para clonagem e versionamento
+- *(Opcional)* **Android Studio com Android SDK (API 36):** Caso deseje compilar ou executar o aplicativo Android
 
-**Requisitos de submissão:**
+---
 
-- Template oficial do EnGeTec, sem qualquer alteração de formatação
-- Mínimo de 10 artigos relacionados; referências em livros
-- Não usar sites ou blogs como referência
-- Título, resumo e palavras-chave em português, inglês e espanhol
-- Resumo com no máximo 180 palavras
-- Norma única em todo o texto: ABNT ou APA
-- E-mail do professor orientador por último na lista de autores
-- Declaração de uso (ou não uso) de ferramentas de IA ao final
+### 1. Executando o Backend
 
-## Marcos de aceitação
+#### Opção A — Stack Completa via Docker Compose (Recomendado para avaliação local)
+A partir da raiz do repositório:
+```bash
+cd backend
+docker compose up --build
+```
+Isso iniciará:
+1. O banco de dados PostgreSQL na porta `5432`.
+2. A aplicação Spring Boot na porta `8080`, aplicando todas as migrações Flyway automaticamente.
 
-| Data | Critério |
-|---|---|
-| 04/09 | Relé aciona a carga por comando do ESP32; backend autentica ponta a ponta |
-| 20/09 | Artigo submetido ao EnGeTec |
-| 25/09 | Comando emitido no mobile chega à base via AWS IoT |
-| 02/10 | Montagem elétrica validada por profissional |
-| 09/10 | Agendamento dispara offline; histórico exibindo eventos reais |
-| 16/10 | Projeto pronto para a banca |
+#### Opção B — Executando a API diretamente no Host (via Gradle)
+```bash
+cd backend
+docker compose up -d db     # Sobe apenas o banco de dados
+cd cafey-backend
+./gradlew bootRun           # No Windows: gradlew.bat bootRun
+```
 
-## Ordem de cortes
+#### Acesso e Teste da API via Swagger UI:
+- **Ambiente Local:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- **Especificação OpenAPI JSON Local:** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+- **Ambiente de Produção (Online na AWS):** [https://cafey-backend.duckdns.org/swagger-ui.html](https://cafey-backend.duckdns.org/swagger-ui.html)
 
-Se o cronograma apertar, corta-se nesta ordem:
+---
 
-1. Fallback BLE e proxy BLE
-2. Gráficos de estatística (mantendo o histórico em lista)
-3. Compartilhamento de dispositivo com convidado
-4. Cliente desktop
-5. Recuperação de senha
+### 2. Executando os Aplicativos Multiplataforma
 
-**Nunca cortar:** agendamento offline, botão físico, aterramento e isolamento elétrico.
+A partir da pasta `apps/`:
 
-Ver [`STATUS.md`](STATUS.md) para o estado atual do projeto.
+#### A. Executar o Aplicativo Desktop (Windows / Linux / macOS)
+```bash
+cd apps
+./gradlew :desktopApp:run   # No Windows: gradlew.bat :desktopApp:run
+```
+
+#### B. Executar o Aplicativo Web Localmente (Kotlin/Wasm)
+```bash
+cd apps
+./gradlew :webApp:wasmJsBrowserDevelopmentRun
+```
+Acesse o app no navegador através do endereço local indicado (geralmente `http://localhost:8081`).
+
+#### C. Versão Web em Produção (Disponível Online)
+O aplicativo Web compilado para WebAssembly está publicado e acessível publicamente em:
+- **App Web Online:** [https://cafey-web.vercel.app](https://cafey-web.vercel.app)
+
+#### D. Executar o Aplicativo Android
+Com um emulador ou dispositivo físico conectado com depuração USB ativa:
+```bash
+cd apps
+./gradlew :androidApp:installDebug
+```
+
+---
+
+## Segurança e Premissas da API
+
+1. **Lista Fechada de Rotas Públicas:** As seguintes rotas têm acesso público liberado no `SecurityConfig.kt` (todas as demais exigem obrigatoriamente autenticação Bearer JWT):
+   - `POST /auth/signin` e `POST /auth/signup` (rotas oficiais de login e cadastro)
+   - `POST /auth/login` e `POST /auth/registrar` (aliases mantidos para retrocompatibilidade)
+   - `POST /auth/refresh` (renovação do access token via refresh token)
+   - `POST /auth/recuperar-senha` e `POST /auth/redefinir-senha` (fluxo de recuperação)
+   - `GET /redefinir-senha.html` (página web de redefinição de senha)
+   - `/swagger-ui/**`, `/swagger-ui.html` e `/v3/api-docs/**` (documentação interativa da API)
+2. **Isolamento de Dados por Usuário:** As consultas e listagens (`GET /dispositivos` e `GET /dispositivos/{id}/agendamentos`) não expõem dados globais entre usuários; a API retorna estritamente os recursos vinculados ao usuário autenticado identificado pelo token JWT.
+3. **Terminação TLS e Cabeçalhos de Proxy:** O backend opera configurado com `server.forward-headers-strategy: native`, compatível com a terminação TLS do proxy reverso Caddy em produção.
+
+---
+
+## Hardware e Segurança Elétrica
+
+- **Aviso de Segurança Elétrica:** O módulo de hardware atua diretamente sobre a tensão de rede alternada (127 V). A montagem e operação devem respeitar as diretrizes de isolamento galvânico entre alta e baixa tensão e aterramento da carcaça metálica.
+- **Esquemático KiCad:** O projeto eletrônico está disponível na pasta `hardware/` e requer o **KiCad 10.0.5** (ou versão 10.0.x compatível). Abra o arquivo `hardware/pi_dsm_26_2.kicad_pro`. Todas as bibliotecas de símbolos e footprints foram configuradas com caminhos relativos ao repositório.
+
+Para consultar o cronograma histórico de desenvolvimento, marcos de aceitação e ordem de prioridades, veja o documento de [Planejamento do Projeto](docs/planejamento.md).
