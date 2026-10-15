@@ -60,9 +60,7 @@ firmware reforça isso forçando o pino em ALTO antes de configurar o GPIO
 GPIO12 foi evitado (nível alto no boot impede a partida); GPIO2, 5 e 15 foram
 evitados (strapping); GPIO34, 35, 36 e 39 são somente entrada.
 
-O símbolo `ESP32_30Pin` declara o pino 16 (3V3) como entrada de energia; na
-placa real o 3V3 é saída do regulador de bordo. Por isso a rede `+3V3` leva um
-`PWR_FLAG` — curativo de ERC, sem efeito físico. Corrigir no símbolo algum dia.
+- **Pino 16 do ESP32_30Pin:** corrigido para `power_out` tanto na biblioteca local (`esp32_30pin.kicad_sym`) quanto no esquemático incorporado, e o `PWR_FLAG` artificial da rede `+3V3` foi removido (PR #237, Issues #20 e #131). A rede `+3V3` é agora dirigida nativamente pelo regulador de bordo do ESP32 DevKit V1.
 
 ## Esquemático — referências (mudaram após reanotação)
 
@@ -74,7 +72,11 @@ placa real o 3V3 é saída do regulador de bordo. Por isso a rede `+3V3` leva um
 | U1 | ESP32 DevKit V1 |
 | U2 | HLK-PM01 (`Converter_ACDC:HLK-PM01`) |
 | K3 | Módulo relé, gatilho baixo, 2 canais (1 em uso) (`relay_module:Relay_Module_1CH`, símbolo único do projeto — representa o canal usado) |
-| F1 | Fusível | C1/C2/C3 | Capacitores (C3 = antigo C4, buraco fechado) |
+| F1 | Fusível 10 A T / 250 V retardado |
+| R1 | Resistor 10 kΩ pull-up de K3.IN para +3V3 |
+| R2 | Resistor 10 kΩ pull-up de SW1 para +3V3 |
+| R3/R4/R5 | Resistores dos anodos do LED RGB (220 Ω / 100 Ω / 100 Ω) |
+| C1/C2/C3 | Capacitores de desacoplamento e debouncing (C1 470 µF, C2/C3 100 nF) |
 
 ## Esquemático — o que está pronto
 
@@ -90,21 +92,18 @@ placa real o 3V3 é saída do regulador de bordo. Por isso a rede `+3V3` leva um
   para a tomada.
 - Todos os componentes com símbolo dedicado (HLK-PM01, relé, plugue/tomada
   protegidos) e campos de Valor preenchidos.
-- `PWR_FLAG` em `+3V3`, `L_REDE` e `L_SAIDA` (o `+5V` e o `GND` são dirigidos
-  pelos pinos de saída do HLK-PM01).
-- Anotação feita; ERC rodado.
+- Net `+3V3` alimentado nativamente por U1.16 (`power_out`); `+5V` e `GND` dirigidos
+  pelas saídas do HLK-PM01 (U2).
+- Pull-up R1 desenhado canonicamente no topo (`+3V3` com rotação 0 apontando para cima)
+  e `RELE_IN` roteado pela perna inferior até K3.IN (PR #237).
+- Anotação feita; ERC rodado (0 erros, 22 avisos esperados e documentados).
 - Netlist conferida nó a nó com `kicad-cli export netlist`.
-- Notas de texto no bloco de potência (tensão, corrente, aviso de validação).
+- PDF exportado via `kicad-cli sch export pdf`.
 
-## Esquemático — o que falta
+## Esquemático — exclusões de ERC documentadas (HW-09 / #11)
 
-- [ ] Atribuir footprints a todos os componentes (nenhum tem footprint ainda) —
-      pré-requisito do PCB
-- [ ] Dois avisos de ERC ficam como exclusão documentada: `power_out ↔ power_out`
-      em `N` e em `Earth_Protective` (passagem direta plugue→tomada, inerente aos
-      símbolos `*_3P_Protected`)
-- [ ] Aviso `pin_to_pin` entre U1.GND (bidirecional) e U2.-Vout — inofensivo
-- [ ] 21 avisos de "pino não conectado" nos GPIOs livres do U1 — esperados
+- [x] **21 avisos de "pino não conectado":** GPIOs livres e pinos auxiliares do ESP32 (U1: EN, GPIO1, 2, 3, 4, 5, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 32, 33, 34, 35, 36, 39) — intencionais e esperados (apenas GPIO26, GPIO27, GPIO25/33/32 do LED e alimentação estão em uso).
+- [x] **1 aviso `pin_to_pin`:** U1.GND (bidirecional) conectado a U2.-Vout (saída de potência) — inerente ao conversor HLK-PM01 alimentar e referenciar o plano de terra DC do ESP32.
 
 ## Pendências de bancada
 
@@ -120,59 +119,22 @@ Nenhuma delas é decisão — são verificações contra o componente físico.
 ## Compras pendentes
 
 Lista completa e revisada em `docs/lista-compras-cafeteira.md` (revisão de
-08/09/2026). Fusível fixado em **10 A T** (não 8 A): fica no limite do contato
+08/09/2026 e atualizações recentes). Fusível fixado em **10 A T** (não 8 A): fica no limite do contato
 do relé, protege a fiação do módulo e o cabo; menos abertura espúria que 8 A
-sobre 6,3 A. Itens `MEDIR` (E2 tomada, E10 prensa-cabo, M1 botão) compram
-primeiro e alimentam o modelo mecânico.
+sobre 6,3 A.
 
-## Revisão de compras e correções (08/09/2026)
+## Revisão e fechamento de pendências de hardware (15/10/2026)
 
-Revisão técnica da lista de compras cruzada com esquemático, firmware e modelo
-mecânico. Decisões tomadas nesta sessão e o que falta aplicar.
-
-### Decisões
-
-| Tema | Decisão |
-|---|---|
-| Filosofia do fusível | Manter o esquemático: F1 em série com a carga, protege todo o módulo. **Não** rebaixar para fusível só do ramo do HLK-PM01. |
-| Valor de F1 | 10 A / 250 V **retardado (T)**. |
-| Gatilho do relé | **Active-LOW** (firmware/Wokwi estavam certos; esquemático e STATUS estavam errados). R1 vira pull-up para +3V3. |
-| Módulo de relé | É de **2 canais** (LAFVIN), usa 1. Atualizar o modelo mecânico para o volume real de 2 canais. |
-| Botão de painel | **16 mm** metálico momentâneo NA. Atualizar `furo_botao` no modelo (era 12 mm). |
-| Cabo de força (E1) | **3G1,0 mm²**, ⌀ externo ≤ 8 mm (entra no PG9 — não subir para 1,5 mm²). |
-| Ponto de terra (PE) | **Borne de aterramento DIN verde-amarelo** (mantém o papel do J3). Gabinete plástico não tem massa a aterrar. |
-| Bonding do botão/USB metálicos ao PE | **Em aberto** — decisão do profissional habilitado no marco de 02/10. |
-
-### Correções já aplicadas nesta sessão
-
-- `hardware/pi_dsm_26_2.kicad_sch`:
-  - `K3` Value: "1 canal, gatilho alto" → "2 canais (1 em uso), gatilho baixo (HL-52S, LOW=liga)".
-  - `F1` Value: "10 A / 250 V" → "10 A T / 250 V".
-  - R1 pull-down → pull-up: símbolo `#PWR08` trocado de `power:GND` para `power:+3V3` (rotação 180) no pino inferior de R1.
-  - `J3` Value: "Terra da chapa de aço — terminal olhal" → "Borne de aterramento DIN verde-amarelo…".
-  - ERC re-rodado (0 erros / 22 avisos esperados); `pi_dsm_26_2.pdf` regenerado.
-- `STATUS.md`: tabela de decisões, pinagem, referências, compras pendentes (este arquivo).
-- `mechanical/params/parametros_3d.csv`: `furo_botao` 12 → 16 mm.
-- `mechanical/params/componentes_3d.csv`: `modulo_rele` redimensionado para módulo de 2 canais.
-- `mechanical/FUROS.md`: nota do `furo_botao` (12 → 16 mm) e do porta-fusível.
-- `docs/lista-compras-cafeteira.md`: criado.
-
-### Falta aplicar (não dá para fazer neste ambiente)
-
-- [x] ERC re-rodado (`kicad-cli` 10.0.5): 0 erros, 22 avisos esperados. Netlist
-      reconferida. PDF regenerado.
-- [ ] Abrir no KiCad e conferir a **aparência** do símbolo `#PWR08` (trocado de
-      `power:GND` para `power:+3V3`, rotação 180 por edição de texto) e reanotar
-      as refs de power se necessário — cosmético, o ERC/netlist já estão corretos.
-- [ ] Regenerar o modelo mecânico (`freecadcmd mechanical/scripts/build_peca1_3d.py`
-      etc.) para propagar `furo_botao = 16` e o novo volume do relé; conferir
-      `check_peca*.py`.
-- [ ] Medir a placa de relé 2 canais LAFVIN real e ajustar o envelope
-      `modulo_rele` com o valor medido (o valor atual é estimado).
-- [ ] Reposicionar `modulo_rele` no compartimento de rede se o volume maior
-      colidir com `hlk_pm01` ou `porta_fusivel`.
-- [ ] Atualizar a §4.5 e a §9 da especificação (isolamento) — pendência antiga,
-      ainda aberta.
+- [x] **HW-19 / #130:** Regeneração completa da geometria FreeCAD FDM (`build_peca1_3d.py`, `build_peca2_3d.py`, `build_arranjo_3d.py`), propagando `furo_botao = 16`, relé 2 canais LAFVIN (50×39×19 mm), eliminação da janela RF no FDM (PETG transparente a 2.4 GHz) e validação matemática de 100% dos checks mecânicos (`check_peca1_3d`, `check_peca2_3d`, `check_montagem_3d`, `check_arranjo_3d`). STEP versionado atualizado.
+- [x] **HW-18 / #20:** Símbolo `ESP32_30Pin` corrigido com pino 16 como `power_out`, permitindo a remoção do `PWR_FLAG` (#FLG02) da rede `+3V3`.
+- [x] **HW-20 / #131:** Ajuste estético e elétrico do símbolo `#PWR08` (+3V3 do pull-up de R1) com rotação 0 para cima e roteamento limpo de `RELE_IN`.
+- [x] **HW-07 / #9:** Confirmado F1 10 A T / 250 V retardado no esquemático e na lista de compras. Issue fechada.
+- [x] **HW-12 / #14:** Separação física rede / baixa tensão com divisória de policarbonato 3 mm e folgas >= 10 mm modelada e validada no 3D. Issue fechada.
+- [x] **HW-13 / #15:** Posição da antena ESP32 rente à parede frontal de PETG sem janela RF. Issue fechada.
+- [x] **HW-14 / #16:** PE passa-através em borne DIN J3 / conector WAGO 221 para gabinete plástico FDM. Issue fechada.
+- [x] **HW-15 / #17:** Superada pelo pivô arquitetural de carcaça impressa em 3D (FDM). Issue fechada.
+- [x] **HW-11 / #13:** Planificação da chapa entregue em DXF analítico (`flatten_peca1.py`). Issue fechada.
+- [x] **HW-10 / #12:** Dimensões físicas e modelos visuais STEP/IGES consolidados no arranjo 3D. Issue fechada.
 - [ ] Conferir na bancada se o módulo de relé físico realmente liga com IN=LOW.
 - [ ] Verificar se o plugue da CP30 tem o 3º pino (terra) populado.
 
