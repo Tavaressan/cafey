@@ -8,6 +8,7 @@ import br.com.tavaressan.cafey.device.UsuarioDispositivoRepository
 import br.com.tavaressan.cafey.security.JwtTokenService
 import br.com.tavaressan.cafey.user.Usuario
 import br.com.tavaressan.cafey.user.UsuarioRepository
+import org.hamcrest.Matchers.hasSize
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -25,7 +26,8 @@ import java.time.LocalTime
 import java.util.UUID
 
 /**
- * Testes HTTP (MockMvc, banco H2 real) do `GET /dispositivos/{dispositivoId}/agendamentos/{agendamentoId}`.
+ * Testes HTTP (MockMvc, banco H2 real) do `GET /dispositivos/{dispositivoId}/agendamentos/{agendamentoId}`
+ * e da listagem com o filtro `descricao`.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
@@ -44,6 +46,7 @@ class AgendamentoControllerTest @Autowired constructor(
     private lateinit var outroDispositivo: Dispositivo
     private lateinit var agendamento: Agendamento
     private lateinit var agendamentoDoOutro: Agendamento
+    private lateinit var agendamentoSemDescricao: Agendamento
 
     @BeforeEach
     fun setUp() {
@@ -63,11 +66,16 @@ class AgendamentoControllerTest @Autowired constructor(
         }
         agendamento = agendamentoRepository.save(
             Agendamento(
-                dispositivo = dispositivo, hora = LocalTime.of(7, 30), diasSemana = 62, ativo = true, duracaoPreparoS = 480
+                dispositivo = dispositivo, hora = LocalTime.of(7, 30), diasSemana = 62, ativo = true, duracaoPreparoS = 480,
+                descricao = "Cafe da manha"
             )
         )
         agendamentoDoOutro = agendamentoRepository.save(
             Agendamento(dispositivo = outroDispositivo, hora = LocalTime.of(9, 0), diasSemana = 1)
+        )
+        // Sem descrição: não casa com nenhum filtro, mas entra na listagem completa.
+        agendamentoSemDescricao = agendamentoRepository.save(
+            Agendamento(dispositivo = dispositivo, hora = LocalTime.of(12, 0), diasSemana = 62)
         )
     }
 
@@ -75,6 +83,7 @@ class AgendamentoControllerTest @Autowired constructor(
     fun tearDown() {
         agendamentoRepository.delete(agendamento)
         agendamentoRepository.delete(agendamentoDoOutro)
+        agendamentoRepository.delete(agendamentoSemDescricao)
         listOf(dispositivo, outroDispositivo).forEach { disp ->
             usuarioDispositivoRepository.findByDispositivoId(disp.id!!).forEach { usuarioDispositivoRepository.delete(it) }
             dispositivoRepository.delete(disp)
@@ -99,6 +108,7 @@ class AgendamentoControllerTest @Autowired constructor(
             .andExpect(jsonPath("$.diasSemana").value(62))
             .andExpect(jsonPath("$.ativo").value(true))
             .andExpect(jsonPath("$.duracaoPreparoS").value(480))
+            .andExpect(jsonPath("$.descricao").value("Cafe da manha"))
     }
 
     @Test
@@ -138,5 +148,39 @@ class AgendamentoControllerTest @Autowired constructor(
     fun `deve responder 401 sem token`() {
         mockMvc.perform(get("/dispositivos/${dispositivo.id}/agendamentos/${agendamento.id}"))
             .andExpect(status().isUnauthorized)
+    }
+
+    private fun listar(usuario: Usuario, descricao: String? = null) = mockMvc.perform(
+        get("/dispositivos/${dispositivo.id}/agendamentos")
+            .apply { if (descricao != null) param("descricao", descricao) }
+            .header(HttpHeaders.AUTHORIZATION, bearerTokenPara(usuario))
+    )
+
+    @Test
+    fun `lista agendamentos filtrando descricao e trata parametro em branco como lista completa`() {
+        listar(proprietario, "  manha  ")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$", hasSize<Any>(1)))
+            .andExpect(jsonPath("$[0].id").value(agendamento.id.toString()))
+
+        listar(proprietario, "sem correspondencia")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$", hasSize<Any>(0)))
+
+        listar(proprietario, "   ")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$", hasSize<Any>(2)))
+
+        listar(proprietario)
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$", hasSize<Any>(2)))
+    }
+
+    @Test
+    fun `busca por descricao responde 404 para usuario sem vinculo`() {
+        listar(estranho, "manha")
+            .andExpect(status().isNotFound)
+            .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+            .andExpect(jsonPath("$.detail").value("Dispositivo não encontrado ou você não tem acesso"))
     }
 }

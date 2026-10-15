@@ -1,6 +1,7 @@
 package br.com.tavaressan.cafey.schedule
 
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.media.Content
 import io.swagger.v3.oas.annotations.media.Schema
 import io.swagger.v3.oas.annotations.responses.ApiResponse
@@ -35,10 +36,13 @@ class AgendamentoController(
     @GetMapping
     fun listar(
         @AuthenticationPrincipal jwt: Jwt,
-        @PathVariable dispositivoId: UUID
+        @PathVariable dispositivoId: UUID,
+        @Parameter(description = "Trecho da descrição do agendamento") @RequestParam(required = false) descricao: String?
     ): ResponseEntity<List<AgendamentoResponse>> {
         val usuarioId = UUID.fromString(jwt.subject)
-        val list = agendamentoService.listar(dispositivoId, usuarioId)
+        val termo = descricao?.trim().orEmpty()
+        val list = if (termo.isEmpty()) agendamentoService.listar(dispositivoId, usuarioId)
+        else agendamentoService.buscarPorDescricao(dispositivoId, usuarioId, termo)
         return ResponseEntity.ok(list)
     }
 

@@ -98,6 +98,22 @@ class DispositivoServiceTest {
     }
 
     @Test
+    fun `buscar por nome consulta vinculos uma vez e conserva o papel de cada dispositivo`() {
+        val secondDevice = Dispositivo(id = UUID.randomUUID(), nome = "Cafeteira Outra")
+        val thirdDevice = Dispositivo(id = UUID.randomUUID(), nome = "Cafeteira Terceira")
+        val secondOwnerLink = UsuarioDispositivo(usuario = ownerUser, dispositivo = secondDevice, papel = PapelDispositivo.PROPRIETARIO)
+        val guestSharedLink = UsuarioDispositivo(usuario = ownerUser, dispositivo = thirdDevice, papel = PapelDispositivo.CONVIDADO)
+        `when`(usuarioDispositivoRepository.findByUsuarioId(ownerId)).thenReturn(listOf(ownerLink, secondOwnerLink, guestSharedLink))
+        `when`(dispositivoRepository.buscarPorNomeDoUsuario(ownerId, "Cafeteira"))
+            .thenReturn(listOf(device, secondDevice, thirdDevice))
+
+        val resultado = service.buscarPorNome(ownerId, "Cafeteira")
+
+        assertEquals(listOf(PapelDispositivo.PROPRIETARIO, PapelDispositivo.PROPRIETARIO, PapelDispositivo.CONVIDADO), resultado.map { it.papel })
+        verify(usuarioDispositivoRepository, times(1)).findByUsuarioId(ownerId)
+    }
+
+    @Test
     fun `should update device when owner`() {
         `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
         `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
