@@ -219,7 +219,6 @@ parede a 22 mm abaixo do tampo. x medido de X=0 (lateral esquerda). Cobertura
 fix_* nao existem mais - a peca ja' nasce fechada nos 4 cantos).
 
 ABERTURAS DE FACE
-  janela_rf     retangulo 40x28   parede frontal  x=75    janela de radio
   furo_led      Ø5                parede frontal  x=150   LED RGB de status
   furo_botao    Ø16               parede frontal  x=195   botao de painel
   prensa_cabo   Ø15               parede traseira x=70    entrada de energia
@@ -236,6 +235,7 @@ FIXACAO (novo - substitui fix_* da chapa)
 
 SEM FURO
   Tampo: nenhuma abertura (regra de derrame).
+  Janela RF: eliminada (gabinete PETG e' transparente a RF 2.4 GHz; protege o ESP32 contra derrame).
   Fusivel: porta-fusivel em linha preso por abracadeira - troca abrindo o fundo.
   Travessia de 5 fios: rasgo na DIVISORIA de policarbonato, nao na parede
   impressa. A divisoria nao esta modelada.

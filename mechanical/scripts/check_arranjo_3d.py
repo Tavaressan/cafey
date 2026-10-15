@@ -94,12 +94,8 @@ def main():
           % (folga, tallest))
     print("       altura interna util ~ %.1f mm" % (teto - piso))
 
-    # antena do ESP32 alinhada com a janela de RF
+    # antena do ESP32 junto a' parede frontal (janela_rf eliminada na variante 3D FDM)
     e = d.getObject("esp32").Shape.BoundBox
-    jrf = d1.getObject("janela_rf").Shape.BoundBox
-    check(e.XMin <= jrf.XMax and e.XMax >= jrf.XMin,
-          "ESP32 cobre a janela de RF em X (esp32 %.0f-%.0f, janela %.0f-%.0f)"
-          % (e.XMin, e.XMax, jrf.XMin, jrf.XMax))
     check(e.YMin <= g["parede"] + 8,
           "ESP32 com a antena junto a' parede frontal (Ymin %.1f)" % e.YMin)
 

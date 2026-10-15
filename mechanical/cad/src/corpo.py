@@ -69,8 +69,8 @@ def _corpo():
     zc = P.ABERTURA_Z
     cuts = []
     # aberturas frontais (parede Y=0)
-    cuts.append(cbox(P.JANELA_RF_W, t + 4, P.JANELA_RF_H,
-                     P.JANELA_RF_X - P.JANELA_RF_W / 2.0, -2, zc - P.JANELA_RF_H / 2.0))
+    # janela_rf eliminada na variante 3D FDM: o gabinete em PETG e' transparente
+    # a ondas de 2.4 GHz; fechar a parede protege o ESP32 contra derrames e sujeira.
     cuts.append(ccyl_y(P.FURO_LED, t + 4, P.FURO_LED_X, t / 2.0, zc))
     cuts.append(ccyl_y(P.FURO_BOTAO, t + 4, P.FURO_BOTAO_X, t / 2.0, zc))
     # aberturas traseiras (parede Y=pegada_y)

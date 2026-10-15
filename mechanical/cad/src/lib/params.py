@@ -50,12 +50,13 @@ RASGO_ALTURA = 15.0
 
 # --- aberturas de face ---
 ABERTURA_CENTRO_Z = 22.0
+# janela_rf eliminada na variante 3D FDM (PETG e' transparente a 2.4 GHz; protege o ESP32 contra derrames)
 JANELA_RF_W = 40.0
 JANELA_RF_H = 28.0
 JANELA_RF_X = 75.0
 FURO_LED = 5.0
 FURO_LED_X = 150.0
-FURO_BOTAO = 12.0
+FURO_BOTAO = 16.0               # Ø botao de painel metalico momentaneo NA 16mm (revisao 08/09/2026; era 12mm)
 FURO_BOTAO_X = 195.0
 PRENSA_CABO_D = 15.0
 PRENSA_CABO_X = 70.0
@@ -95,7 +96,7 @@ COMPONENTES = [
     ("terra_j3",          "rede",  20, 18, 25, 72,   100,  -47),
     ("porta_fusivel",     "rede",  14, 66, 14, 114,  128,  -46),
     ("hlk_pm01",          "rede",  34, 20, 15, 100,  98.2, -47),
-    ("modulo_rele",       "rede",  50, 27, 19, 150,  98.2, -47),
+    ("modulo_rele",       "rede",  50, 39, 19, 150,  98.2, -47),
     ("prensa_cabo_corpo", "rede",  20, 22, 20, 60,   187,  -32),
     ("tomada_j1_corpo",   "rede",  45, 41, 23, 162,  168,  -33.5),
     ("travessia_fios",    "fios",  14, 32, 9,  148,  68,   -41),

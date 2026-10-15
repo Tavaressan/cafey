@@ -137,10 +137,8 @@ def build(doc):
     # --- 5. aberturas frontais (Y=0, eixo de corte +Y) ---
     zc = "-" + P + "abertura_centro_z"
     thru_y = ("-1", "%sparede + 2" % P)
-    cuts.append(box(doc, "janela_rf",
-                    P + "janela_rf_w", thru_y[1], P + "janela_rf_h",
-                    "%sjanela_rf_x - %sjanela_rf_w / 2" % (P, P), thru_y[0],
-                    "%s - %sjanela_rf_h / 2" % (zc, P)))
+    # janela_rf eliminada na variante 3D FDM: o gabinete em PETG e' transparente
+    # a ondas de 2.4 GHz; fechar a parede protege o ESP32 contra derrames e sujeira.
     cuts.append(cyl(doc, "furo_led", P + "furo_led / 2", "%sparede + 2" % P,
                     (P + "furo_led_x", "-1", zc), "Y"))
     cuts.append(cyl(doc, "furo_botao", P + "furo_botao / 2", "%sparede + 2" % P,

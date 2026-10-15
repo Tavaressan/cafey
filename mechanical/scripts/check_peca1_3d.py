@@ -71,14 +71,13 @@ def main():
     parede_top = g["altura_externa"] - g["parede"]
     centro = g["abertura_centro_z"]
 
-    for nome, alt in [("janela_rf", g["janela_rf_h"]), ("tomada_j1", g["tomada_j1_h"])]:
+    for nome, alt in [("tomada_j1", g["tomada_j1_h"])]:
         folga_topo = centro - alt / 2
         folga_base = (parede_top - centro) - alt / 2
         check(folga_topo >= mp, "%s: folga p/ topo %.1f >= %.0f" % (nome, folga_topo, mp))
         check(folga_base >= mp, "%s: folga p/ base %.1f >= %.0f" % (nome, folga_base, mp))
 
-    for nome, x, w in [("janela_rf", g["janela_rf_x"], g["janela_rf_w"]),
-                       ("furo_led", g["furo_led_x"], g["furo_led"]),
+    for nome, x, w in [("furo_led", g["furo_led_x"], g["furo_led"]),
                        ("furo_botao", g["furo_botao_x"], g["furo_botao"]),
                        ("prensa_cabo", g["prensa_cabo_x"], g["prensa_cabo_d"]),
                        ("tomada_j1", g["tomada_j1_x"], g["tomada_j1_w"])]:
@@ -106,7 +105,7 @@ def main():
     check(pior < 1e-6, "rasgos x bosses/inserts sem sobreposicao (max %.3f mm3)" % pior)
 
     # --- toda abertura de face atravessa a parede (nao ficou pele) ---
-    aberturas = ["janela_rf", "furo_led", "furo_botao", "prensa_cabo",
+    aberturas = ["furo_led", "furo_botao", "prensa_cabo",
                  "tomada_j1", "recorte_usb"]
     aberturas += sorted(o.Name for o in doc.Objects
                         if o.Name.startswith(("rasgo_e", "rasgo_d")))

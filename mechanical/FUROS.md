@@ -113,3 +113,6 @@ fechada) e `pr_*`/`fundo_furo_*` (porca-rebite) da chapa. Mesmas 8 posições
 | `boss_<f\|t\|e\|d><a\|b>` | Ø9 (boss_d) / eixo Z | 8 | Reforço cilíndrico na flange, altura `insert_prof` (6 mm) — mais alto que a flange (2,4 mm) para caber o insert. Motivo do ajuste de z dos componentes `apoio=fundo` em `componentes_3d.csv` (sobem para standoff acima do boss). |
 | `insert_<f\|t\|e\|d><a\|b>` | Ø4,0 (insert_furo) / eixo Z | 8 | Furo cego pela face inferior, profundidade 6 mm. Aloja o insert térmico M3×5,7 fundido a quente após a impressão. |
 | `fundo_furo_1..8` (Peça 2) | Ø3,4 (furo_passagem) / eixo Z | 8 | Folga do parafuso M3 na Peça 2 — mesma lógica de montagem da chapa (parafuso entra por baixo, rosqueia no insert). |
+
+### Diferenças de aberturas na variante impressa (FDM)
+- **`janela_rf` eliminada:** A abertura retangular de 40 × 28 mm na parede frontal existia apenas para permitir a passagem de RF (Wi-Fi 2,4 GHz) através da carcaça metálica (chapa de aço inox). Como o PETG é um polímero dielétrico transparente a ondas de rádio, a abertura foi eliminada no modelo FDM. Isso fecha a parede frontal contra derramamento acidental de líquidos (café/água), protege o ESP32 e confere uma estética frontal limpa (mantendo apenas o furo do LED e do botão).
