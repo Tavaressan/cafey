@@ -21,7 +21,8 @@ import kotlin.math.ceil
  * Rate limiting por IP/rota para os endpoints sensíveis de autenticação (BE-24).
  *
  * Buckets em memória (sem storage distribuído, fora de escopo). Cada bucket é identificado por
- * `IP:rota` e reabastecido de acordo com [RateLimitProperties]. Ao estourar a cota, responde
+ * `IP:rota canônica` (o nome oficial e o alias de uma rota dividem o balde) e reabastecido de
+ * acordo com [RateLimitProperties]. Ao estourar a cota, responde
  * HTTP 429 com Problem Details (RFC 9457) e cabeçalho `Retry-After` em segundos.
  */
 class RateLimitingFilter(
@@ -65,17 +66,19 @@ class RateLimitingFilter(
             return
         }
 
-        val routeLimit = routeLimitFor(request.requestURI)
-        if (routeLimit == null) {
+        val route = canonicalRouteFor(request.requestURI)
+        if (route == null) {
             filterChain.doFilter(request, response)
             return
         }
+        val routeLimit = routeLimitFor(route)
 
-        // Sem proxy reverso confiável na topologia atual: usar remoteAddr diretamente. Não fazemos
-        // parsing de X-Forwarded-For aqui de propósito — confiar nesse header sem um proxy validado
-        // na frente permitiria bypass do rate limit por spoofing. Revisitar se um proxy for adicionado.
+        // Com `server.forward-headers-strategy: native` (issue #230), o RemoteIpValve do Tomcat
+        // confia nos proxies internos (como o Caddy na rede Docker) e preenche `request.remoteAddr`
+        // com o IP real do cliente a partir de X-Forwarded-For de forma protegida contra spoofing.
+        // Não fazemos parsing manual de headers aqui de propósito: o container já valida a cadeia.
         val ip = request.remoteAddr
-        val key = "$ip:${request.requestURI}"
+        val key = "$ip:$route"
         val now = System.currentTimeMillis()
         val entry = buckets.compute(key) { _, existing ->
             if (existing == null) {
@@ -114,11 +117,28 @@ class RateLimitingFilter(
         response.writer.write(objectMapper.writeValueAsString(problemDetail))
     }
 
-    private fun routeLimitFor(path: String): Pair<Long, Long>? = when (path) {
-        "/auth/login" -> properties.loginCapacity to properties.loginPeriodSeconds
-        "/auth/registrar" -> properties.registrarCapacity to properties.registrarPeriodSeconds
-        "/auth/recuperar-senha" -> properties.recuperarSenhaCapacity to properties.recuperarSenhaPeriodSeconds
+    /**
+     * Rota canônica do balde: o nome oficial e o alias compartilham o mesmo balde (`/auth/signin`
+     * e `/auth/login`; `/auth/signup` e `/auth/registrar`). Sem isso, alternar entre os dois nomes
+     * dobraria as tentativas por minuto. Devolve `null` para rotas fora do rate limit.
+     */
+    private fun canonicalRouteFor(path: String): String? = when (path) {
+        "/auth/signin", "/auth/login" -> ROUTE_SIGNIN
+        "/auth/signup", "/auth/registrar" -> ROUTE_SIGNUP
+        "/auth/recuperar-senha" -> ROUTE_RECUPERAR_SENHA
         else -> null
+    }
+
+    private fun routeLimitFor(route: String): Pair<Long, Long> = when (route) {
+        ROUTE_SIGNIN -> properties.loginCapacity to properties.loginPeriodSeconds
+        ROUTE_SIGNUP -> properties.registrarCapacity to properties.registrarPeriodSeconds
+        else -> properties.recuperarSenhaCapacity to properties.recuperarSenhaPeriodSeconds
+    }
+
+    private companion object {
+        const val ROUTE_SIGNIN = "/auth/signin"
+        const val ROUTE_SIGNUP = "/auth/signup"
+        const val ROUTE_RECUPERAR_SENHA = "/auth/recuperar-senha"
     }
 
     private fun newBucket(routeLimit: Pair<Long, Long>): Bucket {

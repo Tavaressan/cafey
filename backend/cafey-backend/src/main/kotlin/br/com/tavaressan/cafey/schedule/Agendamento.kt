@@ -30,6 +30,9 @@ class Agendamento(
     @Column(name = "duracao_preparo_s")
     var duracaoPreparoS: Int? = null,
 
+    @Column(length = 100)
+    var descricao: String? = null,
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     var criadoEm: Instant = Instant.now(),
 

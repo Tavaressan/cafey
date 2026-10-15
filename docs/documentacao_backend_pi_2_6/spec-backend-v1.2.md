@@ -172,7 +172,7 @@ default no meio da faixa de 60 a 90 ciclos citada no §7.3.
 |---|---|---|
 | usuario_id | uuid | FK, PK composta |
 | dispositivo_id | uuid | FK, PK composta |
-| papel | text | `DONO` \| `CONVIDADO` |
+| papel | text | `PROPRIETARIO` \| `CONVIDADO` |
 | criado_em | timestamptz | |
 
 ### agendamentos
@@ -291,7 +291,7 @@ ser versionada; a privada, nunca.
 | `exp` | Emissão + 15 min |
 | `iat` | Emissão |
 
-Sem claim de papel: o papel (`DONO` / `CONVIDADO`) é por dispositivo, não por
+Sem claim de papel: o papel (`PROPRIETARIO` / `CONVIDADO`) é por dispositivo, não por
 usuário, e colocá-lo no token o tornaria obsoleto a cada compartilhamento. A
 autorização consulta `usuario_dispositivo` na requisição.
 
@@ -320,11 +320,11 @@ de ter efeito de segurança.
 |---|---|
 | `POST /auth/**` | Público |
 | Demais rotas | Autenticado |
-| Operar / agendar em um dispositivo | `DONO` ou `CONVIDADO` do dispositivo |
-| Compartilhar, renomear, remover dispositivo | Apenas `DONO` |
-| `POST /dispositivos/{id}/eventos` (proxy BLE) | `DONO` ou `CONVIDADO`; rejeitar `inicio` no futuro ou anterior a N dias; `origem` é valor declarado pelo cliente, não verificado |
-| `GET /dispositivos/{id}/cuidados` | `DONO` ou `CONVIDADO` |
-| Baixa de cuidado (descalcificação, enxágue, filtro) | Apenas `DONO` |
+| Operar / agendar em um dispositivo | `PROPRIETARIO` ou `CONVIDADO` do dispositivo |
+| Compartilhar, renomear, remover dispositivo | Apenas `PROPRIETARIO` |
+| `POST /dispositivos/{id}/eventos/proxy-ble` (proxy BLE) | `PROPRIETARIO` ou `CONVIDADO`; rejeitar `inicio` no futuro ou anterior a N dias; `origem` é valor declarado pelo cliente, não verificado |
+| `GET /dispositivos/{id}/cuidados` | `PROPRIETARIO` ou `CONVIDADO` |
+| Baixa de cuidado (descalcificação, enxágue, filtro) | Apenas `PROPRIETARIO` |
 | `/actuator/health` | Público; demais endpoints do Actuator, autenticado |
 
 CSRF desabilitado (não há cookie de sessão). CORS liberado apenas para as
@@ -359,10 +359,10 @@ RFC 7807).
 | PUT | `/dispositivos/{id}/agendamentos/{agId}` | UC-11, UC-13 |
 | DELETE | `/dispositivos/{id}/agendamentos/{agId}` | UC-12 |
 | GET | `/dispositivos/{id}/eventos` | UC-14 |
-| POST | `/dispositivos/{id}/eventos` | Proxy BLE (§6.5 da spec) |
+| POST | `/dispositivos/{id}/eventos/proxy-ble` | Proxy BLE (§6.5 da spec) |
 | GET | `/dispositivos/{id}/estatisticas` | UC-15 |
-| GET | `/dispositivos/{id}/manutencao` | UC-16 |
-| POST | `/dispositivos/{id}/manutencao/baixa` | UC-17 |
+| GET | `/dispositivos/{id}/descalcificacao` | UC-16 |
+| POST | `/dispositivos/{id}/descalcificacao/baixa` | UC-17 |
 | GET | `/dispositivos/{id}/cuidados` | — (#190) |
 | POST | `/dispositivos/{id}/enxague/baixa` | — (#190) |
 | POST | `/dispositivos/{id}/filtro/baixa` | — (#190) |
@@ -370,7 +370,7 @@ RFC 7807).
 UC-06, 07 e 09 compartilham a mesma rota porque são a mesma operação com ação
 diferente no corpo — `{"acao": "LIGAR" | "DESLIGAR" | "CANCELAR"}`.
 
-`POST /dispositivos/{id}/eventos` é a porta do proxy BLE: o app envia eventos
+`POST /dispositivos/{id}/eventos/proxy-ble` é a porta do proxy BLE: o app envia eventos
 em nome do dispositivo, e a restrição de deduplicação absorve reenvios.
 
 `GET /dispositivos/{id}/cuidados` devolve os três cuidados (descalcificação,

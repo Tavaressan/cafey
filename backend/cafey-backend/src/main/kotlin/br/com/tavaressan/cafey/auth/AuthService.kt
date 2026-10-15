@@ -7,9 +7,12 @@ import br.com.tavaressan.cafey.security.PasswordResetToken
 import br.com.tavaressan.cafey.security.PasswordResetTokenRepository
 import br.com.tavaressan.cafey.security.RefreshToken
 import br.com.tavaressan.cafey.security.RefreshTokenRepository
+import br.com.tavaressan.cafey.security.UsuarioDetails
 import br.com.tavaressan.cafey.user.Usuario
 import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.slf4j.LoggerFactory
+import org.springframework.security.authentication.AuthenticationManager
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
@@ -23,6 +26,7 @@ class AuthService(
     private val refreshTokenRepository: RefreshTokenRepository,
     private val passwordResetTokenRepository: PasswordResetTokenRepository,
     private val passwordEncoder: PasswordEncoder,
+    private val authenticationManager: AuthenticationManager,
     private val jwtTokenService: JwtTokenService,
     private val emailSenderService: EmailSenderService
 ) {
@@ -46,15 +50,17 @@ class AuthService(
         return createAuthResponse(savedUser, UUID.randomUUID())
     }
 
+    /**
+     * Credenciais verificadas pelo Spring Security (`AuthenticationManager` -> `DaoAuthenticationProvider`
+     * -> [UsuarioDetailsService] + `PasswordEncoder`). Falha de autenticação sai como
+     * `AuthenticationException` e é traduzida em 401 pelo `GlobalExceptionHandler`.
+     */
     @Transactional
     fun login(request: LoginRequest): AuthResponse {
-        val normalizedEmail = request.email.trim().lowercase()
-        val usuario = usuarioRepository.findByEmail(normalizedEmail)
-            ?: throw BadCredentialsException("Email ou senha inválidos")
-
-        if (!passwordEncoder.matches(request.senha, usuario.senhaHash)) {
-            throw BadCredentialsException("Email ou senha inválidos")
-        }
+        val authentication = authenticationManager.authenticate(
+            UsernamePasswordAuthenticationToken.unauthenticated(request.email, request.senha)
+        )
+        val usuario = (authentication.principal as UsuarioDetails).usuario
 
         return createAuthResponse(usuario, UUID.randomUUID())
     }

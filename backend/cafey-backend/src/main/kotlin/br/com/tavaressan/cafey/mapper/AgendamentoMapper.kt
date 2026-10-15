@@ -21,7 +21,8 @@ class AgendamentoMapper {
             hora = LocalTime.parse(request.hora, timeFormatter),
             diasSemana = request.diasSemana,
             ativo = request.ativo,
-            duracaoPreparoS = request.duracaoPreparoS
+            duracaoPreparoS = request.duracaoPreparoS,
+            descricao = request.descricao?.trim()?.ifEmpty { null }
         )
 
     /** Aplica só os campos não nulos do [request]; `null` significa "não alterar". */
@@ -30,6 +31,7 @@ class AgendamentoMapper {
         request.diasSemana?.let { entity.diasSemana = it }
         request.ativo?.let { entity.ativo = it }
         request.duracaoPreparoS?.let { entity.duracaoPreparoS = it }
+        request.descricao?.let { entity.descricao = it.trim().ifEmpty { null } }
         entity.atualizadoEm = Instant.now()
     }
 
@@ -45,6 +47,7 @@ class AgendamentoMapper {
             diasSemana = entity.diasSemana,
             ativo = entity.ativo,
             duracaoPreparoS = entity.duracaoPreparoS,
+            descricao = entity.descricao,
             criadoEm = entity.criadoEm,
             atualizadoEm = entity.atualizadoEm
         )

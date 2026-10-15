@@ -8,6 +8,7 @@ import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.Pattern
+import jakarta.validation.constraints.Size
 import java.time.Instant
 import java.util.UUID
 import kotlin.reflect.KClass
@@ -43,7 +44,10 @@ data class CriarAgendamentoRequest(
     val ativo: Boolean = true,
 
     @field:DuracaoPreparoPermitida
-    val duracaoPreparoS: Int? = null
+    val duracaoPreparoS: Int? = null,
+
+    @field:Size(max = 100, message = "Descrição deve ter no máximo 100 caracteres")
+    val descricao: String? = null
 )
 
 data class AtualizarAgendamentoRequest(
@@ -58,7 +62,10 @@ data class AtualizarAgendamentoRequest(
 
     // null = não alterar (mesma semântica dos demais campos).
     @field:DuracaoPreparoPermitida
-    val duracaoPreparoS: Int? = null
+    val duracaoPreparoS: Int? = null,
+
+    @field:Size(max = 100, message = "Descrição deve ter no máximo 100 caracteres")
+    val descricao: String? = null
 )
 
 data class AgendamentoResponse(
@@ -68,6 +75,7 @@ data class AgendamentoResponse(
     val diasSemana: Short,
     val ativo: Boolean,
     val duracaoPreparoS: Int?,
+    val descricao: String?,
     val criadoEm: Instant,
     val atualizadoEm: Instant
 )

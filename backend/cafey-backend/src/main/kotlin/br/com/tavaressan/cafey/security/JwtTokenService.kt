@@ -55,6 +55,31 @@ class JwtTokenService(
         return encoder.encode(JwtEncoderParameters.from(claims)).tokenValue
     }
 
+    /**
+     * Valida assinatura e expiração do [token] e devolve o [Jwt]. Toda a validação passa pelo
+     * [decoder] (`NimbusJwtDecoder`); não há leitura manual do token.
+     *
+     * @throws JwtException token inválido, expirado ou malformado.
+     */
+    fun validarToken(token: String): Jwt = decoder.decode(token)
+
+    /**
+     * Lê o id do usuário (claim `sub`) de um [Jwt] já validado.
+     *
+     * @throws JwtException `sub` ausente ou fora do formato UUID.
+     */
+    fun extrairUsuarioId(jwt: Jwt): UUID {
+        val subject = jwt.subject ?: throw JwtException("Token sem o claim 'sub'")
+        return try {
+            UUID.fromString(subject)
+        } catch (ex: IllegalArgumentException) {
+            throw JwtException("O claim 'sub' do token não é um UUID válido", ex)
+        }
+    }
+
+    /** Valida o [token] em texto e devolve o id do usuário (veja [validarToken] e [extrairUsuarioId]). */
+    fun extrairUsuarioId(token: String): UUID = extrairUsuarioId(validarToken(token))
+
     fun generateRefreshToken(): String {
         return UUID.randomUUID().toString() + UUID.randomUUID().toString()
     }
