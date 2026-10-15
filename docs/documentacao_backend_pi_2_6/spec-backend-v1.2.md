@@ -427,9 +427,12 @@ A política IAM do backend precisa cobrir `iot:Connect`, `iot:Subscribe`,
 `iot:Receive` nesses filtros e `iot:Publish` mais `iot:RetainPublish` em
 `comando` e `agendamentos`.
 
-A política do **dispositivo** precisa, além disso, de uma `Condition` com
-`iot:ConnectAttributes: LastWill` no statement de `iot:Connect`, para que o Will
-possa ser publicado com retain.
+A política do **dispositivo** precisa, além disso, de
+`iot:RetainPublish` em `saude`, para que o Will seja publicado
+com retain. Ela **não** leva a `Condition`
+`iot:ConnectAttributes: LastWill` no `iot:Connect` do exemplo
+oficial da AWS: com ela, o AWS IoT Core derrubava a conexão a
+cada 1,5 a 5 min com `AUTH_ERROR` (teste de 14/10/2026).
 
 ### 6.2 Payloads
 
@@ -508,9 +511,10 @@ sem polling.
 
 ### 6.3 Retain e Last Will
 
-`iot:RetainPublish` é exigida para publicar com retain e precisa ser concedida
-junto de `iot:Publish`. Will message retido exige `Condition` com
-`iot:ConnectAttributes: LastWill` no `iot:Connect` da política do dispositivo.
+`iot:RetainPublish` é exigida para publicar com retain e precisa
+ser concedida junto de `iot:Publish`, inclusive no tópico do
+Will retido (`saude`). A `Condition` `LastWill` do exemplo
+oficial fica de fora (§6.1).
 
 Limitação relevante do AWS IoT Core: mensagem retida não é entregue a quem
 assina com wildcard — o filtro precisa casar exatamente com o tópico. O backend,

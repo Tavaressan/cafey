@@ -154,21 +154,34 @@ mensagem retida não é entregue a assinante com `+`/`#`):
 As credenciais **não** ficam embutidas no binário — são carregadas do NVS pelo `MqttConfigStore`
 (`firmware/main/core/mqtt_config_store.*`, namespace `cafey_mqtt`) no boot. Para o protótipo de um
 único dispositivo (spec P2), a gravação é manual, via `nvs_partition_gen.py` (ferramenta do
-ESP-IDF) + `esptool.py`:
+ESP-IDF) + `esptool`.
+
+**Identidade (atualizado em 2026-10-13, #169).** O `client_id` e o nome da thing do dispositivo são
+o **UUID do dispositivo no backend**, em minúsculas. O backend só reconhece tópicos
+`dispositivos/<UUID>/...` (`MqttClientService`, `UUID.fromString`) e publica `comando`/`agendamentos`
+no UUID do banco. A política do dispositivo escopa tudo por `${iot:Connection.Thing.ThingName}`.
+Com a thing `cafey-device-proto-01`, dispositivo e backend nunca conversam. A thing com nome UUID
+resolve isso sem mudar a política nem o backend.
+
+**Wi-Fi.** Ainda não há provisionamento de Wi-Fi por BLE, então SSID e senha entram na mesma
+imagem NVS, no namespace `cafey_wifi`.
 
 1. Copie o template `firmware/certs/provisioning.csv.example` para
-   `firmware/certs/provisioning.csv` (git-ignorado) e preencha os campos com o conteúdo real do
-   endpoint, `client_id` (= `cafey-device-proto-01`), Root CA, certificado e chave privada gerados
-   no §2.
-2. Gere o binário da partição:
+   `firmware/certs/provisioning.csv` (git-ignorado) **no checkout principal**, não num worktree, que
+   é apagado ao final da entrega. Preencha endpoint, `clientid` (= UUID), Wi-Fi e os caminhos dos
+   PEM (Root CA, certificado e chave). Mantenha o cabeçalho `key,type,encoding,value` sem `#`: o
+   gerador ignora linhas comentadas e usa a primeira restante como cabeçalho.
+2. Gere o binário da partição na pasta `firmware/certs/`, com o **mesmo ESP-IDF que compila o
+   firmware**. Um formato de NVS diferente faz o boot apagar a partição.
    ```bash
-   $IDF_PATH/components/nvs_flash/nvs_partition_generator/nvs_partition_gen.py generate \
-     firmware/certs/provisioning.csv firmware/certs/cafey_mqtt_nvs.bin 0x6000
+   python $IDF_PATH/components/nvs_flash/nvs_partition_generator/nvs_partition_gen.py generate \
+     provisioning.csv cafey_nvs.bin 0x6000
    ```
-3. Grave no offset da partição `nvs` definida em `firmware/partitions.csv` (`0x9000`), com a placa
-   conectada:
+3. Grave o firmware primeiro (`idf.py -p <porta> flash` não toca `0x9000`). Depois grave a NVS no
+   offset da partição `nvs` de `firmware/partitions.csv` (`0x9000`). Não rode `erase-flash`
+   depois disso.
    ```bash
-   esptool.py --port <porta-serial> write_flash 0x9000 firmware/certs/cafey_mqtt_nvs.bin
+   python -m esptool --port <porta-serial> write_flash 0x9000 cafey_nvs.bin
    ```
 
 `firmware/certs/` está no `.gitignore` (exceto os arquivos `*.example`) — nenhuma chave real é

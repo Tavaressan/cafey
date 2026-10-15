@@ -21,12 +21,14 @@ struct Schedule {
     uint8_t minute = 0;        // 0-59
     uint8_t days_of_week = 0;  // bitmask: bit0=domingo ... bit6=sabado
     bool active = false;
+    uint16_t duration_s = 0;   // duracaoS do item (#200); 0 = default da Cafeteira
 
     bool operator==(const Schedule& other) const {
         return hour == other.hour &&
                minute == other.minute &&
                days_of_week == other.days_of_week &&
                active == other.active &&
+               duration_s == other.duration_s &&
                std::equal(id, id + kIdLength, other.id);
     }
 };

@@ -22,7 +22,10 @@
         "iot:Publish",
         "iot:RetainPublish"
       ],
-      "Resource": "arn:aws:iot:*:*:topic/dispositivos/${iot:Connection.Thing.ThingName}/estado"
+      "Resource": [
+        "arn:aws:iot:*:*:topic/dispositivos/${iot:Connection.Thing.ThingName}/estado",
+        "arn:aws:iot:*:*:topic/dispositivos/${iot:Connection.Thing.ThingName}/saude"
+      ]
     },
     {
       "Effect": "Allow",

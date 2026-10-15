@@ -43,6 +43,13 @@ add_executable(test_cafeteira
 )
 add_test(NAME CafeteiraActiveObjectTest COMMAND test_cafeteira)
 
+add_executable(test_conectividade
+    test_conectividade.cpp
+    ../main/core/active_object.cpp
+    ../main/app/conectividade.cpp
+)
+add_test(NAME ConectividadeTest COMMAND test_conectividade)
+
 add_executable(test_agendador
     test_agendador.cpp
     ../main/core/active_object.cpp
@@ -121,6 +128,12 @@ add_executable(test_schedule_payload
     ../main/app/schedule_payload.cpp
 )
 add_test(NAME SchedulePayloadTest COMMAND test_schedule_payload)
+
+add_executable(test_timezone_offset
+    test_timezone_offset.cpp
+    ../main/app/timezone_offset.cpp
+)
+add_test(NAME TimezoneOffsetTest COMMAND test_timezone_offset)
 
 add_executable(test_ble_service
     test_ble_service.cpp

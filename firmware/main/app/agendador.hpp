@@ -22,13 +22,15 @@ public:
 
     static constexpr size_t kMaxSchedules = 16;
 
+    using FireHandler = std::function<void(const cafey::storage::Schedule&)>;
+
     /**
      * @param clock   fonte de tempo (injetavel para testes de host).
-     * @param on_fire callback chamado quando um agendamento dispara (ex.: postar
-     *               StartBrew para a Cafeteira).
+     * @param on_fire callback chamado com o agendamento que disparou (ex.: postar
+     *               StartBrew com a duracao dele para a Cafeteira, #200).
      */
     explicit Agendador(cafey::core::Clock& clock = default_clock(),
-                       std::function<void()> on_fire = nullptr);
+                       FireHandler on_fire = nullptr);
 
     [[nodiscard]] State state() const noexcept { return state_; }
     [[nodiscard]] size_t schedule_count() const noexcept { return count_; }
@@ -38,7 +40,13 @@ public:
     void set_schedules(const cafey::storage::Schedule* schedules, size_t count);
 
     /** Define o callback de disparo apos a construcao (AO com storage estatico). */
-    void set_on_fire(std::function<void()> on_fire) { on_fire_ = std::move(on_fire); }
+    void set_on_fire(FireHandler on_fire) { on_fire_ = std::move(on_fire); }
+
+    /**
+     * Deslocamento do fuso dos agendamentos em relacao a UTC, em segundos
+     * (FW-23). `hora` e `diasSemana` sao avaliados nesse horario local.
+     */
+    void set_utc_offset(int32_t offset_s) { utc_offset_s_ = offset_s; }
 
     static cafey::core::Clock& default_clock();
 
@@ -48,9 +56,10 @@ protected:
 
 private:
     cafey::core::Clock& clock_;
-    std::function<void()> on_fire_;
+    FireHandler on_fire_;
     cafey::storage::Schedule schedules_[kMaxSchedules];
     size_t count_ = 0;
+    int32_t utc_offset_s_ = 0;
     State state_ = State::Unsynced;
     std::time_t last_checked_minute_ = -1;
     int fired_count_ = 0;

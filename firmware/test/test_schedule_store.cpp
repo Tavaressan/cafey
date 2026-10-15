@@ -210,7 +210,7 @@ int test_incompatible_blob_is_treated_as_empty() {
     nvs_handle_t handle = 0;
     TEST_ASSERT(nvs_open("cafey_sched", NVS_READWRITE, &handle) == ESP_OK, "open mock ns");
     // Layout pré-#129 (sem prefixo de schema): 656 bytes, != sizeof(PersistedLayout)
-    // novo (664). Qualquer tamanho diferente do novo layout cai no ramo "incompativel".
+    // atual (744). Qualquer tamanho diferente do layout atual cai no ramo "incompativel".
     std::vector<uint8_t> legacy_blob(656, 0xAB);
     TEST_ASSERT(nvs_set_blob(handle, "list", legacy_blob.data(), legacy_blob.size()) == ESP_OK,
                 "write synthetic legacy blob");
@@ -221,6 +221,75 @@ int test_incompatible_blob_is_treated_as_empty() {
     TEST_ASSERT(store.count() == 0, "store must be empty after discarding legacy blob");
 
     std::cout << "[PASS] test_incompatible_blob_is_treated_as_empty" << std::endl;
+    return 0;
+}
+
+// #200: a duracao do item sobrevive ao reboot.
+int test_duration_survives_reload() {
+    MockNvs::reset();
+    Schedule s = make_schedule("11111111-1111-1111-1111-111111111111", 7, 30, 0x7f, true);
+    s.duration_s = 480;
+    {
+        ScheduleStore store;
+        TEST_ASSERT(store.init() == ESP_OK, "init");
+        TEST_ASSERT(store.replace_all_if_newer(&s, 1, 3) == ESP_OK, "persist");
+    }
+    ScheduleStore reloaded;
+    TEST_ASSERT(reloaded.init() == ESP_OK, "reload");
+    TEST_ASSERT(reloaded.count() == 1, "one schedule after reload");
+    TEST_ASSERT(reloaded.at(0).duration_s == 480, "duration_s preserved");
+
+    std::cout << "[PASS] test_duration_survives_reload" << std::endl;
+    return 0;
+}
+
+// #200: blob do schema v1 (664 bytes, sem duration_s) vira store vazio e a
+// versao volta a 0, para a lista retida da nuvem ser aceita na reconexao.
+int test_schema_v1_blob_is_treated_as_empty() {
+    MockNvs::reset();
+
+    nvs_handle_t handle = 0;
+    TEST_ASSERT(nvs_open("cafey_sched", NVS_READWRITE, &handle) == ESP_OK, "open mock ns");
+    std::vector<uint8_t> v1_blob(664, 0);
+    TEST_ASSERT(nvs_set_blob(handle, "list", v1_blob.data(), v1_blob.size()) == ESP_OK,
+                "write synthetic v1 blob");
+    nvs_commit(handle);
+
+    ScheduleStore store;
+    TEST_ASSERT(store.init() == ESP_OK, "init() must recover from v1 blob");
+    TEST_ASSERT(store.count() == 0, "store must be empty after discarding v1 blob");
+    TEST_ASSERT(store.version() == 0, "version must restart at 0");
+
+    std::cout << "[PASS] test_schema_v1_blob_is_treated_as_empty" << std::endl;
+    return 0;
+}
+
+// FW-23: o fuso e gravado junto da lista e sobrevive ao reboot; uma lista
+// ignorada por versao antiga nao troca o fuso.
+int test_timezone_survives_reload_and_follows_version() {
+    MockNvs::reset();
+    Schedule s = make_schedule("11111111-1111-1111-1111-111111111111", 7, 0, 0x7f, true);
+    {
+        ScheduleStore store;
+        TEST_ASSERT(store.init() == ESP_OK, "init");
+        TEST_ASSERT(std::strcmp(store.timezone(), "") == 0, "sem fuso antes da primeira lista");
+        TEST_ASSERT(store.replace_all_if_newer(&s, 1, 3, nullptr, "America/Sao_Paulo") == ESP_OK,
+                    "persist");
+        TEST_ASSERT(std::strcmp(store.timezone(), "America/Sao_Paulo") == 0, "fuso em RAM");
+
+        bool applied = true;
+        TEST_ASSERT(store.replace_all_if_newer(&s, 1, 2, &applied, "America/Manaus") == ESP_OK,
+                    "versao antiga");
+        TEST_ASSERT(!applied, "versao antiga ignorada");
+        TEST_ASSERT(std::strcmp(store.timezone(), "America/Sao_Paulo") == 0,
+                    "fuso intacto quando a lista e ignorada");
+    }
+    ScheduleStore reloaded;
+    TEST_ASSERT(reloaded.init() == ESP_OK, "reload");
+    TEST_ASSERT(std::strcmp(reloaded.timezone(), "America/Sao_Paulo") == 0,
+                "fuso preservado no reboot");
+
+    std::cout << "[PASS] test_timezone_survives_reload_and_follows_version" << std::endl;
     return 0;
 }
 
@@ -237,6 +306,9 @@ int main() {
     if (test_lower_version_is_ignored()) return 1;
     if (test_versioned_rejects_overflow()) return 1;
     if (test_incompatible_blob_is_treated_as_empty()) return 1;
+    if (test_duration_survives_reload()) return 1;
+    if (test_schema_v1_blob_is_treated_as_empty()) return 1;
+    if (test_timezone_survives_reload_and_follows_version()) return 1;
 
     std::cout << "All ScheduleStore tests PASSED!" << std::endl;
     return 0;

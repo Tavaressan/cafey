@@ -32,6 +32,7 @@ void Cafeteira::apply_state() {
         relay_.turn_off();
         led_set(true, false, false); // vermelho = desligada
     }
+    if (on_state_change_) on_state_change_(state_ == State::On);
 }
 
 void Cafeteira::start_brew(uint32_t duration_s) {

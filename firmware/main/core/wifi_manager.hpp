@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <string>
 
 #include "reconnect_policy.hpp"
@@ -65,6 +66,13 @@ public:
     /** @brief Chamado pelo handler de evento ao receber IP_EVENT_STA_GOT_IP. */
     void handle_got_ip();
 
+    /**
+     * @brief Callbacks de conectividade (FW-21): chamados na task do event loop
+     * ao obter IP e ao desconectar. Devem so postar para um Active Object.
+     */
+    void set_on_connected(std::function<void()> cb) { on_connected_ = std::move(cb); }
+    void set_on_disconnected(std::function<void()> cb) { on_disconnected_ = std::move(cb); }
+
     [[nodiscard]] WifiState state() const noexcept { return state_; }
     [[nodiscard]] uint32_t reconnect_attempts() const noexcept { return policy_.attempts(); }
 
@@ -76,6 +84,8 @@ private:
     WifiCredentialsStore credentials_;
     WifiState state_ = WifiState::NOT_PROVISIONED;
     bool initialized_ = false;
+    std::function<void()> on_connected_;
+    std::function<void()> on_disconnected_;
 #if defined(ESP_PLATFORM)
     esp_timer_handle_t reconnect_timer_ = nullptr;
 #endif

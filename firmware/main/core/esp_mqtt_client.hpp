@@ -2,6 +2,9 @@
 
 #if defined(ESP_PLATFORM)
 
+#include <functional>
+#include <string>
+
 #include "esp_err.h"
 #include "mqtt_client.h"
 
@@ -19,6 +22,8 @@ namespace cafey::core {
  */
 class EspMqttClient : public IMqttClient {
 public:
+    using MessageHandler = std::function<void(const std::string& topic, const std::string& payload)>;
+
     EspMqttClient() = default;
     ~EspMqttClient() override;
 
@@ -27,10 +32,19 @@ public:
 
     /**
      * @brief Inicializa o cliente esp-mqtt com os certificados e o Last Will de
-     * `config` e inicia a conexao (assincrona).
+     * `config` e inicia a conexao (assincrona). Guarda uma copia de `config`: o
+     * esp-mqtt nao copia o CA, entao as strings precisam viver com o cliente.
      * @return ESP_OK se o cliente iniciou, ou codigo de erro do ESP-IDF.
      */
     esp_err_t start(const MqttConfig& config);
+
+    /**
+     * @brief Callbacks (FW-21), chamados na task do esp-mqtt. Os de conexao devem
+     * so postar para um Active Object. Definir antes de start().
+     */
+    void set_on_connected(std::function<void()> cb) { on_connected_ = std::move(cb); }
+    void set_on_disconnected(std::function<void()> cb) { on_disconnected_ = std::move(cb); }
+    void set_on_message(MessageHandler cb) { on_message_ = std::move(cb); }
 
     [[nodiscard]] bool is_connected() const override { return connected_; }
 
@@ -44,7 +58,11 @@ private:
                               int32_t event_id, void* event_data);
 
     esp_mqtt_client_handle_t client_ = nullptr;
-    bool connected_ = false;
+    MqttConfig config_;
+    volatile bool connected_ = false;
+    std::function<void()> on_connected_;
+    std::function<void()> on_disconnected_;
+    MessageHandler on_message_;
 };
 
 } // namespace cafey::core
