@@ -26,7 +26,9 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.domain.validation.FieldError
+import br.com.tavaressan.cafey.shared.ui.theme.CafeyLogo
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
+import br.com.tavaressan.cafey.shared.ui.theme.CafeyWordmark
 
 internal fun fieldErrorMessage(error: FieldError?): String? = when (error) {
     null -> null
@@ -58,6 +60,7 @@ fun LoginScreen(onLoggedIn: () -> Unit, onGoToRegister: () -> Unit) {
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
+        CafeyWordmark(modifier = Modifier.padding(bottom = 24.dp), iconSize = 44.dp)
         Text("Entrar", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
 
         OutlinedTextField(

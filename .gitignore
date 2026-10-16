@@ -16,6 +16,9 @@ _autosave-*
 .claude/skills/
 .claude/vetor/status/
 .vscode/
+.codex/
+.alethe/
+**/.gradle-cache/
 
 # Sistema
 .DS_Store
