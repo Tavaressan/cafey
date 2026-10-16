@@ -120,5 +120,29 @@ class CareContentTest {
         }
 
         onNodeWithText("Nenhum dispositivo vinculado ainda.").assertExists()
+        onNodeWithText("Tentar de novo").assertDoesNotExist()
+    }
+
+    @Test
+    fun showsErrorStateAndRetryButtonWithoutShowingEmptyMessageWhenLoadFails() = runComposeUiTest {
+        var retried = false
+        val state = CareUiState(loading = false, errorMessage = "Falha ao carregar cuidados", cuidados = null)
+        setContent {
+            CafeyTheme {
+                CareContent(
+                    state = state,
+                    sizeClass = NavShellSizeClass.Compact,
+                    onDarBaixa = {},
+                    onRetry = { retried = true },
+                )
+            }
+        }
+
+        onNodeWithText("Falha ao carregar cuidados").assertExists()
+        onNodeWithText("Tentar de novo").assertExists()
+        onNodeWithText("Nenhum dispositivo vinculado ainda.").assertDoesNotExist()
+
+        onNodeWithText("Tentar de novo").performClick()
+        assertTrue(retried, "o clique em Tentar de novo deveria disparar onRetry")
     }
 }

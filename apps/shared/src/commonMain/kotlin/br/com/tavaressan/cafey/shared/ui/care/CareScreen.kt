@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,7 +54,12 @@ fun CareScreen() {
     )
     val state by viewModel.uiState.collectAsState()
 
-    CareContent(state = state, sizeClass = LocalNavShellSizeClass.current, onDarBaixa = viewModel::darBaixa)
+    CareContent(
+        state = state,
+        sizeClass = LocalNavShellSizeClass.current,
+        onDarBaixa = viewModel::darBaixa,
+        onRetry = viewModel::retry,
+    )
 }
 
 /** Corpo visual da tela, separado de [CareScreen] para ser testável sem `AppContainer`/rede. */
@@ -61,8 +68,15 @@ internal fun CareContent(
     state: CareUiState,
     sizeClass: NavShellSizeClass,
     onDarBaixa: (TipoCuidado) -> Unit,
+    onRetry: () -> Unit = {},
 ) {
-    Column(modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground).padding(22.dp)) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .background(CafeyTheme.colors.ground)
+            .padding(22.dp),
+    ) {
         Text("Cuidados", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
 
         if (state.loading) {
@@ -78,12 +92,25 @@ internal fun CareContent(
 
         val cuidados = state.cuidados
         if (cuidados == null) {
-            Text(
-                "Nenhum dispositivo vinculado ainda.",
-                style = CafeyTheme.typography.body,
-                color = CafeyTheme.colors.muted,
-                modifier = Modifier.padding(top = 24.dp),
-            )
+            if (state.errorMessage != null) {
+                Button(
+                    onClick = onRetry,
+                    modifier = Modifier.padding(top = 16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CafeyTheme.colors.brand,
+                        contentColor = CafeyTheme.colors.ground,
+                    ),
+                ) {
+                    Text("Tentar de novo")
+                }
+            } else {
+                Text(
+                    "Nenhum dispositivo vinculado ainda.",
+                    style = CafeyTheme.typography.body,
+                    color = CafeyTheme.colors.muted,
+                    modifier = Modifier.padding(top = 24.dp),
+                )
+            }
         } else {
             val destaque = cuidados.destaque
             val secundarios = TipoCuidado.entries.filter { it != destaque }
