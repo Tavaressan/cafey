@@ -138,6 +138,19 @@ sobre 6,3 A.
 - [ ] Conferir na bancada se o módulo de relé físico realmente liga com IN=LOW.
 - [ ] Verificar se o plugue da CP30 tem o 3º pino (terra) populado.
 
+## Frontend Multiplataforma (Compose Multiplatform / KMP — 15/10/2026)
+
+Módulo `apps` 100% estabilizado, com 93 testes unitários e de UI passando em `:shared:desktopTest`:
+
+- [x] **Issue #198 (PR #239):** Invalidação síncrona do cache do Bearer token do Ktor (`clearToken()`) e limpeza do storage no logout, eliminando 401s após troca de usuário.
+- [x] **Issues #206 e #220 (PR #240):** Correção de scroll em telas compactas, tratamento diferenciado de conexão em Cuidados, botão de retry e desacoplamento do POST de baixa de cuidados da recarga de status.
+- [x] **Issue #201 (PR #241):** Unificação estrutural de `ScheduleForm` com preservação de foco e teclado virtual (IME) entre redimensionamento de janela (cruzamento do breakpoint de 1024dp).
+- [x] **Issue #178 (PR #242):** Identidade visual e logotipo da marca integrados em todas as plataformas (Android mipmaps/adaptive icons, Desktop icon de janela, Web favicon e composables `CafeyLogo`/`CafeyWordmark` em `LoginScreen` e `CafeySideNav`).
+- [x] **Issue #186:** Higienização de branches remotas órfãs com bypass admin obsoleto.
+- [x] **Issue #184 (PR #243):** Modo Demo completo em tempo de execução via `DemoMockEngine` do Ktor, fornecendo dados mockados realistas para apresentação acadêmica e testes de banca sem necessidade de backend ou hardware ativo.
+- [x] **Issue #199 (PR #244):** Throttling inteligente de 60s em `HomeViewModel.refresh()` para consulta de métricas de consumo (`/estatisticas`), mantendo o polling de estado de 5s leve e evitando rajadas no servidor.
+
+
 ## Marcos
 
 | Data | Critério |
