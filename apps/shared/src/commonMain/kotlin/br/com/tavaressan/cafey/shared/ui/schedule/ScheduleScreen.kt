@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,39 +76,29 @@ fun ScheduleScreen() {
     val isExpanded = LocalNavShellSizeClass.current == NavShellSizeClass.Expanded
 
     Column(modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground).padding(22.dp)) {
-        if (editing != null && !isExpanded) {
-            ScheduleForm(
-                form = editing,
-                saving = state.saving,
-                onHoraChange = viewModel::onHoraChange,
-                onDiaToggle = viewModel::onDiaToggle,
-                onDuracaoChange = viewModel::onDuracaoChange,
-                onSave = viewModel::submit,
-                onCancel = viewModel::cancelEdit,
-            )
-            return@Column
-        }
-
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            Text("Agendamentos", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink, modifier = Modifier.weight(1f))
-            OutlinedButton(onClick = viewModel::startCreate, shape = CafeyTheme.shapes.small) {
-                Text("Novo")
+        if (isExpanded || editing == null) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text("Agendamentos", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink, modifier = Modifier.weight(1f))
+                OutlinedButton(onClick = viewModel::startCreate, shape = CafeyTheme.shapes.small) {
+                    Text("Novo")
+                }
             }
-        }
 
-        if (state.loading) {
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = CafeyTheme.colors.brand)
+            if (state.loading) {
+                Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = CafeyTheme.colors.brand)
+                }
+                return@Column
             }
-            return@Column
-        }
 
-        state.errorMessage?.let {
-            Text(it, color = CafeyTheme.colors.brandDeep, style = CafeyTheme.typography.bodySmall, modifier = Modifier.padding(top = 12.dp))
+            state.errorMessage?.let {
+                Text(it, color = CafeyTheme.colors.brandDeep, style = CafeyTheme.typography.bodySmall, modifier = Modifier.padding(top = 12.dp))
+            }
         }
 
         ScheduleContentLayout(
             isExpanded = isExpanded,
+            showEditorInCompact = editing != null,
             list = { ScheduleList(agendamentos = state.agendamentos, viewModel = viewModel, topPadding = if (isExpanded) 0.dp else 16.dp) },
             editor = {
                 if (editing != null) {
@@ -134,26 +125,36 @@ fun ScheduleScreen() {
 
 /**
  * Desktop (≥1024.dp, `.wide--late` de cafey.css): [list] e [editor] lado a lado (grid 1fr/1fr), em
- * vez do editor substituir a lista na tela toda — issue #188. Abaixo disso, só [list] (o caller
- * mostra o editor em tela cheia separadamente nesse caso). `internal` para ser exercitado por teste
- * de composição em `desktopTest`.
+ * vez do editor substituir a lista na tela toda — issue #188. Abaixo disso, exibe [editor] quando
+ * [showEditorInCompact] é verdadeiro ou [list] quando falso. O slot [editor] é chamado em um único
+ * ponto estruturalmente estável da árvore de composição (issue #201) para preservar foco, IME e
+ * efeitos ao cruzar o breakpoint de 1024dp. `internal` para ser exercitado por testes.
  */
 @Composable
 internal fun ScheduleContentLayout(
     isExpanded: Boolean,
+    showEditorInCompact: Boolean = false,
     list: @Composable () -> Unit,
     editor: @Composable () -> Unit,
 ) {
-    if (isExpanded) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(20.dp),
-        ) {
-            Box(modifier = Modifier.weight(1f)) { list() }
-            Box(modifier = Modifier.weight(1f)) { editor() }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (isExpanded) 20.dp else 0.dp),
+    ) {
+        if (isExpanded || !showEditorInCompact) {
+            key("schedule-list") {
+                Box(modifier = if (isExpanded) Modifier.weight(1f) else Modifier.fillMaxWidth()) {
+                    list()
+                }
+            }
         }
-    } else {
-        list()
+        if (isExpanded || showEditorInCompact) {
+            key("schedule-editor") {
+                Box(modifier = if (isExpanded) Modifier.weight(1f) else Modifier.fillMaxWidth()) {
+                    editor()
+                }
+            }
+        }
     }
 }
 
