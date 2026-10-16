@@ -9,6 +9,8 @@ import io.ktor.client.HttpClientConfig
 import io.ktor.client.call.body
 import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.auth.Auth
+import io.ktor.client.plugins.auth.authProvider
+import io.ktor.client.plugins.auth.providers.BearerAuthProvider
 import io.ktor.client.plugins.auth.providers.BearerTokens
 import io.ktor.client.plugins.auth.providers.bearer
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
@@ -85,10 +87,14 @@ fun sharedHttpClientConfig(baseUrl: String, tokenStorage: TokenStorage): HttpCli
 class ApiClient(
     baseUrl: String,
     private val tokenStorage: TokenStorage,
+    httpClient: HttpClient? = null,
 ) {
-    val http: HttpClient = createPlatformHttpClient(sharedHttpClientConfig(baseUrl, tokenStorage))
+    val http: HttpClient = httpClient ?: createPlatformHttpClient(sharedHttpClientConfig(baseUrl, tokenStorage))
 
     suspend fun isAuthenticated(): Boolean = tokenStorage.load() != null
 
-    suspend fun logout() = tokenStorage.clear()
+    suspend fun logout() {
+        http.authProvider<BearerAuthProvider>()?.clearToken()
+        tokenStorage.clear()
+    }
 }
