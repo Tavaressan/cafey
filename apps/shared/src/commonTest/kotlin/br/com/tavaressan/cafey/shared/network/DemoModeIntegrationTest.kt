@@ -1,6 +1,7 @@
 package br.com.tavaressan.cafey.shared.network
 
 import br.com.tavaressan.cafey.shared.AppContainer
+import br.com.tavaressan.cafey.shared.auth.FakeTokenStorage
 import br.com.tavaressan.cafey.shared.domain.model.AcaoComando
 import br.com.tavaressan.cafey.shared.domain.model.LoginRequest
 import br.com.tavaressan.cafey.shared.domain.model.TipoCuidado
@@ -25,7 +26,8 @@ class DemoModeIntegrationTest {
 
     @Test
     fun demoContainer_allEndpointsReturnValidResponses_withoutRealNetwork() = runTest {
-        val container = AppContainer.demo()
+        val tokenStorage = FakeTokenStorage()
+        val container = AppContainer.demo(tokenStorage = tokenStorage)
 
         assertTrue(container.isDemoMode, "Container deve estar explicitamente marcado como demo mode")
         assertFalse(container.apiClient.isAuthenticated(), "Deve iniciar não autenticado")

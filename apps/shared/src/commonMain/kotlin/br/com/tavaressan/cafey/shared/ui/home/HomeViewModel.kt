@@ -29,6 +29,8 @@ import kotlinx.datetime.toLocalDateTime
  * polling. O requisito de desempenho da spec (§9, <2s) é sobre o comando chegar à base via MQTT,
  * não sobre o app perceber o resultado — a sondagem só reflete esse estado, não o causa. */
 private const val POLL_INTERVAL_MS = 5_000L
+/** Intervalo de atualização da sequência de manhãs (métrica analítica diária; não precisa rodar a cada 5s). */
+private const val STATS_POLL_INTERVAL_MS = 60_000L
 
 data class HomeUiState(
     val loading: Boolean = true,
@@ -46,12 +48,15 @@ class HomeViewModel(
     private val commandApi: CommandApi,
     private val scheduleApi: ScheduleApi,
     private val eventApi: EventApi,
+    coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
 ) : ViewModel() {
+    private val scope = coroutineScope ?: viewModelScope
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private var lastStatsFetchMs = 0L
 
     init {
-        viewModelScope.launch {
+        scope.launch {
             while (isActive) {
                 refresh()
                 kotlinx.coroutines.delay(POLL_INTERVAL_MS)
@@ -59,13 +64,23 @@ class HomeViewModel(
         }
     }
 
-    private suspend fun refresh() {
+    internal suspend fun refresh() {
         try {
             // MVP de um único dispositivo — troca de aparelho fica para uma issue futura de
             // gerenciamento de dispositivos (fora do escopo de APP-04).
             val device = deviceApi.listar().firstOrNull()
             val proximoPreparo = device?.let { buscarProximoPreparo(it.id) }
-            val sequenciaManhasDias = device?.let { buscarSequenciaManhas(it.id) } ?: 0
+            val nowMs = Clock.System.now().toEpochMilliseconds()
+            val sequenciaManhasDias = if (device != null) {
+                if (nowMs - lastStatsFetchMs >= STATS_POLL_INTERVAL_MS || _uiState.value.sequenciaManhasDias == 0) {
+                    lastStatsFetchMs = nowMs
+                    buscarSequenciaManhas(device.id)
+                } else {
+                    _uiState.value.sequenciaManhasDias
+                }
+            } else {
+                0
+            }
             _uiState.update {
                 it.copy(
                     loading = false,
@@ -113,9 +128,10 @@ class HomeViewModel(
     private fun runCommand(action: suspend (deviceId: String) -> ComandoResponse) {
         val deviceId = _uiState.value.device?.id ?: return
         _uiState.update { it.copy(commandInFlight = true, errorMessage = null) }
-        viewModelScope.launch {
+        scope.launch {
             try {
                 action(deviceId)
+                lastStatsFetchMs = 0L
                 refresh()
                 _uiState.update { it.copy(commandInFlight = false) }
             } catch (e: ApiError) {
