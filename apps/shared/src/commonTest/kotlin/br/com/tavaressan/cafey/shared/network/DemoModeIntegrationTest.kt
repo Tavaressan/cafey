@@ -78,7 +78,13 @@ class DemoModeIntegrationTest {
 
     @Test
     fun normalContainer_flagFalse_defaultsToPlatformClient() {
-        val container = AppContainer(baseUrl = "https://backend.cafey.test", isDemoMode = false)
+        // O createTokenStorage() do Android exige AndroidPlatformContext.init(context), que não
+        // existe no teste unitário JVM (testDebugUnitTest); o fake evita isso sem mudar o ramo testado.
+        val container = AppContainer(
+            baseUrl = "https://backend.cafey.test",
+            isDemoMode = false,
+            customTokenStorage = FakeTokenStorage(),
+        )
 
         assertFalse(container.isDemoMode)
         assertEquals("https://backend.cafey.test", container.baseUrl)
