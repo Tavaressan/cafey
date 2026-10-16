@@ -8,26 +8,26 @@ package br.com.tavaressan.cafey.shared.domain.validation
  */
 object DeviceValidation {
     // Mesmos limites de `@Min`/`@Max` em `CriarDispositivoRequest.duracaoPreparoS`.
-    const val DURACAO_MIN_S = 30
-    const val DURACAO_MAX_S = 900
+    const val MIN_DURATION_S = 30
+    const val MAX_DURATION_S = 900
 
     fun validateNome(nome: String): FieldError? =
         if (nome.isBlank()) FieldError.Required else null
 
-    fun validateDuracaoPreparoS(valor: String): FieldError? {
-        if (valor.isBlank()) return null
-        val segundos = valor.trim().toIntOrNull()
-        return if (segundos == null || segundos !in DURACAO_MIN_S..DURACAO_MAX_S) {
-            FieldError.OutOfRange(DURACAO_MIN_S, DURACAO_MAX_S)
+    fun validateDuracaoPreparoS(value: String): FieldError? {
+        if (value.isBlank()) return null
+        val seconds = value.trim().toIntOrNull()
+        return if (seconds == null || seconds !in MIN_DURATION_S..MAX_DURATION_S) {
+            FieldError.OutOfRange(MIN_DURATION_S, MAX_DURATION_S)
         } else {
             null
         }
     }
 
-    fun validateLimiarDescalcificacao(valor: String): FieldError? {
-        if (valor.isBlank()) return null
-        val limiar = valor.trim().toIntOrNull()
-        return if (limiar == null || limiar <= 0) FieldError.NotPositive else null
+    fun validateLimiarDescalcificacao(value: String): FieldError? {
+        if (value.isBlank()) return null
+        val threshold = value.trim().toIntOrNull()
+        return if (threshold == null || threshold <= 0) FieldError.NotPositive else null
     }
 }
 

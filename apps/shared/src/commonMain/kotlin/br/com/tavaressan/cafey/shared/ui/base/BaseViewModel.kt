@@ -43,7 +43,7 @@ class BaseViewModel(
      * Chamado pela tela a cada vez que ela entra em composição, e não no `init`: ao voltar da edição
      * ou exclusão do dispositivo, o ViewModel é o mesmo e precisa buscar o dado de novo.
      */
-    fun carregarDispositivo() {
+    fun loadDevice() {
         viewModelScope.launch {
             try {
                 // MVP de um único dispositivo, mesma simplificação de HomeViewModel (APP-04).

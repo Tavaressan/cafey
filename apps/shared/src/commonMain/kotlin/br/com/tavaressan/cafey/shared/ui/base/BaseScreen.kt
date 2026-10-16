@@ -40,7 +40,7 @@ fun BaseScreen(onGoToAccount: () -> Unit = {}, onEditDevice: (String) -> Unit = 
     )
     val state by viewModel.uiState.collectAsState()
 
-    LaunchedEffect(Unit) { viewModel.carregarDispositivo() }
+    LaunchedEffect(Unit) { viewModel.loadDevice() }
 
     BaseContent(
         loading = state.loading,

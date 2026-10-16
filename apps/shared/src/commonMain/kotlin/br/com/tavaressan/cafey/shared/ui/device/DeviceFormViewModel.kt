@@ -15,19 +15,19 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 // Padrões de `Dispositivo` no backend, pré-preenchidos no cadastro.
-private const val TIMEZONE_PADRAO = "America/Sao_Paulo"
-private const val DURACAO_PADRAO_S = 300
-private const val LIMIAR_PADRAO = 200
+private const val DEFAULT_TIMEZONE = "America/Sao_Paulo"
+private const val DEFAULT_DURATION_S = 300
+private const val DEFAULT_DESCALING_THRESHOLD = 200
 
-/** Campos numéricos ficam como texto, do jeito que o usuário digita; a conversão é feita em [DeviceFormViewModel.gravar]. */
+/** Campos numéricos ficam como texto, do jeito que o usuário digita; a conversão é feita em [DeviceFormViewModel.save]. */
 data class DeviceFormUiState(
     /** `null` = cadastro de um dispositivo novo; preenchido = edição. */
     val deviceId: String? = null,
     val loading: Boolean = false,
     val nome: String = "",
-    val timezone: String = TIMEZONE_PADRAO,
-    val duracaoPreparoS: String = DURACAO_PADRAO_S.toString(),
-    val limiarDescalcificacao: String = LIMIAR_PADRAO.toString(),
+    val timezone: String = DEFAULT_TIMEZONE,
+    val duracaoPreparoS: String = DEFAULT_DURATION_S.toString(),
+    val limiarDescalcificacao: String = DEFAULT_DESCALING_THRESHOLD.toString(),
     val errors: DeviceFormErrors = DeviceFormErrors(),
     val saving: Boolean = false,
     val errorMessage: String? = null,
@@ -45,19 +45,19 @@ class DeviceFormViewModel(
     val uiState: StateFlow<DeviceFormUiState> = _uiState.asStateFlow()
 
     init {
-        if (deviceId != null) scope.launch { carregar(deviceId) }
+        if (deviceId != null) scope.launch { load(deviceId) }
     }
 
-    private suspend fun carregar(deviceId: String) {
+    private suspend fun load(deviceId: String) {
         try {
-            val dispositivo = deviceApi.obter(deviceId)
+            val device = deviceApi.obter(deviceId)
             _uiState.update {
                 it.copy(
                     loading = false,
-                    nome = dispositivo.nome,
-                    timezone = dispositivo.timezone,
-                    duracaoPreparoS = dispositivo.duracaoPreparoS.toString(),
-                    limiarDescalcificacao = dispositivo.limiarDescalcificacao.toString(),
+                    nome = device.nome,
+                    timezone = device.timezone,
+                    duracaoPreparoS = device.duracaoPreparoS.toString(),
+                    limiarDescalcificacao = device.limiarDescalcificacao.toString(),
                 )
             }
         } catch (e: ApiError) {
@@ -84,7 +84,7 @@ class DeviceFormViewModel(
     }
 
     /** Botão "Limpar Campos": esvazia o formulário sem sair dele. Na edição, continua editando o mesmo dispositivo. */
-    fun limparCampos() {
+    fun clearFields() {
         _uiState.update {
             it.copy(
                 nome = "",
@@ -98,7 +98,7 @@ class DeviceFormViewModel(
     }
 
     /** Botão "Gravar": cadastra ou atualiza, conforme [DeviceFormUiState.deviceId]. */
-    fun gravar() {
+    fun save() {
         val state = _uiState.value
         val errors = DeviceFormErrors.validate(state.nome, state.duracaoPreparoS, state.limiarDescalcificacao)
         _uiState.update { it.copy(errors = errors) }
@@ -127,7 +127,7 @@ class DeviceFormViewModel(
         }
     }
 
-    fun excluir() {
+    fun delete() {
         val deviceId = _uiState.value.deviceId ?: return
         _uiState.update { it.copy(saving = true, errorMessage = null) }
         scope.launch {

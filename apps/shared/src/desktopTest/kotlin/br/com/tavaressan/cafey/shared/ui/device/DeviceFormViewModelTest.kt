@@ -44,13 +44,13 @@ class DeviceFormViewModelTest {
     """.trimIndent()
 
     /** Método, caminho e corpo JSON de cada requisição que o ViewModel fez. */
-    private data class Chamada(val method: String, val path: String, val body: JsonObject?)
+    private data class RecordedCall(val method: String, val path: String, val body: JsonObject?)
 
-    private fun deviceApi(chamadas: MutableList<Chamada>): DeviceApi {
+    private fun deviceApi(calls: MutableList<RecordedCall>): DeviceApi {
         val engine = MockEngine { request ->
-            val texto = request.body.toByteArray().decodeToString()
-            val body = if (texto.isBlank()) null else Json.parseToJsonElement(texto).jsonObject
-            chamadas += Chamada(request.method.value, request.url.encodedPath, body)
+            val text = request.body.toByteArray().decodeToString()
+            val body = if (text.isBlank()) null else Json.parseToJsonElement(text).jsonObject
+            calls += RecordedCall(request.method.value, request.url.encodedPath, body)
             when (request.method.value) {
                 "DELETE" -> respond("", HttpStatusCode.NoContent)
                 "POST" -> respond(deviceJson, HttpStatusCode.Created, jsonHeaders)
@@ -63,51 +63,51 @@ class DeviceFormViewModelTest {
     }
 
     @Test
-    fun cadastro_blankOptionalFields_areOmittedFromTheRequest() = runTest {
-        val chamadas = mutableListOf<Chamada>()
-        val viewModel = DeviceFormViewModel(deviceApi(chamadas), deviceId = null, coroutineScope = backgroundScope)
+    fun create_blankOptionalFields_areOmittedFromTheRequest() = runTest {
+        val calls = mutableListOf<RecordedCall>()
+        val viewModel = DeviceFormViewModel(deviceApi(calls), deviceId = null, coroutineScope = backgroundScope)
 
         viewModel.onNomeChange("Cafeteira Nova")
         viewModel.onTimezoneChange("")
         viewModel.onDuracaoPreparoSChange("")
         viewModel.onLimiarDescalcificacaoChange("")
-        viewModel.gravar()
+        viewModel.save()
         viewModel.uiState.first { it.success }
 
-        val chamada = chamadas.single()
-        assertEquals("POST", chamada.method)
-        assertEquals("/dispositivos", chamada.path)
+        val call = calls.single()
+        assertEquals("POST", call.method)
+        assertEquals("/dispositivos", call.path)
         // Campo ausente = null no backend, que aplica o padrão do Dispositivo.
-        assertEquals(setOf("nome"), chamada.body!!.keys)
-        assertEquals("Cafeteira Nova", chamada.body["nome"]!!.jsonPrimitive.content)
+        assertEquals(setOf("nome"), call.body!!.keys)
+        assertEquals("Cafeteira Nova", call.body["nome"]!!.jsonPrimitive.content)
     }
 
     @Test
-    fun edicao_loadsTheDeviceAndSendsPut() = runTest {
-        val chamadas = mutableListOf<Chamada>()
-        val viewModel = DeviceFormViewModel(deviceApi(chamadas), deviceId = "dev-1", coroutineScope = backgroundScope)
+    fun edit_loadsTheDeviceAndSendsPut() = runTest {
+        val calls = mutableListOf<RecordedCall>()
+        val viewModel = DeviceFormViewModel(deviceApi(calls), deviceId = "dev-1", coroutineScope = backgroundScope)
 
-        val carregado = viewModel.uiState.first { !it.loading }
-        assertEquals("Cafeteira Cozinha", carregado.nome)
-        assertEquals("240", carregado.duracaoPreparoS)
-        assertEquals("400", carregado.limiarDescalcificacao)
+        val loaded = viewModel.uiState.first { !it.loading }
+        assertEquals("Cafeteira Cozinha", loaded.nome)
+        assertEquals("240", loaded.duracaoPreparoS)
+        assertEquals("400", loaded.limiarDescalcificacao)
 
         viewModel.onDuracaoPreparoSChange("600")
-        viewModel.gravar()
+        viewModel.save()
         viewModel.uiState.first { it.success }
 
-        val put = chamadas.last()
+        val put = calls.last()
         assertEquals("PUT", put.method)
         assertEquals("/dispositivos/dev-1", put.path)
         assertEquals("600", put.body!!["duracaoPreparoS"]!!.jsonPrimitive.content)
     }
 
     @Test
-    fun limparCampos_emptiesTheFormAndKeepsEditingTheSameDevice() = runTest {
+    fun clearFields_emptiesTheFormAndKeepsEditingTheSameDevice() = runTest {
         val viewModel = DeviceFormViewModel(deviceApi(mutableListOf()), deviceId = "dev-1", coroutineScope = backgroundScope)
         viewModel.uiState.first { !it.loading }
 
-        viewModel.limparCampos()
+        viewModel.clearFields()
 
         val state = viewModel.uiState.value
         assertEquals("dev-1", state.deviceId)
@@ -118,30 +118,30 @@ class DeviceFormViewModelTest {
     }
 
     @Test
-    fun gravar_withInvalidFields_doesNotCallTheApi() = runTest {
-        val chamadas = mutableListOf<Chamada>()
-        val viewModel = DeviceFormViewModel(deviceApi(chamadas), deviceId = null, coroutineScope = backgroundScope)
+    fun save_withInvalidFields_doesNotCallTheApi() = runTest {
+        val calls = mutableListOf<RecordedCall>()
+        val viewModel = DeviceFormViewModel(deviceApi(calls), deviceId = null, coroutineScope = backgroundScope)
 
-        viewModel.limparCampos()
+        viewModel.clearFields()
         viewModel.onDuracaoPreparoSChange("5")
-        viewModel.gravar()
+        viewModel.save()
 
         val state = viewModel.uiState.value
         assertFalse(state.errors.isValid)
         assertFalse(state.saving)
-        assertTrue(chamadas.isEmpty())
+        assertTrue(calls.isEmpty())
     }
 
     @Test
-    fun excluir_sendsDeleteAndFinishes() = runTest {
-        val chamadas = mutableListOf<Chamada>()
-        val viewModel = DeviceFormViewModel(deviceApi(chamadas), deviceId = "dev-1", coroutineScope = backgroundScope)
+    fun delete_sendsDeleteAndFinishes() = runTest {
+        val calls = mutableListOf<RecordedCall>()
+        val viewModel = DeviceFormViewModel(deviceApi(calls), deviceId = "dev-1", coroutineScope = backgroundScope)
         viewModel.uiState.first { !it.loading }
 
-        viewModel.excluir()
+        viewModel.delete()
         viewModel.uiState.first { it.success }
 
-        val delete = chamadas.last()
+        val delete = calls.last()
         assertEquals("DELETE", delete.method)
         assertEquals("/dispositivos/dev-1", delete.path)
     }

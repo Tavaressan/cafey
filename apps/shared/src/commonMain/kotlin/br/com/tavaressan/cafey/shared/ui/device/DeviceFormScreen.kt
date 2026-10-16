@@ -52,7 +52,7 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
         factory = viewModelFactory { initializer { DeviceFormViewModel(container.deviceApi, deviceId) } },
     )
     val state by viewModel.uiState.collectAsState()
-    var confirmarExclusao by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
 
     // Navegar é efeito colateral: chamar no corpo do composable dispararia a cada recomposição.
     LaunchedEffect(state.success) {
@@ -66,14 +66,14 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
     ) {
-        val cadastro = state.deviceId == null
+        val isCreate = state.deviceId == null
         Text(
-            if (cadastro) "Cadastrar dispositivo" else "Editar dispositivo",
+            if (isCreate) "Cadastrar dispositivo" else "Editar dispositivo",
             style = CafeyTheme.typography.screenTitle,
             color = CafeyTheme.colors.ink,
         )
 
-        if (cadastro) {
+        if (isCreate) {
             Text(
                 "Dê um nome para sua cafeteira. O pareamento automático via Bluetooth chega em uma atualização futura.",
                 style = CafeyTheme.typography.bodySmall,
@@ -112,7 +112,7 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
 
         Row(modifier = Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
-                onClick = viewModel::gravar,
+                onClick = viewModel::save,
                 enabled = !state.saving,
                 colors = ButtonDefaults.buttonColors(containerColor = CafeyTheme.colors.brand),
                 shape = CafeyTheme.shapes.small,
@@ -125,7 +125,7 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
                 }
             }
             OutlinedButton(
-                onClick = viewModel::limparCampos,
+                onClick = viewModel::clearFields,
                 enabled = !state.saving,
                 shape = CafeyTheme.shapes.small,
                 modifier = Modifier.weight(1f),
@@ -134,9 +134,9 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
             }
         }
 
-        if (!cadastro) {
+        if (!isCreate) {
             TextButton(
-                onClick = { confirmarExclusao = true },
+                onClick = { confirmDelete = true },
                 enabled = !state.saving,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             ) {
@@ -145,21 +145,21 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
         }
     }
 
-    if (confirmarExclusao) {
+    if (confirmDelete) {
         AlertDialog(
-            onDismissRequest = { confirmarExclusao = false },
+            onDismissRequest = { confirmDelete = false },
             title = { Text("Excluir dispositivo?") },
             text = { Text("Os agendamentos e o histórico de preparos deste dispositivo também serão apagados.") },
             confirmButton = {
                 TextButton(onClick = {
-                    confirmarExclusao = false
-                    viewModel.excluir()
+                    confirmDelete = false
+                    viewModel.delete()
                 }) {
                     Text("Excluir", color = CafeyTheme.colors.brandDeep)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { confirmarExclusao = false }) { Text("Cancelar") }
+                TextButton(onClick = { confirmDelete = false }) { Text("Cancelar") }
             },
         )
     }

@@ -32,7 +32,7 @@ data class ScheduleFormState(
      * Botão "Limpar Campos": hora, dias e duração vazios, sem fechar o formulário. Mantém
      * [agendamentoId], então na edição continua sendo o mesmo agendamento.
      */
-    fun limpo() = copy(hora = "", diasAtivos = List(7) { false }, duracaoPreparoS = null, errors = ScheduleFormErrors())
+    fun cleared() = copy(hora = "", diasAtivos = List(7) { false }, duracaoPreparoS = null, errors = ScheduleFormErrors())
 
     companion object {
         fun forEdit(agendamento: AgendamentoResponse) = ScheduleFormState(
@@ -109,8 +109,8 @@ class ScheduleViewModel(
         _uiState.update { state -> state.editing?.let { state.copy(editing = it.copy(duracaoPreparoS = duracaoPreparoS)) } ?: state }
     }
 
-    fun limparCampos() {
-        _uiState.update { state -> state.editing?.let { state.copy(editing = it.limpo()) } ?: state }
+    fun clearFields() {
+        _uiState.update { state -> state.editing?.let { state.copy(editing = it.cleared()) } ?: state }
     }
 
     fun submit() {

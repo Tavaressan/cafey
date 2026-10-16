@@ -30,10 +30,10 @@ class DeviceValidationTest {
     @Test
     fun device_duracaoOutsideBackendRange_isRejected() {
         // Mesmos limites de @Min(30)/@Max(900) em CriarDispositivoRequest.duracaoPreparoS.
-        val esperado = FieldError.OutOfRange(30, 900)
-        assertEquals(esperado, DeviceFormErrors.validate(nome = "x", duracaoPreparoS = "29").duracaoPreparoS)
-        assertEquals(esperado, DeviceFormErrors.validate(nome = "x", duracaoPreparoS = "901").duracaoPreparoS)
-        assertEquals(esperado, DeviceFormErrors.validate(nome = "x", duracaoPreparoS = "abc").duracaoPreparoS)
+        val expected = FieldError.OutOfRange(30, 900)
+        assertEquals(expected, DeviceFormErrors.validate(nome = "x", duracaoPreparoS = "29").duracaoPreparoS)
+        assertEquals(expected, DeviceFormErrors.validate(nome = "x", duracaoPreparoS = "901").duracaoPreparoS)
+        assertEquals(expected, DeviceFormErrors.validate(nome = "x", duracaoPreparoS = "abc").duracaoPreparoS)
         assertNull(DeviceFormErrors.validate(nome = "x", duracaoPreparoS = "900").duracaoPreparoS)
     }
 

@@ -110,7 +110,7 @@ fun ScheduleScreen() {
                         onDiaToggle = viewModel::onDiaToggle,
                         onDuracaoChange = viewModel::onDuracaoChange,
                         onSave = viewModel::submit,
-                        onClear = viewModel::limparCampos,
+                        onClear = viewModel::clearFields,
                         onCancel = viewModel::cancelEdit,
                     )
                 } else {
