@@ -46,7 +46,7 @@ import br.com.tavaressan.cafey.shared.ui.auth.LoginScreen
 import br.com.tavaressan.cafey.shared.ui.auth.RegisterScreen
 import br.com.tavaressan.cafey.shared.ui.base.BaseScreen
 import br.com.tavaressan.cafey.shared.ui.care.CareScreen
-import br.com.tavaressan.cafey.shared.ui.device.DeviceRegisterScreen
+import br.com.tavaressan.cafey.shared.ui.device.DeviceFormScreen
 import br.com.tavaressan.cafey.shared.ui.history.HistoryScreen
 import br.com.tavaressan.cafey.shared.ui.home.HomeScreen
 import br.com.tavaressan.cafey.shared.ui.schedule.ScheduleScreen
@@ -64,6 +64,7 @@ private const val ROUTE_CARE = "care"
 private const val ROUTE_BASE = "base"
 private const val ROUTE_ACCOUNT = "account"
 private const val ROUTE_DEVICE_REGISTER = "device_register"
+private const val ROUTE_DEVICE_EDIT = "device_edit"
 
 /** Abas do rodapé principal — espelha `assets/nav.js` do protótipo (issue #182 adicionou "Base"). */
 private data class BottomTab(val route: String, val label: String, val icon: ImageVector)
@@ -153,7 +154,10 @@ fun CafeyNavHost() {
                     composable(ROUTE_HISTORY) { HistoryScreen() }
                     composable(ROUTE_CARE) { CareScreen() }
                     composable(ROUTE_BASE) {
-                        BaseScreen(onGoToAccount = { navController.navigate(ROUTE_ACCOUNT) })
+                        BaseScreen(
+                            onGoToAccount = { navController.navigate(ROUTE_ACCOUNT) },
+                            onEditDevice = { id -> navController.navigate("$ROUTE_DEVICE_EDIT/$id") },
+                        )
                     }
                     composable(ROUTE_ACCOUNT) {
                         AccountScreen(
@@ -169,7 +173,13 @@ fun CafeyNavHost() {
                         )
                     }
                     composable(ROUTE_DEVICE_REGISTER) {
-                        DeviceRegisterScreen(onRegistered = { navController.popBackStack() })
+                        DeviceFormScreen(onDone = { navController.popBackStack() })
+                    }
+                    composable("$ROUTE_DEVICE_EDIT/{id}") { entry ->
+                        DeviceFormScreen(
+                            deviceId = entry.savedStateHandle.get<String>("id"),
+                            onDone = { navController.popBackStack() },
+                        )
                     }
                 }
             }

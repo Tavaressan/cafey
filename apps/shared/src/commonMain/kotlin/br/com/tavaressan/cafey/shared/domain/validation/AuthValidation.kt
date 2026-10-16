@@ -15,6 +15,10 @@ sealed interface FieldError {
     data object InvalidTime : FieldError
     /** Máscara `diasSemana` sem nenhum bit ligado (backend exige 1..127). */
     data object NoDaySelected : FieldError
+    /** Número inteiro ausente ou fora de [min]..[max] (`@Min`/`@Max` no backend). */
+    data class OutOfRange(val min: Int, val max: Int) : FieldError
+    /** Número inteiro ausente ou menor que 1 (`@Positive` no backend). */
+    data object NotPositive : FieldError
 }
 
 object AuthValidation {

@@ -2,6 +2,8 @@
 
 API do Cafey (Spring Boot / Kotlin). Há dois modos de rodar em desenvolvimento.
 
+No `Cafey-backend.zip` da entrega, esta pasta (`backend/` no repositório) se chama `cafey-backend/`: troque `cd backend` por `cd cafey-backend` nos comandos abaixo.
+
 ## Modo 1 — banco no Compose, API no host (`bootRun`)
 
 Modo original, útil para depurar/rodar a API direto na IDE.

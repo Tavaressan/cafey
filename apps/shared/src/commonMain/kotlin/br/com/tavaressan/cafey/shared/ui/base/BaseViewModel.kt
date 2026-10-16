@@ -37,11 +37,18 @@ class BaseViewModel(
         viewModelScope.launch {
             themePreference.darkTheme.collect { dark -> _uiState.update { it.copy(darkTheme = dark) } }
         }
+    }
+
+    /**
+     * Chamado pela tela a cada vez que ela entra em composição, e não no `init`: ao voltar da edição
+     * ou exclusão do dispositivo, o ViewModel é o mesmo e precisa buscar o dado de novo.
+     */
+    fun carregarDispositivo() {
         viewModelScope.launch {
             try {
                 // MVP de um único dispositivo, mesma simplificação de HomeViewModel (APP-04).
                 val device = deviceApi.listar().firstOrNull()
-                _uiState.update { it.copy(loading = false, device = device) }
+                _uiState.update { it.copy(loading = false, device = device, errorMessage = null) }
             } catch (e: ApiError) {
                 _uiState.update { it.copy(loading = false, errorMessage = e.message) }
             }

@@ -91,7 +91,7 @@ A arquitetura do projeto segue o padrão em camadas e segregação por funcional
 | Camada / Responsabilidade | Pacote / Pasta | Arquivos e Classes Principais |
 |---|---|---|
 | **Entidades de Domínio (JPA)** | `device/`, `schedule/`, `user/`, `event/` | `Dispositivo.kt`, `Agendamento.kt`, `Usuario.kt`, `EventoPreparo.kt` |
-| **Repositórios de Dados (Data JPA)** | `device/`, `schedule/`, `user/`, `event/` | `DispositivoRepository.kt` (JPQL com LIKE), `AgendamentoRepository.kt` (JPQL com LIKE), `UsuarioRepository.kt`, `EventoRepository.kt` |
+| **Repositórios de Dados (Data JPA)** | `device/`, `schedule/`, `user/`, `event/` | `DispositivoRepository.kt` (JPQL com LIKE), `AgendamentoRepository.kt` (JPQL com LIKE), `UsuarioRepository.kt`, `EventoPreparoRepository.kt` |
 | **Serviços de Negócio** | `device/`, `schedule/`, `auth/`, `event/` | `DispositivoService.kt`, `AgendamentoService.kt`, `AuthService.kt`, `EventoService.kt` |
 | **Controladores REST (API)** | `device/`, `schedule/`, `auth/`, `event/` | `DispositivoController.kt`, `AgendamentoController.kt`, `AuthController.kt`, `EventoController.kt` |
 | **Objetos de Transferência (DTOs com Validação)** | `device/`, `schedule/`, `auth/`, `event/` | `DeviceDto.kt`, `ScheduleDto.kt`, `AuthDto.kt`, `EventoDto.kt` |
@@ -99,8 +99,8 @@ A arquitetura do projeto segue o padrão em camadas e segregação por funcional
 | **Segurança e Filtros JWT** | `security/` | `SecurityConfig.kt` (`SecurityFilterChain`), `JwtAuthenticationFilter.kt`, `JwtTokenService.kt`, `RateLimitingFilter.kt` |
 | **Tratamento de Exceções (RFC 9457)** | `exception/` | `GlobalExceptionHandler.kt`, exceções especializadas de domínio |
 | **Configurações Gerais** | `config/` | `OpenApiConfig.kt` (SpringDoc Swagger), `RateLimitConfig.kt` |
-| **Integração MQTT / Nuvem** | `mqtt/` | `MqttService.kt`, `MqttPayloads.kt` |
-| **Migrações de Banco de Dados** | `src/main/resources/db/migration/` | `V1__init.sql` a `V8__agendamentos_descricao.sql` |
+| **Integração MQTT / Nuvem** | `mqtt/` | `MqttClientService.kt`, `MqttIngestionService.kt`, `MqttPayloads.kt` |
+| **Migrações de Banco de Dados** | `src/main/resources/db/migration/` | `V1__usuarios.sql` a `V8__agendamentos_descricao.sql` |
 
 ### 2. Frontend / Apps Multiplataforma (`apps/`)
 
@@ -120,6 +120,8 @@ A arquitetura do projeto segue o padrão em camadas e segregação por funcional
 ---
 
 ## vii) Instruções de Instalação, Execução e Acesso
+
+> **Arquivos .zip da entrega:** a pasta `cafey-backend/` do `Cafey-backend.zip` corresponde à pasta `backend/` do repositório, e a pasta `cafey-frontend/` do `Cafey-frontend.zip` corresponde à pasta `apps/`. Nos comandos abaixo, troque `cd backend` por `cd cafey-backend` e `cd apps` por `cd cafey-frontend`.
 
 ### Pré-requisitos
 - **Java Development Kit (JDK):** Versão 21 ou superior (recomendado Eclipse Temurin 21)
