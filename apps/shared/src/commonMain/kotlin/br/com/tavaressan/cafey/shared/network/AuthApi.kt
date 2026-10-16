@@ -53,7 +53,7 @@ class AuthApi(
         }
     }
 
-    suspend fun logout() = tokenStorage.clear()
+    suspend fun logout() = apiClient.logout()
 
     private suspend fun persistTokens(response: AuthResponse) {
         tokenStorage.save(StoredTokens(response.accessToken, response.refreshToken))
