@@ -23,8 +23,14 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
  * na rede local (issue #147).
  */
 @Composable
-fun App(baseUrl: String = platformDefaultBaseUrl) {
-    val container = remember(baseUrl) { AppContainer(baseUrl) }
+fun App(
+    baseUrl: String = platformDefaultBaseUrl,
+    demoMode: Boolean = false,
+    customContainer: AppContainer? = null,
+) {
+    val container = remember(baseUrl, demoMode, customContainer) {
+        customContainer ?: if (demoMode) AppContainer.demo(baseUrl) else AppContainer(baseUrl)
+    }
     // Issue #182 — carrega a preferência de tema persistida uma vez, aqui em cima (acima do
     // NavHost), para que CafeyTheme reflita a escolha alterada na tela "Base" imediatamente.
     val darkTheme by container.themePreference.darkTheme.collectAsState()
