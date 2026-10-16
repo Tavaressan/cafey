@@ -51,7 +51,9 @@ import br.com.tavaressan.cafey.shared.ui.history.HistoryScreen
 import br.com.tavaressan.cafey.shared.ui.home.HomeScreen
 import br.com.tavaressan.cafey.shared.ui.schedule.ScheduleScreen
 import br.com.tavaressan.cafey.shared.LocalAppContainer
+import br.com.tavaressan.cafey.shared.ui.theme.CafeyLogo
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
+import br.com.tavaressan.cafey.shared.ui.theme.CafeyWordmark
 
 private const val ROUTE_LOGIN = "login"
 private const val ROUTE_REGISTER = "register"
@@ -270,6 +272,12 @@ private fun CafeySideNav(sizeClass: NavShellSizeClass, currentRoute: String, onS
         horizontalAlignment = if (showLabel) Alignment.Start else Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(if (showLabel) 3.dp else 8.dp),
     ) {
+        if (showLabel) {
+            CafeyWordmark(modifier = Modifier.padding(start = 12.dp, bottom = 20.dp), iconSize = 32.dp)
+        } else {
+            CafeyLogo(modifier = Modifier.padding(bottom = 20.dp), size = 32.dp)
+        }
+
         BOTTOM_TABS.forEach { tab ->
             val selected = currentRoute == tab.route
             val itemModifier = Modifier
