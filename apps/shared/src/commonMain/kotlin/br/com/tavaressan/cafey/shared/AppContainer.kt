@@ -23,8 +23,9 @@ class AppContainer(
     val baseUrl: String = platformDefaultBaseUrl,
     val isDemoMode: Boolean = false,
     customApiClient: ApiClient? = null,
+    customTokenStorage: TokenStorage? = null,
 ) {
-    val tokenStorage: TokenStorage = createTokenStorage()
+    val tokenStorage: TokenStorage = customTokenStorage ?: createTokenStorage()
     val apiClient: ApiClient = customApiClient ?: if (isDemoMode) {
         ApiClient(
             baseUrl = baseUrl,
@@ -46,7 +47,10 @@ class AppContainer(
     val themePreference: ThemePreference = ThemePreference(createThemePreferenceStorage())
 
     companion object {
-        fun demo(baseUrl: String = "https://demo.cafey.local"): AppContainer =
-            AppContainer(baseUrl = baseUrl, isDemoMode = true)
+        fun demo(
+            baseUrl: String = "https://demo.cafey.local",
+            tokenStorage: TokenStorage? = null,
+        ): AppContainer =
+            AppContainer(baseUrl = baseUrl, isDemoMode = true, customTokenStorage = tokenStorage)
     }
 }
