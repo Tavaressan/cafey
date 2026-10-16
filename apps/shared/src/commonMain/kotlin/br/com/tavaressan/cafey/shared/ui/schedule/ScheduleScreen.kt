@@ -28,6 +28,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -109,6 +110,7 @@ fun ScheduleScreen() {
                         onDiaToggle = viewModel::onDiaToggle,
                         onDuracaoChange = viewModel::onDuracaoChange,
                         onSave = viewModel::submit,
+                        onClear = viewModel::clearFields,
                         onCancel = viewModel::cancelEdit,
                     )
                 } else {
@@ -249,6 +251,7 @@ private fun ScheduleForm(
     onDiaToggle: (Int) -> Unit,
     onDuracaoChange: (Int) -> Unit,
     onSave: () -> Unit,
+    onClear: () -> Unit,
     onCancel: () -> Unit,
 ) {
     Column {
@@ -317,12 +320,15 @@ private fun ScheduleForm(
                 if (saving) {
                     CircularProgressIndicator(modifier = Modifier.size(18.dp), color = CafeyTheme.colors.brandOn)
                 } else {
-                    Text("Salvar agendamento")
+                    Text("Gravar")
                 }
             }
-            OutlinedButton(onClick = onCancel, shape = CafeyTheme.shapes.small) {
-                Text("Cancelar")
+            OutlinedButton(onClick = onClear, enabled = !saving, shape = CafeyTheme.shapes.small, modifier = Modifier.weight(1f)) {
+                Text("Limpar Campos")
             }
+        }
+        TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            Text("Cancelar")
         }
     }
 }

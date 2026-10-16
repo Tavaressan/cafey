@@ -17,7 +17,7 @@ target iOS não compila.
 
 ## Rodando cada target
 
-Todos os comandos a seguir rodam a partir de `apps/`.
+Todos os comandos a seguir rodam a partir de `apps/` (pasta `cafey-frontend/` no `Cafey-frontend.zip` da entrega).
 
 ### Android
 

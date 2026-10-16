@@ -38,6 +38,16 @@ class ScheduleFormStateTest {
     }
 
     @Test
+    fun cleared_emptiesFieldsAndKeepsTheAgendamentoBeingEdited() {
+        val form = ScheduleFormState.forEdit(agendamento(360)).cleared()
+
+        assertEquals("ag-1", form.agendamentoId)
+        assertEquals("", form.hora)
+        assertEquals(List(7) { false }, form.diasAtivos)
+        assertNull(form.duracaoPreparoS)
+    }
+
+    @Test
     fun options_matchTheBackendAllowedValues() {
         assertEquals(listOf(240, 360, 480, 600), DURACOES_PREPARO_S)
     }

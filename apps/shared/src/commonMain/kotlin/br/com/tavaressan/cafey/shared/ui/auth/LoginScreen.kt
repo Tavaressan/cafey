@@ -37,6 +37,8 @@ internal fun fieldErrorMessage(error: FieldError?): String? = when (error) {
     FieldError.PasswordTooShort -> "Senha deve ter no mínimo 6 caracteres"
     FieldError.InvalidTime -> "Hora deve estar no formato HH:mm"
     FieldError.NoDaySelected -> "Selecione pelo menos um dia"
+    is FieldError.OutOfRange -> "Informe um número inteiro entre ${error.min} e ${error.max}"
+    FieldError.NotPositive -> "Informe um número inteiro maior que zero"
 }
 
 /** UC-02 — tela de login. */

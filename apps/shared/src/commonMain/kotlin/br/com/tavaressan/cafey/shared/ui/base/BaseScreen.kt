@@ -16,6 +16,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -27,16 +28,19 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.domain.model.DispositivoResponse
+import br.com.tavaressan.cafey.shared.domain.model.PapelDispositivo
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyStar
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
 @Composable
-fun BaseScreen(onGoToAccount: () -> Unit = {}) {
+fun BaseScreen(onGoToAccount: () -> Unit = {}, onEditDevice: (String) -> Unit = {}) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<BaseViewModel>(
         factory = viewModelFactory { initializer { BaseViewModel(container.deviceApi, container.themePreference) } },
     )
     val state by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) { viewModel.loadDevice() }
 
     BaseContent(
         loading = state.loading,
@@ -45,6 +49,7 @@ fun BaseScreen(onGoToAccount: () -> Unit = {}) {
         errorMessage = state.errorMessage,
         onToggleTheme = viewModel::toggleTheme,
         onGoToAccount = onGoToAccount,
+        onEditDevice = { state.device?.let { onEditDevice(it.id) } },
     )
 }
 
@@ -60,6 +65,7 @@ internal fun BaseContent(
     errorMessage: String?,
     onToggleTheme: () -> Unit,
     onGoToAccount: () -> Unit = {},
+    onEditDevice: () -> Unit = {},
 ) {
     Column(modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground).padding(22.dp)) {
         Text("Base da cozinha", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
@@ -90,6 +96,12 @@ internal fun BaseContent(
             )
         } else {
             DeviceInfoCard(nome = device.nome, online = device.online)
+            // O backend só deixa o proprietário alterar ou excluir o dispositivo.
+            if (device.papel == PapelDispositivo.PROPRIETARIO) {
+                OutlinedButton(onClick = onEditDevice, modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+                    Text("Editar dispositivo")
+                }
+            }
         }
 
         ThemeToggleCard(darkTheme = darkTheme, onToggle = onToggleTheme)

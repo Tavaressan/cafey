@@ -24,10 +24,16 @@ data class ScheduleFormState(
     val hora: String = "07:00",
     // Índice 0 = domingo … 6 = sábado. Seg-sex ligado por padrão, o caso mais comum (UC-10).
     val diasAtivos: List<Boolean> = List(7) { it in 1..5 },
-    // null = agendamento sem duração própria (usa a do dispositivo); só nasce de uma edição.
+    // null = agendamento sem duração própria (usa a do dispositivo); nasce de uma edição ou de "Limpar Campos".
     val duracaoPreparoS: Int? = DURACAO_PREPARO_PADRAO_S,
     val errors: ScheduleFormErrors = ScheduleFormErrors(),
 ) {
+    /**
+     * Botão "Limpar Campos": hora, dias e duração vazios, sem fechar o formulário. Mantém
+     * [agendamentoId], então na edição continua sendo o mesmo agendamento.
+     */
+    fun cleared() = copy(hora = "", diasAtivos = List(7) { false }, duracaoPreparoS = null, errors = ScheduleFormErrors())
+
     companion object {
         fun forEdit(agendamento: AgendamentoResponse) = ScheduleFormState(
             agendamentoId = agendamento.id,
@@ -101,6 +107,10 @@ class ScheduleViewModel(
 
     fun onDuracaoChange(duracaoPreparoS: Int) {
         _uiState.update { state -> state.editing?.let { state.copy(editing = it.copy(duracaoPreparoS = duracaoPreparoS)) } ?: state }
+    }
+
+    fun clearFields() {
+        _uiState.update { state -> state.editing?.let { state.copy(editing = it.cleared()) } ?: state }
     }
 
     fun submit() {
