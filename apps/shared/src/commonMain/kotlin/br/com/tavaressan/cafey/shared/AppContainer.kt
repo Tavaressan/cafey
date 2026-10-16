@@ -8,6 +8,7 @@ import br.com.tavaressan.cafey.shared.network.CommandApi
 import br.com.tavaressan.cafey.shared.network.DeviceApi
 import br.com.tavaressan.cafey.shared.network.EventApi
 import br.com.tavaressan.cafey.shared.network.ScheduleApi
+import br.com.tavaressan.cafey.shared.network.createDemoHttpClient
 import br.com.tavaressan.cafey.shared.network.platformDefaultBaseUrl
 import br.com.tavaressan.cafey.shared.preferences.ThemePreference
 import br.com.tavaressan.cafey.shared.preferences.createThemePreferenceStorage
@@ -18,9 +19,21 @@ import br.com.tavaressan.cafey.shared.preferences.createThemePreferenceStorage
  * (`MainActivity`, `main()` do desktop/web), e repassa para as telas via `CompositionLocal` ou
  * parâmetro direto.
  */
-class AppContainer(val baseUrl: String = platformDefaultBaseUrl) {
+class AppContainer(
+    val baseUrl: String = platformDefaultBaseUrl,
+    val isDemoMode: Boolean = false,
+    customApiClient: ApiClient? = null,
+) {
     val tokenStorage: TokenStorage = createTokenStorage()
-    val apiClient: ApiClient = ApiClient(baseUrl, tokenStorage)
+    val apiClient: ApiClient = customApiClient ?: if (isDemoMode) {
+        ApiClient(
+            baseUrl = baseUrl,
+            tokenStorage = tokenStorage,
+            httpClient = createDemoHttpClient(baseUrl, tokenStorage),
+        )
+    } else {
+        ApiClient(baseUrl, tokenStorage)
+    }
 
     val authApi: AuthApi = AuthApi(apiClient, tokenStorage)
     val deviceApi: DeviceApi = DeviceApi(apiClient)
@@ -31,4 +44,9 @@ class AppContainer(val baseUrl: String = platformDefaultBaseUrl) {
     // Issue #182 — alternador claro/escuro da tela "Base"; precisa viver aqui (não num ViewModel de
     // tela) porque é lido acima do NavHost (App.kt, para CafeyTheme) e alterado de dentro dele.
     val themePreference: ThemePreference = ThemePreference(createThemePreferenceStorage())
+
+    companion object {
+        fun demo(baseUrl: String = "https://demo.cafey.local"): AppContainer =
+            AppContainer(baseUrl = baseUrl, isDemoMode = true)
+    }
 }

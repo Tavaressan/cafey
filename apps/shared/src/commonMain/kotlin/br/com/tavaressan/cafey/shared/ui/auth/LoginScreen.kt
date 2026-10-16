@@ -102,6 +102,22 @@ fun LoginScreen(onLoggedIn: () -> Unit, onGoToRegister: () -> Unit) {
             }
         }
 
+        if (container.isDemoMode) {
+            Button(
+                onClick = {
+                    viewModel.onEmailChange("demo@cafey.com")
+                    viewModel.onSenhaChange("cafey123")
+                    viewModel.submit()
+                },
+                enabled = !state.loading,
+                colors = ButtonDefaults.buttonColors(containerColor = CafeyTheme.colors.surface),
+                shape = CafeyTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            ) {
+                Text("Entrar como Demonstração", color = CafeyTheme.colors.brand)
+            }
+        }
+
         TextButton(onClick = onGoToRegister, modifier = Modifier.padding(top = 8.dp)) {
             Text("Não tem conta? Cadastre-se", color = CafeyTheme.colors.blueDeep)
         }
