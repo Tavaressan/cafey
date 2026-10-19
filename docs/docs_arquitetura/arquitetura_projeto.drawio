@@ -82,7 +82,7 @@
             <mxPoint x="630" y="608" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="hAUxIk0yNo61K9HzAn3x-7" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" value="Banco de dados relacional&lt;div&gt;Maria DB&lt;/div&gt;" vertex="1">
+        <mxCell id="hAUxIk0yNo61K9HzAn3x-7" parent="1" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" value="Banco de dados relacional&lt;div&gt;PostgreSQL&lt;/div&gt;" vertex="1">
           <mxGeometry height="100" width="100" x="840" y="244.5" as="geometry" />
         </mxCell>
         <mxCell id="hAUxIk0yNo61K9HzAn3x-8" edge="1" parent="1" source="hAUxIk0yNo61K9HzAn3x-7" style="shape=flexArrow;endArrow=classic;startArrow=classic;html=1;rounded=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;exitPerimeter=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="Y2EL4mhIrvH8p5tOq3UI-15" value="">
@@ -103,7 +103,7 @@
             <mxPoint x="465" y="390" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="hAUxIk0yNo61K9HzAn3x-14" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#7AA116;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.mqtt_protocol;" value="Broker&lt;div&gt;Mosquitto&lt;/div&gt;" vertex="1">
+        <mxCell id="hAUxIk0yNo61K9HzAn3x-14" parent="1" style="sketch=0;outlineConnect=0;fontColor=#232F3E;gradientColor=none;fillColor=#7AA116;strokeColor=none;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.mqtt_protocol;" value="Broker MQTT&lt;div&gt;AWS IoT Core&lt;/div&gt;" vertex="1">
           <mxGeometry height="60" width="60" x="630" y="451" as="geometry" />
         </mxCell>
         <mxCell id="hAUxIk0yNo61K9HzAn3x-15" edge="1" parent="1" source="hAUxIk0yNo61K9HzAn3x-9" style="endArrow=classic;html=1;rounded=0;" target="hAUxIk0yNo61K9HzAn3x-14" value="MQTT">
@@ -113,7 +113,7 @@
             <mxPoint x="640" y="390" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="hAUxIk0yNo61K9HzAn3x-16" edge="1" parent="1" source="Y2EL4mhIrvH8p5tOq3UI-15" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="hAUxIk0yNo61K9HzAn3x-14" value="Pull Request no&amp;nbsp;&lt;div&gt;topico do Broker&lt;/div&gt;">
+        <mxCell id="hAUxIk0yNo61K9HzAn3x-16" edge="1" parent="1" source="Y2EL4mhIrvH8p5tOq3UI-15" style="endArrow=classic;html=1;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="hAUxIk0yNo61K9HzAn3x-14" value="MQTT (TLS / X.509)">
           <mxGeometry height="50" relative="1" width="50" as="geometry">
             <mxPoint x="590" y="440" as="sourcePoint" />
             <mxPoint x="640" y="390" as="targetPoint" />
