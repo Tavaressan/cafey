@@ -26,17 +26,11 @@ prototipação embarcada no Wokwi — ver `firmware/`.
 | MCU | DOIT ESP32 DevKit V1, 30 pinos |
 | Esquemático | Folha única A4, KiCad 10.0.5 |
 
-Duas decisões acima divergem da especificação e o texto dela ainda não foi
-atualizado:
-
-1. A §4.4 dava a alimentação como pendente. Está resolvida: HLK-PM01. O
-   argumento decisivo foi que a tomada fêmea da base é chaveada pelo relé, então
-   um carregador externo exigiria uma segunda tomada de parede.
-2. A §4.5 e a §9 afirmam "isolamento galvânico por optoacoplador separando o
-   ESP32 do lado da carga". Com o jumper JD-VCC de fábrica, isso é falso: a
-   bobina compartilha rail e GND com o ESP32, e o optoacoplador não isola nada.
-   A separação entre lógica e rede é dada pela rigidez dielétrica do relé. O
-   texto precisa ser corrigido antes da banca.
+> **Atualização 19/10/2026:** Divergências documentais da especificação técnica corrigidas e alinhadas (PR #247 e #248, Issues #85, #86, #87, #88):
+> 1. A §4.4 foi atualizada fixando o HLK-PM01 embutido (cabo único NBR 14136, USB restrito à bancada).
+> 2. A §4.5 e a §9 foram corrigidas documentando a separação elétrica pela rigidez dielétrica dos contatos do relé (fonte única com JD-VCC de fábrica mantido).
+> 3. A §7.2 foi alinhada ao schema relacional e contratos implementados no PostgreSQL e Spring Boot.
+> 4. O diagrama de arquitetura draw.io foi atualizado para PostgreSQL e AWS IoT Core (PR #248, Issue #87).
 
 ## Pinagem definida
 
