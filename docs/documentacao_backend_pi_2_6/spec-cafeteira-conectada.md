@@ -145,8 +145,8 @@ Se o cronograma apertar, corta-se nesta ordem — do primeiro ao último:
 | Botão | Momentâneo, painel frontal | Comando manual e cancelamento |
 | Tomada fêmea | Padrão NBR 14136 | Saída para a cafeteira |
 | Cabo macho | Padrão NBR 14136, com terra | Entrada da rede elétrica |
-| Fonte 5 V | Carregador USB **ou** módulo AC-DC embutido | Ver §4.4 |
-| Estrutura | Chapa de aço dobrada | Produzida internamente na empresa |
+| Fonte 5 V | Módulo AC-DC embutido (HLK-PM01 5 V, 600 mA) | Ver §4.4 (USB restrito à bancada) |
+| Estrutura | Gabinete plástico FDM (PETG) / chapa | Ver §4.4 e status do módulo físico |
 
 ### 4.2 Topologia elétrica
 
@@ -182,16 +182,11 @@ Adota-se relé de **10 A com folga de ~2×** sobre a corrente calculada. Como a 
 
 ### 4.4 Alimentação
 
-Duas alternativas em avaliação:
+**Decisão fechada:** Módulo AC-DC embutido **HLK-PM01 (5 V, 600 mA, isolado)** em definitivo no produto final. A prototipação e testes em bancada continuam utilizando alimentação via porta USB do DevKit.
 
-| Opção | Vantagem | Desvantagem |
-|---|---|---|
-| Carregador USB externo | Simples, seguro, barato | Dois cabos, acabamento inferior |
-| Módulo AC-DC embutido (tipo Hi-Link 5 V) | Cabo único, acabamento profissional | Exige mais cuidado de isolamento |
+**Justificativa:** Como a tomada fêmea da base onde a cafeteira é conectada é chaveada pelo contato do relé, a utilização de um carregador USB externo exigiria do usuário uma segunda tomada de parede dedicada exclusivamente à eletrônica de controle, comprometendo a ergonomia e o acabamento do conjunto. O módulo embutido HLK-PM01 permite cabo de alimentação único (NBR 14136), derivando a fase antes do relé (`L_FONTE`) para alimentar o circuito de baixa tensão de forma contínua.
 
-**Decisão pendente.** Preferência estética pelo módulo embutido; preferência prática pelo carregador externo.
-
-O ESP32 e a cafeteira **não compartilham alimentação** — o ESP32 precisa continuar energizado quando o relé estiver aberto.
+O ESP32 e a cafeteira **não compartilham alimentação** — o ESP32 permanece continuamente energizado mesmo quando o relé estiver aberto (desligado).
 
 ### 4.5 Segurança elétrica
 
@@ -204,7 +199,7 @@ O ESP32 e a cafeteira **não compartilham alimentação** — o ESP32 precisa co
 **Isolamento — três camadas**
 
 1. **Separação física** — região de rede elétrica e região de eletrônica de baixa tensão em lados opostos da caixa, com divisória plástica ou distância adequada. Cabos de alta e baixa tensão nunca em paralelo.
-2. **Isolamento galvânico** — módulo de relé com optoacoplador, separando eletricamente o ESP32 do lado da carga.
+2. **Separação por rigidez dielétrica dos contatos do relé** — com o jumper JD-VCC mantido de fábrica e alimentação compartilhada pelo HLK-PM01, a bobina compartilha rail (+5 V) e GND com o ESP32; logo, não há isolamento galvânico por optoacoplador. A separação elétrica entre lógica e rede (127 V) é assegurada pela rigidez dielétrica dos contatos do relé e pelo conversor AC-DC isolado HLK-PM01.
 3. **Conexões protegidas** — todas as emendas de rede em bornes com tampa. Nenhum condutor exposto próximo à chapa.
 
 **Blindagem de RF**
@@ -360,29 +355,35 @@ Quando a base está sem internet mas o celular está conectado, o aplicativo atu
 | Campo | Tipo | Observação |
 |---|---|---|
 | id | UUID | PK |
-| nome | texto | |
-| email | texto | Único |
-| senha_hash | texto | Hash forte (bcrypt/Argon2) |
-| criado_em | timestamptz | |
+| nome | text | |
+| email | citext | Único |
+| senha_hash | text | Hash forte (BCrypt força 12) |
+| criado_em | timestamptz | default now() |
 
 **dispositivos**
 
 | Campo | Tipo | Observação |
 |---|---|---|
 | id | UUID | PK |
-| serial | texto | Identificador do ESP32, único |
-| apelido | texto | Ex.: "cafeteira da cozinha" |
-| firmware | texto | Versão instalada |
-| ultimo_visto | timestamptz | Atualizado pelo tópico de saúde |
-| ciclos_desde_descalcificacao | inteiro | Base do alerta de manutenção |
+| serial | text | Identificador do ESP32, único |
+| apelido | text | Ex.: "cafeteira da cozinha" |
+| firmware | text | Versão instalada |
+| timezone | text | IANA, ex. `America/Sao_Paulo` (referência para o NTP do ESP32) |
+| estado | text | Espelho do tópico MQTT `estado` (`OCIOSO`, `PREPARANDO`, etc.) |
+| ultimo_visto | timestamptz | Atualizado pelo tópico MQTT de saúde |
+| ciclos_desde_descalcificacao | int | default 0 (base do alerta de manutenção) |
+| limiar_descalcificacao | int | default 75 (meio da faixa 60–90 ciclos) |
+| versao_agendamentos | bigint | Contador monotônico de versão da lista |
+| duracao_preparo_s | int | default 300 (temporizador aplicado pelo dispositivo ao ligar) |
 
 **usuario_dispositivo** *(vínculo)*
 
 | Campo | Tipo | Observação |
 |---|---|---|
-| usuario_id | UUID | FK |
-| dispositivo_id | UUID | FK |
-| papel | enum | `DONO` \| `CONVIDADO` |
+| usuario_id | UUID | FK, PK composta |
+| dispositivo_id | UUID | FK, PK composta |
+| papel | text | `PROPRIETARIO` \| `CONVIDADO` |
+| criado_em | timestamptz | default now() |
 
 **agendamentos**
 
@@ -390,10 +391,11 @@ Quando a base está sem internet mas o celular está conectado, o aplicativo atu
 |---|---|---|
 | id | UUID | PK |
 | dispositivo_id | UUID | FK |
-| hora | time | |
-| dias_semana | conjunto | Repetição semanal |
-| ativo | booleano | |
-| criado_por | UUID | FK usuários |
+| hora | time | Interpretada no `timezone` do dispositivo |
+| dias_semana | smallint | Bitmask (bit 0 = dom ... bit 6 = sáb; JPA sem AttributeConverter) |
+| ativo | boolean | |
+| duracao_preparo_s | integer | Nullable (null = usa `dispositivos.duracao_preparo_s`; 240/360/480/600s) |
+| criado_por | UUID | FK usuarios |
 
 **eventos_preparo**
 
@@ -401,12 +403,37 @@ Quando a base está sem internet mas o celular está conectado, o aplicativo atu
 |---|---|---|
 | id | UUID | PK |
 | dispositivo_id | UUID | FK |
-| inicio | timestamptz | |
-| fim | timestamptz | |
-| duracao | intervalo | |
-| origem | enum | `APP` \| `AGENDAMENTO` \| `BOTAO` |
+| evento_id | text | Identidade `bootId:seq` gerada no ESP32 (`UNIQUE (dispositivo_id, evento_id)`) |
+| tipo | text | default `'PREPARO'`; `'BAIXA_ENXAGUE'` \| `'BAIXA_FILTRO'` reservados aos cuidados |
+| resultado | text | `CONCLUIDO` \| `CANCELADO`; `BAIXA` nos marcadores de cuidado |
+| origem | text | `APP` \| `AGENDAMENTO` \| `BOTAO` |
+| duracao_s | int | Duração efetiva gravada que o temporizador local aplicou (P5) |
+| timestamp | timestamptz | Instante de referência do evento (início do acionamento) |
+| detalhe_erro | text | Nulo salvo falha reportada pelo dispositivo |
+| criado_em | timestamptz | default now() (distingue evento atrasado/offline de evento ao vivo) |
 
-> A coluna `origem` é a mais valiosa para as estatísticas: revela quanto do uso é programado, quanto é remoto e quanto é manual.
+> A coluna `origem` é a mais valiosa para as estatísticas: revela quanto do uso é programado, quanto é remoto e quanto é manual. A chave de deduplicação é `(dispositivo_id, evento_id)` e não depende de `timestamp` (que pode ser provisório antes da sincronização NTP).
+
+**refresh_tokens**
+
+| Campo | Tipo | Observação |
+|---|---|---|
+| id | UUID | PK |
+| usuario_id | UUID | FK usuarios |
+| familia_id | UUID | Agrupa a cadeia de rotações de uma sessão |
+| token_hash | text | SHA-256 do token |
+| expira_em | timestamptz | |
+| revogado_em | timestamptz | Nulo enquanto válido |
+
+**password_reset_tokens**
+
+| Campo | Tipo | Observação |
+|---|---|---|
+| id | UUID | PK |
+| usuario_id | UUID | FK usuarios |
+| token_hash | text | SHA-256 do token de recuperação |
+| expira_em | timestamptz | Validade de 15 minutos |
+| usado_em | timestamptz | Nulo enquanto não utilizado |
 
 ### 7.3 Manutenção — Descalcificação
 
@@ -464,7 +491,7 @@ O contador incrementa apenas em preparo com resultado `CONCLUIDO`. Preparo inter
 | Categoria | Requisito |
 |---|---|
 | **Segurança de dados** | MQTT sobre TLS; certificado X.509 por dispositivo; senhas com hash forte |
-| **Segurança elétrica** | Estrutura aterrada; relé dimensionado com folga; isolamento galvânico por optoacoplador; separação física entre alta e baixa tensão |
+| **Segurança elétrica** | Estrutura aterrada; relé dimensionado com folga; separação pela rigidez dielétrica dos contatos do relé (fonte única com JD-VCC); separação física entre alta e baixa tensão |
 | **Resiliência** | Agendamento executa sem internet; fila local de eventos; fallback BLE; proxy BLE para a nuvem |
 | **Desempenho** | Comando emitido pelo app chega à base em menos de 2 s com conectividade normal |
 | **Usabilidade** | Botão físico como caminho independente do celular; configuração inicial mínima; estado legível pelo LED sem consultar o app |
@@ -575,14 +602,14 @@ Se houver interesse futuro, um RTC com bateria de moeda ou supercapacitor resolv
 
 ## 13. Pendências
 
-| # | Item | Responsável |
-|---|---|---|
-| 1 | Decidir alimentação: carregador externo vs. módulo AC-DC embutido | — |
-| 2 | Atualizar diagrama draw.io (MariaDB → PostgreSQL) | — |
-| 3 | Definir posicionamento da antena (janela plástica vs. antena externa) | — |
-| 4 | Validação da montagem elétrica por profissional da área | Eletricista da empresa |
-| 5 | Selecionar modelo de cafeteira (confirmar chave mecânica e potência) | — |
-| 6 | Definir limiar de ciclos para alerta de descalcificação | — |
+| # | Item | Responsável | Estado |
+|---|---|---|---|
+| 1 | Decidir alimentação: carregador externo vs. módulo AC-DC embutido | — | **Fechada** (§4.4 — HLK-PM01 embutido) |
+| 2 | Atualizar diagrama draw.io (MariaDB → PostgreSQL, Mosquitto → AWS IoT Core) | — | **Fechada** (DOC-03, #87) |
+| 3 | Definir posicionamento da antena (janela plástica vs. antena externa) | — | **Fechada** (PETG transparente a RF, antena frontal) |
+| 4 | Validação da montagem elétrica por profissional da área | Eletricista da empresa | Aberta (marco 02/10) |
+| 5 | Selecionar modelo de cafeteira (confirmar chave mecânica e potência) | — | **Fechada** (Britânia CP30 Inox 800 W) |
+| 6 | Definir limiar de ciclos para alerta de descalcificação | — | **Fechada** (§7.2 — default 75 ciclos) |
 
 ---
 
