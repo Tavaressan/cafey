@@ -86,14 +86,21 @@ extern "C" void app_main(void) {
     g_conectividade.attach_event_queue(&event_queue_store);
 
     // Inicializa Wi-Fi (STA) com reconexao automatica em backoff e credenciais
-    // de provisionamento persistidas em NVS (UC-04). Sem credenciais gravadas,
+    // de provisionamento persistidas em NVS (UC-04 #249). Sem credenciais gravadas,
     // fica aguardando o app/BLE provisionar via WifiManager::provision().
+    static cafey::app::BleService* g_ble_service = nullptr;
     static cafey::core::WifiManager wifi_manager;
     wifi_manager.set_on_connected([] {
         g_conectividade.post(Message{MessageType::WifiConnected, 0});
+        if (g_ble_service != nullptr) {
+            g_ble_service->publish_wifi_status("CONNECTED");
+        }
     });
     wifi_manager.set_on_disconnected([] {
         g_conectividade.post(Message{MessageType::WifiDisconnected, 0});
+        if (g_ble_service != nullptr) {
+            g_ble_service->publish_wifi_status("DISCONNECTED");
+        }
     });
     esp_err_t wifi_err = wifi_manager.init();
     if (wifi_err != ESP_OK) {
@@ -226,7 +233,7 @@ extern "C" void app_main(void) {
         g_conectividade.post(Message{MessageType::EstadoChanged, brewing ? 1 : 0});
     });
 
-    // Servico BLE (FW-17, spec §6.4): comando/estado/agendamentos delegam para
+    // Servico BLE (FW-17, spec §6.4, UC-04 #249): comando/estado/agendamentos delegam para
     // os mesmos handlers de dominio do caminho MQTT — sem regra de negocio na
     // camada BLE. E o proxy da fila de eventos pendentes (FW-18, spec §6.5).
     static cafey::core::EspNimbleServer ble_server(cafey::app::BleService::kServiceUuid);
@@ -240,12 +247,16 @@ extern "C" void app_main(void) {
             schedule_store.replace_all(list, count, meta.timezone.c_str());
             apply_timezone(schedule_store.timezone());
             g_agendador.set_schedules(list, count);
+        },
+        [](const std::string& ssid, const std::string& password) {
+            wifi_manager.provision(ssid, password);
         });
+    g_ble_service = &ble_service;
     static cafey::app::BleEventProxy ble_event_proxy(ble_server, event_queue_store);
 
     if (ble_service.begin("cafey")) {
         ble_event_proxy.begin();
-        ESP_LOGI(TAG, "servico BLE ativo (comando/estado/agendamentos + proxy de eventos)");
+        ESP_LOGI(TAG, "servico BLE ativo (comando/estado/agendamentos/wifi + proxy de eventos)");
     } else {
         ESP_LOGE(TAG, "falha ao iniciar o servico BLE");
     }

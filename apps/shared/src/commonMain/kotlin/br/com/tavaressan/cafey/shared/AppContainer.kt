@@ -2,6 +2,7 @@ package br.com.tavaressan.cafey.shared
 
 import br.com.tavaressan.cafey.shared.auth.TokenStorage
 import br.com.tavaressan.cafey.shared.auth.createTokenStorage
+import br.com.tavaressan.cafey.shared.ble.BleClient
 import br.com.tavaressan.cafey.shared.network.ApiClient
 import br.com.tavaressan.cafey.shared.network.AuthApi
 import br.com.tavaressan.cafey.shared.network.CommandApi
@@ -24,6 +25,7 @@ class AppContainer(
     val isDemoMode: Boolean = false,
     customApiClient: ApiClient? = null,
     customTokenStorage: TokenStorage? = null,
+    customBleClient: BleClient? = null,
 ) {
     val tokenStorage: TokenStorage = customTokenStorage ?: createTokenStorage()
     val apiClient: ApiClient = customApiClient ?: if (isDemoMode) {
@@ -42,6 +44,9 @@ class AppContainer(
     val eventApi: EventApi = EventApi(apiClient)
     val commandApi: CommandApi = CommandApi(apiClient)
 
+    /** Cliente BLE opcional (injetado por plataforma, ex.: Android; nulo em Desktop/Web). */
+    val bleClient: BleClient? = customBleClient
+
     // Issue #182 — alternador claro/escuro da tela "Base"; precisa viver aqui (não num ViewModel de
     // tela) porque é lido acima do NavHost (App.kt, para CafeyTheme) e alterado de dentro dele.
     val themePreference: ThemePreference = ThemePreference(createThemePreferenceStorage())
@@ -50,7 +55,13 @@ class AppContainer(
         fun demo(
             baseUrl: String = "https://demo.cafey.local",
             tokenStorage: TokenStorage? = null,
+            bleClient: BleClient? = null,
         ): AppContainer =
-            AppContainer(baseUrl = baseUrl, isDemoMode = true, customTokenStorage = tokenStorage)
+            AppContainer(
+                baseUrl = baseUrl,
+                isDemoMode = true,
+                customTokenStorage = tokenStorage,
+                customBleClient = bleClient,
+            )
     }
 }
