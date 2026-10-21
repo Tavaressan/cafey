@@ -13,11 +13,14 @@ interface EventoPreparoRepository : JpaRepository<EventoPreparo, UUID> {
     fun existsByDispositivoIdAndEventoId(dispositivoId: UUID, eventoId: String): Boolean
 
     // Issue #190 — marcadores de baixa de cuidado (tipo BAIXA_*) ficam fora do histórico de preparos.
+    // O CAST nos `IS NULL` de inicio/fim é obrigatório no PostgreSQL: o driver envia um Instant nulo
+    // sem tipo, e um `? IS NULL` isolado falha com "could not determine data type of parameter"
+    // (SQLState 42P18). Coberto por PostgresIntegrationTest.
     @Query(
         "SELECT e FROM EventoPreparo e WHERE e.dispositivo.id = :dispositivoId AND e.tipo = 'PREPARO' " +
         "AND (:resultado IS NULL OR e.resultado = :resultado) " +
-        "AND (:inicio IS NULL OR e.timestamp >= :inicio) " +
-        "AND (:fim IS NULL OR e.timestamp <= :fim) " +
+        "AND (CAST(:inicio AS Instant) IS NULL OR e.timestamp >= :inicio) " +
+        "AND (CAST(:fim AS Instant) IS NULL OR e.timestamp <= :fim) " +
         "ORDER BY e.timestamp DESC"
     )
     fun findEventosComFiltro(

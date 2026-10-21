@@ -1,5 +1,6 @@
 package br.com.tavaressan.cafey.integration
 
+import br.com.tavaressan.cafey.event.EventoPreparoRepository
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -8,12 +9,15 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
 import org.springframework.dao.DataIntegrityViolationException
+import org.springframework.data.domain.PageRequest
 import org.springframework.jdbc.core.JdbcTemplate
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 import org.testcontainers.containers.PostgreSQLContainer
 import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.sql.Timestamp
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -39,6 +43,9 @@ class PostgresIntegrationTest {
 
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
+
+    @Autowired
+    private lateinit var eventoPreparoRepository: EventoPreparoRepository
 
     @Test
     fun `flyway aplica as migracoes V1 a V8 no schema_version`() {
@@ -102,6 +109,41 @@ class PostgresIntegrationTest {
         )
 
         assertTrue(hasUniqueIndex ?: false)
+    }
+
+    // Regressão: no PostgreSQL, os filtros opcionais nulos de findEventosComFiltro quebravam
+    // GET /dispositivos/{id}/eventos com 500 (SQLState 42P18).
+    @Test
+    @Transactional
+    fun `findEventosComFiltro aceita filtros nulos e filtra por resultado e periodo`() {
+        val dispositivoId = UUID.randomUUID()
+        jdbcTemplate.update("INSERT INTO dispositivos (id, nome) VALUES (?, ?)", dispositivoId, "Cafeteira")
+        val t1 = Instant.parse("2026-10-01T10:00:00Z")
+        val t2 = Instant.parse("2026-10-02T10:00:00Z")
+        insertEvento(dispositivoId, "e1", "CONCLUIDO", t1)
+        insertEvento(dispositivoId, "e2", "ERRO", t2)
+        val pagina = PageRequest.of(0, 20)
+
+        fun ids(resultado: String?, inicio: Instant?, fim: Instant?) =
+            eventoPreparoRepository.findEventosComFiltro(dispositivoId, resultado, inicio, fim, pagina)
+                .content.map { it.eventoId }
+
+        assertEquals(listOf("e2", "e1"), ids(null, null, null))
+        assertEquals(listOf("e1"), ids("CONCLUIDO", null, null))
+        assertEquals(listOf("e2"), ids(null, t2, null))
+        assertEquals(listOf("e1"), ids(null, null, t1))
+        assertEquals(listOf("e1"), ids(null, t1, t1))
+    }
+
+    private fun insertEvento(dispositivoId: UUID, eventoId: String, resultado: String, timestamp: Instant) {
+        jdbcTemplate.update(
+            "INSERT INTO eventos_preparo (evento_id, dispositivo_id, resultado, origem, duracao_s, timestamp) " +
+                "VALUES (?, ?, ?, 'APP', 60, ?)",
+            eventoId,
+            dispositivoId,
+            resultado,
+            Timestamp.from(timestamp),
+        )
     }
 
     private fun insertUsuario(email: String) {
