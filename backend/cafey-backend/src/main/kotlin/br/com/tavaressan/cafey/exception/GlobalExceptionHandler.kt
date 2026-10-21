@@ -1,5 +1,6 @@
 package br.com.tavaressan.cafey.exception
 
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ProblemDetail
 import org.springframework.security.authentication.AuthenticationServiceException
@@ -12,6 +13,7 @@ import java.net.URI
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+    private val logger = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
 
     @ExceptionHandler(ResourceNotFoundException::class)
     fun handleResourceNotFound(ex: ResourceNotFoundException, request: WebRequest): ProblemDetail {
@@ -78,8 +80,13 @@ class GlobalExceptionHandler {
         return problemDetail
     }
 
+    /**
+     * Issue #252 — loga a exceção com stack trace: o Spring não loga o que um `@ExceptionHandler`
+     * resolve, e sem isto um 500 não deixava rastro algum. A resposta continua genérica.
+     */
     @ExceptionHandler(Exception::class)
     fun handleAllExceptions(ex: Exception, request: WebRequest): ProblemDetail {
+        logger.error("Erro não tratado em {}", request.getDescription(false), ex)
         val problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred")
         problemDetail.title = "Internal Server Error"
         problemDetail.type = URI.create("about:blank")
