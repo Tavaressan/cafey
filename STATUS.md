@@ -129,7 +129,7 @@ sobre 6,3 A.
 - [x] **HW-15 / #17:** Superada pelo pivô arquitetural de carcaça impressa em 3D (FDM). Issue fechada.
 - [x] **HW-11 / #13:** Planificação da chapa entregue em DXF analítico (`flatten_peca1.py`). Issue fechada.
 - [x] **HW-10 / #12:** Dimensões físicas e modelos visuais STEP/IGES consolidados no arranjo 3D. Issue fechada.
-- [ ] Conferir na bancada se o módulo de relé físico realmente liga com IN=LOW.
+- [x] Conferir na bancada se o módulo de relé físico realmente liga com IN=LOW (validado em 21/10/2026 via #169).
 - [ ] Verificar se o plugue da CP30 tem o 3º pino (terra) populado.
 
 ## Frontend Multiplataforma (Compose Multiplatform / KMP — 15/10/2026)
@@ -144,6 +144,11 @@ Módulo `apps` 100% estabilizado, com 93 testes unitários e de UI passando em `
 - [x] **Issue #184 (PR #243):** Modo Demo completo em tempo de execução via `DemoMockEngine` do Ktor, fornecendo dados mockados realistas para apresentação acadêmica e testes de banca sem necessidade de backend ou hardware ativo.
 - [x] **Issue #199 (PR #244):** Throttling inteligente de 60s em `HomeViewModel.refresh()` para consulta de métricas de consumo (`/estatisticas`), mantendo o polling de estado de 5s leve e evitando rajadas no servidor.
 
+
+## Integração Física e Nuvem AWS IoT Core (21/10/2026)
+
+- [x] **FW-20 / #169:** Gravação da partição NVS (`cafey_nvs.bin`) com credenciais mTLS e Wi-Fi, além do firmware atualizado (FW-21/FW-22) na placa física ESP32 (`COM4`). Conexão segura estabelecida com AWS IoT Core (`sa-east-1`), publicação de `saude` e `estado`, recebimento de agendamentos retidos e comando ponta a ponta validado com sucesso.
+- [x] **Issue #249 (Backlog):** Aberta para implementação do provisionamento amigável de Wi-Fi via BLE pelo aplicativo Cafey (UC-04).
 
 ## Marcos
 

@@ -358,8 +358,12 @@ disponível neste ambiente sandboxed:
    suportado pelas políticas testadas (§ acima), mas sem uma execução limpa e reproduzível neste
    ambiente. Repetir os comandos `mosquitto_sub`/`mosquitto_pub` da §6 com os certificados reais
    (fora do repositório) assim que houver uma máquina com `mosquitto-clients` instalado.
-2. **Gravação da partição NVS no dispositivo físico** (`nvs_partition_gen.py` + `esptool.py` +
-   placa ESP32 conectada, §4) — não há hardware disponível neste ambiente.
+2. ~~**Gravação da partição NVS no dispositivo físico** (`nvs_partition_gen.py` + `esptool.py` +
+   placa ESP32 conectada, §4)~~ — **concluído e validado em 2026-10-21** (#169/FW-20): gravação via
+   `esptool` na porta COM com a imagem NVS (`cafey_nvs.bin`) gerada com o certificado
+   `c40a1340-e5cf-4290-8fd4-f6e838d80fb5`, conexão mTLS ao AWS IoT Core estabelecida no boot,
+   assinatura dos tópicos `comando` e `agendamentos`, publicação de `saude` e `estado`, e acionamento
+   físico e remoto do relé/botão validado ponta a ponta.
 3. ~~**População das variáveis de ambiente / Secrets Manager de produção do backend** (§4/§5) com o
    certificado real do backend~~ — **concluído em 2026-09-14**, ver
    [Ativação em produção](#ativação-em-produção-2026-09-14).
