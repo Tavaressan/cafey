@@ -13,8 +13,9 @@ build_peca2_3d.py antes.
 
 Uso: freecadcmd mechanical/scripts/build_arranjo_3d.py
      (so geometria: o freecadcmd nao le as cores dos modelos)
-Com as cores dos modelos, rode pela GUI do FreeCAD sem janela:
-     QT_QPA_PLATFORM=offscreen FreeCAD mechanical/scripts/build_arranjo_3d.py
+Com as cores dos modelos, rode pelo FreeCAD com GUI (offscreen/batch):
+     Linux:   QT_QPA_PLATFORM=offscreen FreeCAD mechanical/scripts/build_arranjo_3d.py
+     Windows: $env:FREECAD_BATCH="1"; & FreeCAD.exe mechanical/scripts/build_arranjo_3d.py
 """
 
 import os
@@ -284,6 +285,6 @@ def _set_desc(obj, c):
 main()
 
 # a GUI sem janela (QT_QPA_PLATFORM=offscreen) nao encerra sozinha apos o script
-if App.GuiUp and os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+if App.GuiUp and (os.environ.get("QT_QPA_PLATFORM") == "offscreen" or os.environ.get("FREECAD_BATCH") == "1"):
     sys.stdout.flush()
     os._exit(0)
