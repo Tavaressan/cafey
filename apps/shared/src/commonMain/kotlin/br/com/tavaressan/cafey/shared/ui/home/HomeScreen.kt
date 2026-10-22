@@ -32,6 +32,7 @@ import br.com.tavaressan.cafey.shared.domain.model.DeviceState
 import br.com.tavaressan.cafey.shared.domain.model.ProximoPreparo
 import br.com.tavaressan.cafey.shared.ui.LocalNavShellSizeClass
 import br.com.tavaressan.cafey.shared.ui.NavShellSizeClass
+import br.com.tavaressan.cafey.shared.ui.theme.CafeyLightColors
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyStar
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
@@ -296,7 +297,8 @@ private fun ErrorBanner(message: String) {
             .background(CafeyTheme.colors.brandTint, CafeyTheme.shapes.medium)
             .padding(16.dp),
     ) {
-        Text(message, color = CafeyTheme.colors.brandDeep, style = CafeyTheme.typography.bodySmall)
+        // O brandTint fica claro nos dois temas, então o texto usa o brandDeep do tema claro.
+        Text(message, color = CafeyLightColors.brandDeep, style = CafeyTheme.typography.bodySmall)
     }
 }
 

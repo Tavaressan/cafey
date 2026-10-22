@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -116,7 +117,7 @@ fun LoginScreen(onLoggedIn: () -> Unit, onGoToRegister: () -> Unit) {
                 shape = CafeyTheme.shapes.small,
                 modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
             ) {
-                Text("Entrar como Demonstração", color = CafeyTheme.colors.brand)
+                Text("Entrar como Demonstração", color = MaterialTheme.colorScheme.primary)
             }
         }
 

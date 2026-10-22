@@ -85,8 +85,10 @@ val CafeyLightColors = CafeyColors(
     chartFlat = Color(0xFFE4DAD3),
 )
 
-/** Tema escuro — bloco `.theme-dark` em `cafey.css`. Sobrescreve só o que o CSS sobrescreve;
- * o resto (marca, azul, gráficos) herda do claro, como no protótipo. */
+/** Tema escuro — bloco `.theme-dark` em `cafey.css`. Sobrescreve o que o CSS sobrescreve; o resto
+ * (marca, azul, gráficos) herda do claro, como no protótipo. Exceções: `brandDeep` e `blueDeep`,
+ * que o app usa como texto sobre fundo escuro e que ali ficariam abaixo de 4,5:1 (~1,9:1 e ~3,2:1
+ * sobre o ground). */
 val CafeyDarkColors = CafeyLightColors.copy(
     ground = Color(0xFF17191B),
     surface = Color(0xFF1F2225),
@@ -102,4 +104,9 @@ val CafeyDarkColors = CafeyLightColors.copy(
     muted = Color(0xFF8B9298),
 
     blueSoft = Color(0xFF9FB4CF),
+
+    // Fora do .theme-dark (ver KDoc). blueDeep repete o --blue-soft escuro; brandDeep não tem
+    // equivalente no protótipo e passa de 4,5:1 sobre ground, surface e sunken.
+    brandDeep = Color(0xFFE07052),
+    blueDeep = Color(0xFF9FB4CF),
 )
