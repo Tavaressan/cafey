@@ -63,6 +63,7 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
  * - O seletor "Desliga sozinha após" (4/6/8/10 min, `.seg`) grava `duracaoPreparoS` por agendamento
  *   (issue #189); o cartão da lista ainda não exibe a duração ("desliga sozinha após 8 min").
  * - O seletor de hora é um campo de texto validado (HH:mm) em vez do "wheel" animado do protótipo.
+ * - Suporte a `descricao` opcional (issue #263).
  */
 @Composable
 fun ScheduleScreen() {
@@ -109,6 +110,7 @@ fun ScheduleScreen() {
                         onHoraChange = viewModel::onHoraChange,
                         onDiaToggle = viewModel::onDiaToggle,
                         onDuracaoChange = viewModel::onDuracaoChange,
+                        onDescricaoChange = viewModel::onDescricaoChange,
                         onSave = viewModel::submit,
                         onClear = viewModel::clearFields,
                         onCancel = viewModel::cancelEdit,
@@ -213,6 +215,14 @@ private fun ScheduleCard(
                 colors = SwitchDefaults.colors(checkedTrackColor = CafeyTheme.colors.brand),
             )
         }
+        if (!agendamento.descricao.isNullOrBlank()) {
+            Text(
+                agendamento.descricao,
+                style = CafeyTheme.typography.bodySmall,
+                color = if (agendamento.ativo) CafeyTheme.colors.muted else CafeyTheme.colors.dim,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
         DaysRow(diasSemana = agendamento.diasSemana, dimmed = !agendamento.ativo)
         Row(modifier = Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.End) {
             IconButton(onClick = onEdit) { Text("Editar", style = CafeyTheme.typography.bodySmall, color = CafeyTheme.colors.blueDeep) }
@@ -250,6 +260,7 @@ private fun ScheduleForm(
     onHoraChange: (String) -> Unit,
     onDiaToggle: (Int) -> Unit,
     onDuracaoChange: (Int) -> Unit,
+    onDescricaoChange: (String) -> Unit,
     onSave: () -> Unit,
     onClear: () -> Unit,
     onCancel: () -> Unit,
@@ -269,6 +280,14 @@ private fun ScheduleForm(
             supportingText = { fieldErrorMessage(form.errors.hora)?.let { Text(it) } },
             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CafeyTheme.colors.brand),
             modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+        )
+
+        OutlinedTextField(
+            value = form.descricao,
+            onValueChange = onDescricaoChange,
+            label = { Text("Descrição (opcional)") },
+            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CafeyTheme.colors.brand),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
         )
 
         Text("Nestes dias", style = CafeyTheme.typography.body, color = CafeyTheme.colors.ink2, modifier = Modifier.padding(top = 20.dp))

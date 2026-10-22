@@ -6,16 +6,17 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/** Issue #189 — duração de preparo por agendamento no formulário. */
+/** Issue #189 — duração de preparo por agendamento no formulário. Issue #263 — campo descricao. */
 class ScheduleFormStateTest {
 
-    private fun agendamento(duracaoPreparoS: Int?) = AgendamentoResponse(
+    private fun agendamento(duracaoPreparoS: Int?, descricao: String? = null) = AgendamentoResponse(
         id = "ag-1",
         dispositivoId = "disp-1",
         hora = "07:00",
         diasSemana = 62,
         ativo = true,
         duracaoPreparoS = duracaoPreparoS,
+        descricao = descricao,
         criadoEm = "2026-09-09T10:00:00Z",
         atualizadoEm = "2026-09-09T10:00:00Z",
     )
@@ -23,11 +24,14 @@ class ScheduleFormStateTest {
     @Test
     fun newForm_preselects8Minutes_likeThePrototype() {
         assertEquals(480, ScheduleFormState().duracaoPreparoS)
+        assertEquals("", ScheduleFormState().descricao)
     }
 
     @Test
-    fun editForm_carriesStoredDuration() {
-        assertEquals(360, ScheduleFormState.forEdit(agendamento(360)).duracaoPreparoS)
+    fun editForm_carriesStoredDurationAndDescription() {
+        val form = ScheduleFormState.forEdit(agendamento(360, "Café da manhã"))
+        assertEquals(360, form.duracaoPreparoS)
+        assertEquals("Café da manhã", form.descricao)
     }
 
     @Test
@@ -39,12 +43,13 @@ class ScheduleFormStateTest {
 
     @Test
     fun cleared_emptiesFieldsAndKeepsTheAgendamentoBeingEdited() {
-        val form = ScheduleFormState.forEdit(agendamento(360)).cleared()
+        val form = ScheduleFormState.forEdit(agendamento(360, "Café forte")).cleared()
 
         assertEquals("ag-1", form.agendamentoId)
         assertEquals("", form.hora)
         assertEquals(List(7) { false }, form.diasAtivos)
         assertNull(form.duracaoPreparoS)
+        assertEquals("", form.descricao)
     }
 
     @Test
