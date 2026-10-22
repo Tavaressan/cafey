@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -36,6 +37,7 @@ internal fun fieldErrorMessage(error: FieldError?): String? = when (error) {
     FieldError.Required -> "Campo obrigatório"
     FieldError.InvalidEmail -> "Email inválido"
     FieldError.PasswordTooShort -> "Senha deve ter no mínimo 6 caracteres"
+    FieldError.PasswordMismatch -> "As senhas não conferem"
     FieldError.InvalidTime -> "Hora deve estar no formato HH:mm"
     FieldError.NoDaySelected -> "Selecione pelo menos um dia"
     is FieldError.OutOfRange -> "Informe um número inteiro entre ${error.min} e ${error.max}"
@@ -44,7 +46,11 @@ internal fun fieldErrorMessage(error: FieldError?): String? = when (error) {
 
 /** UC-02 — tela de login. */
 @Composable
-fun LoginScreen(onLoggedIn: () -> Unit, onGoToRegister: () -> Unit) {
+fun LoginScreen(
+    onLoggedIn: () -> Unit,
+    onGoToRegister: () -> Unit,
+    onForgotPassword: () -> Unit = {},
+) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<LoginViewModel>(
         factory = viewModelFactory { initializer { LoginViewModel(container.authApi) } },
@@ -87,8 +93,15 @@ fun LoginScreen(onLoggedIn: () -> Unit, onGoToRegister: () -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
         )
 
+        TextButton(
+            onClick = onForgotPassword,
+            modifier = Modifier.align(Alignment.End),
+        ) {
+            Text("Esqueci minha senha", style = CafeyTheme.typography.caption, color = CafeyTheme.colors.muted)
+        }
+
         state.errorMessage?.let {
-            Text(it, color = CafeyTheme.colors.brandDeep, modifier = Modifier.padding(top = 12.dp))
+            Text(it, color = CafeyTheme.colors.brandDeep, modifier = Modifier.padding(top = 8.dp))
         }
 
         Button(
@@ -96,7 +109,7 @@ fun LoginScreen(onLoggedIn: () -> Unit, onGoToRegister: () -> Unit) {
             enabled = !state.loading,
             colors = ButtonDefaults.buttonColors(containerColor = CafeyTheme.colors.brand),
             shape = CafeyTheme.shapes.small,
-            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
         ) {
             if (state.loading) {
                 CircularProgressIndicator(modifier = Modifier.size(18.dp), color = CafeyTheme.colors.brandOn)

@@ -43,8 +43,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import br.com.tavaressan.cafey.shared.ui.account.AccountScreen
+import br.com.tavaressan.cafey.shared.ui.auth.ForgotPasswordScreen
 import br.com.tavaressan.cafey.shared.ui.auth.LoginScreen
 import br.com.tavaressan.cafey.shared.ui.auth.RegisterScreen
+import br.com.tavaressan.cafey.shared.ui.auth.ResetPasswordScreen
 import br.com.tavaressan.cafey.shared.ui.base.BaseScreen
 import br.com.tavaressan.cafey.shared.ui.care.CareScreen
 import br.com.tavaressan.cafey.shared.ui.device.DeviceFormScreen
@@ -57,6 +59,8 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyWordmark
 
 private const val ROUTE_LOGIN = "login"
+private const val ROUTE_FORGOT_PASSWORD = "forgot_password"
+private const val ROUTE_RESET_PASSWORD = "reset_password"
 private const val ROUTE_REGISTER = "register"
 private const val ROUTE_HOME = "home"
 private const val ROUTE_SCHEDULE = "schedule"
@@ -140,6 +144,19 @@ fun CafeyNavHost() {
                         LoginScreen(
                             onLoggedIn = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
                             onGoToRegister = { navController.navigate(ROUTE_REGISTER) },
+                            onForgotPassword = { navController.navigate(ROUTE_FORGOT_PASSWORD) },
+                        )
+                    }
+                    composable(ROUTE_FORGOT_PASSWORD) {
+                        ForgotPasswordScreen(
+                            onGoToReset = { navController.navigate(ROUTE_RESET_PASSWORD) },
+                            onBackToLogin = { navController.popBackStack() },
+                        )
+                    }
+                    composable(ROUTE_RESET_PASSWORD) {
+                        ResetPasswordScreen(
+                            onSuccess = { navController.navigate(ROUTE_LOGIN) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
+                            onBackToLogin = { navController.popBackStack() },
                         )
                     }
                     composable(ROUTE_REGISTER) {

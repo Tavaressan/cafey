@@ -11,6 +11,7 @@ sealed interface FieldError {
     data object Required : FieldError
     data object InvalidEmail : FieldError
     data object PasswordTooShort : FieldError
+    data object PasswordMismatch : FieldError
     /** Hora fora do formato HH:mm (mesmo regex de `CriarAgendamentoRequest.hora` no backend). */
     data object InvalidTime : FieldError
     /** Máscara `diasSemana` sem nenhum bit ligado (backend exige 1..127). */
@@ -36,6 +37,15 @@ object AuthValidation {
     fun validateSenha(senha: String): FieldError? = when {
         senha.isBlank() -> FieldError.Required
         senha.length < MIN_PASSWORD_LENGTH -> FieldError.PasswordTooShort
+        else -> null
+    }
+
+    fun validateToken(token: String): FieldError? =
+        if (token.isBlank()) FieldError.Required else null
+
+    fun validateConfirmacaoSenha(senha: String, confirmacao: String): FieldError? = when {
+        confirmacao.isBlank() -> FieldError.Required
+        confirmacao != senha -> FieldError.PasswordMismatch
         else -> null
     }
 }
@@ -69,5 +79,23 @@ data class RegisterFormErrors(
             email = AuthValidation.validateEmail(email),
             senha = AuthValidation.validateSenha(senha),
         )
+    }
+}
+
+/** Erros de campo do formulário de redefinição de senha. */
+data class ResetPasswordFormErrors(
+    val token: FieldError? = null,
+    val novaSenha: FieldError? = null,
+    val confirmacaoSenha: FieldError? = null,
+) {
+    val isValid: Boolean get() = token == null && novaSenha == null && confirmacaoSenha == null
+
+    companion object {
+        fun validate(token: String, novaSenha: String, confirmacaoSenha: String): ResetPasswordFormErrors =
+            ResetPasswordFormErrors(
+                token = AuthValidation.validateToken(token),
+                novaSenha = AuthValidation.validateSenha(novaSenha),
+                confirmacaoSenha = AuthValidation.validateConfirmacaoSenha(novaSenha, confirmacaoSenha),
+            )
     }
 }

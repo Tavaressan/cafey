@@ -2,6 +2,7 @@ package br.com.tavaressan.cafey.shared.domain.validation
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -38,5 +39,37 @@ class AuthValidationTest {
     fun register_blankNome_isRequired() {
         val errors = RegisterFormErrors.validate(nome = "  ", email = "sandro@example.com", senha = "segredo123")
         assertEquals(FieldError.Required, errors.nome)
+    }
+
+    @Test
+    fun resetPassword_validFields_hasNoErrors() {
+        val errors = ResetPasswordFormErrors.validate(
+            token = "reset-tok-123",
+            novaSenha = "novaSenha123",
+            confirmacaoSenha = "novaSenha123",
+        )
+        assertTrue(errors.isValid)
+    }
+
+    @Test
+    fun resetPassword_mismatchedConfirmation_isRejected() {
+        val errors = ResetPasswordFormErrors.validate(
+            token = "reset-tok-123",
+            novaSenha = "novaSenha123",
+            confirmacaoSenha = "outraSenha123",
+        )
+        assertFalse(errors.isValid)
+        assertEquals(FieldError.PasswordMismatch, errors.confirmacaoSenha)
+    }
+
+    @Test
+    fun resetPassword_blankToken_isRequired() {
+        val errors = ResetPasswordFormErrors.validate(
+            token = "  ",
+            novaSenha = "novaSenha123",
+            confirmacaoSenha = "novaSenha123",
+        )
+        assertFalse(errors.isValid)
+        assertEquals(FieldError.Required, errors.token)
     }
 }
