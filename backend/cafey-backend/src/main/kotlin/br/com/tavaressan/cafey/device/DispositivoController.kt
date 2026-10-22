@@ -40,11 +40,24 @@ class DispositivoController(
         return ResponseEntity.ok(dispositivos)
     }
 
-    @Operation(summary = "Cria um novo dispositivo para o usuário autenticado")
-    @ApiResponse(responseCode = "201", description = "Dispositivo criado com sucesso")
+    @Operation(
+        summary = "Cria um novo dispositivo para o usuário autenticado",
+        description = "Com `serial` (cadastro por BLE), vincula a placa já registrada em vez de criar outra."
+    )
+    @ApiResponse(responseCode = "201", description = "Dispositivo criado ou vinculado com sucesso")
     @ApiResponse(
         responseCode = "400",
         description = "Dados inválidos",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
+    @ApiResponse(
+        responseCode = "404",
+        description = "Serial informado não corresponde a nenhuma cafeteira registrada",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
+    @ApiResponse(
+        responseCode = "409",
+        description = "A cafeteira do serial já pertence a outra conta",
         content = [Content(schema = Schema(implementation = ProblemDetail::class))]
     )
     @PostMapping

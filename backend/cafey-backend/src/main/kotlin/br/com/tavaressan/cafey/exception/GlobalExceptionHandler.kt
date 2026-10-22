@@ -72,6 +72,14 @@ class GlobalExceptionHandler {
         return problemDetail
     }
 
+    @ExceptionHandler(ConflitoException::class)
+    fun handleConflito(ex: ConflitoException, request: WebRequest): ProblemDetail {
+        val problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, ex.message ?: "Conflict")
+        problemDetail.title = "Conflict"
+        problemDetail.type = URI.create("about:blank")
+        return problemDetail
+    }
+
     @ExceptionHandler(ServicoIndisponivelException::class)
     fun handleServicoIndisponivel(ex: ServicoIndisponivelException, request: WebRequest): ProblemDetail {
         val problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, ex.message ?: "Service unavailable")

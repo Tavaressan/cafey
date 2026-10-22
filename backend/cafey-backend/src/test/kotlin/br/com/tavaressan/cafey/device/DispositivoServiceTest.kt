@@ -1,6 +1,7 @@
 package br.com.tavaressan.cafey.device
 
 import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.exception.ConflitoException
 import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
 import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import br.com.tavaressan.cafey.exception.ServicoIndisponivelException
@@ -86,6 +87,61 @@ class DispositivoServiceTest {
         assertEquals("Minha Cafeteira", res.nome)
         assertEquals(PapelDispositivo.PROPRIETARIO, res.papel)
         verify(usuarioDispositivoRepository).save(any(UsuarioDispositivo::class.java))
+    }
+
+    @Test
+    fun `should link device by serial when it has no owner`() {
+        `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
+        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
+        `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(emptyList())
+        `when`(usuarioDispositivoRepository.save(any(UsuarioDispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        val res = service.criar(CriarDispositivoRequest(nome = "Minha Cafeteira", serial = deviceId.toString()), ownerId)
+
+        assertEquals(deviceId, res.id)
+        assertEquals(PapelDispositivo.PROPRIETARIO, res.papel)
+        val captor = ArgumentCaptor.forClass(UsuarioDispositivo::class.java)
+        verify(usuarioDispositivoRepository).save(captor.capture())
+        assertEquals(ownerId, captor.value.usuario.id)
+        assertEquals(PapelDispositivo.PROPRIETARIO, captor.value.papel)
+        verify(dispositivoRepository, never()).save(any(Dispositivo::class.java))
+    }
+
+    @Test
+    fun `should return the same device without new link when serial already belongs to the user`() {
+        `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
+        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
+        `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(listOf(ownerLink, guestLink))
+
+        val res = service.criar(CriarDispositivoRequest(nome = "Outro Nome", serial = deviceId.toString()), ownerId)
+
+        assertEquals(deviceId, res.id)
+        assertEquals("Cafeteira Britânia", res.nome)
+        verify(usuarioDispositivoRepository, never()).save(any(UsuarioDispositivo::class.java))
+        verify(dispositivoRepository, never()).save(any(Dispositivo::class.java))
+    }
+
+    @Test
+    fun `should reject serial of a device owned by another account`() {
+        `when`(usuarioRepository.findById(guestId)).thenReturn(Optional.of(guestUser))
+        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
+        `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(listOf(ownerLink, guestLink))
+
+        assertThrows<ConflitoException> {
+            service.criar(CriarDispositivoRequest(nome = "Minha", serial = deviceId.toString()), guestId)
+        }
+        verify(usuarioDispositivoRepository, never()).save(any(UsuarioDispositivo::class.java))
+    }
+
+    @Test
+    fun `should return not found for unknown serial without creating a device`() {
+        `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
+        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.empty())
+
+        assertThrows<ResourceNotFoundException> {
+            service.criar(CriarDispositivoRequest(nome = "Minha", serial = deviceId.toString()), ownerId)
+        }
+        verify(dispositivoRepository, never()).save(any(Dispositivo::class.java))
     }
 
     @Test

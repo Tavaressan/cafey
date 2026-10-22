@@ -20,6 +20,9 @@ private const val TIMEZONE_MAX = 50
 // `matches()`, e sem ele o `.` não casaria quebra de linha, que o @NotBlank do POST aceita.
 private const val NAO_EM_BRANCO = "(?s).*\\S.*"
 
+// UUID canônico: o serial que o app lê da placa por BLE é o id do dispositivo e o nome da thing.
+private const val UUID_CANONICO = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+
 data class CriarDispositivoRequest(
     @field:NotBlank(message = "Nome do dispositivo é obrigatório")
     @field:Size(max = NOME_MAX, message = "Nome do dispositivo deve ter no máximo 255 caracteres")
@@ -35,7 +38,11 @@ data class CriarDispositivoRequest(
     val duracaoPreparoS: Int? = null,
 
     @field:Positive(message = "Limiar de descalcificação deve ser maior que zero")
-    val limiarDescalcificacao: Int? = null
+    val limiarDescalcificacao: Int? = null,
+
+    /** Serial lido da placa no cadastro por BLE. Quando presente, vincula a placa em vez de criar outra. */
+    @field:Pattern(regexp = UUID_CANONICO, message = "Serial da cafeteira inválido")
+    val serial: String? = null
 )
 
 data class AtualizarDispositivoRequest(
