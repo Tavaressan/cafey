@@ -8,9 +8,12 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
+import org.springframework.core.io.ClassPathResource
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageRequest
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.datasource.DataSourceUtils
+import org.springframework.jdbc.datasource.init.ScriptUtils
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 import org.testcontainers.containers.PostgreSQLContainer
@@ -55,6 +58,42 @@ class PostgresIntegrationTest {
         )
 
         assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9"), versions)
+    }
+
+    @Test
+    @Transactional
+    fun `migration V9 corrige timezone legado nao suportado e preserva os suportados`() {
+        val invalidoId = UUID.randomUUID()
+        val validoId = UUID.randomUUID()
+        jdbcTemplate.update(
+            "INSERT INTO dispositivos (id, nome, timezone) VALUES (?, ?, ?), (?, ?, ?)",
+            invalidoId,
+            "Timezone legado inválido",
+            "BRT",
+            validoId,
+            "Timezone válido",
+            "America/Manaus",
+        )
+
+        val dataSource = requireNotNull(jdbcTemplate.dataSource)
+        val connection = DataSourceUtils.getConnection(dataSource)
+        try {
+            ScriptUtils.executeSqlScript(
+                connection,
+                ClassPathResource("db/migration/V9__corrigir_timezone_dispositivo_nao_suportado.sql")
+            )
+        } finally {
+            DataSourceUtils.releaseConnection(connection, dataSource)
+        }
+
+        val timezones = jdbcTemplate.queryForList(
+            "SELECT timezone FROM dispositivos WHERE id IN (?, ?) ORDER BY id",
+            String::class.java,
+            invalidoId,
+            validoId,
+        )
+        assertEquals(1, timezones.count { it == "America/Sao_Paulo" })
+        assertEquals(1, timezones.count { it == "America/Manaus" })
     }
 
     @Test
