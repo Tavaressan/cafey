@@ -48,7 +48,15 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 fun HistoryScreen() {
     val container = LocalAppContainer.current
     val viewModel = viewModel<HistoryViewModel>(
-        factory = viewModelFactory { initializer { HistoryViewModel(container.deviceApi, container.eventApi) } },
+        factory = viewModelFactory {
+            initializer {
+                HistoryViewModel(
+                    container.deviceApi,
+                    container.eventApi,
+                    container.bleClient,
+                )
+            }
+        },
     )
     val state by viewModel.uiState.collectAsState()
 

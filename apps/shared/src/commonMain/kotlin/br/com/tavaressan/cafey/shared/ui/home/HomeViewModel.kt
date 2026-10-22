@@ -2,6 +2,11 @@ package br.com.tavaressan.cafey.shared.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.tavaressan.cafey.shared.ble.BleClient
+import br.com.tavaressan.cafey.shared.ble.BleCommandFallback
+import br.com.tavaressan.cafey.shared.ble.BleError
+import br.com.tavaressan.cafey.shared.ble.ComandoResultado
+import br.com.tavaressan.cafey.shared.domain.model.AcaoComando
 import br.com.tavaressan.cafey.shared.domain.model.ComandoResponse
 import br.com.tavaressan.cafey.shared.domain.model.DeviceState
 import br.com.tavaressan.cafey.shared.domain.model.DispositivoResponse
@@ -48,12 +53,20 @@ class HomeViewModel(
     private val commandApi: CommandApi,
     private val scheduleApi: ScheduleApi,
     private val eventApi: EventApi,
+    private val bleClient: BleClient? = null,
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
 ) : ViewModel() {
     private val scope = coroutineScope ?: viewModelScope
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     private var lastStatsFetchMs = 0L
+
+    private val fallback: BleCommandFallback? =
+        if (bleClient != null && bleClient.isSupported) {
+            BleCommandFallback(commandApi, bleClient)
+        } else {
+            null
+        }
 
     init {
         scope.launch {
@@ -81,11 +94,12 @@ class HomeViewModel(
             } else {
                 0
             }
-            _uiState.update {
-                it.copy(
+            _uiState.update { current ->
+                val errorParaManter = if (current.device == null) null else current.errorMessage
+                current.copy(
                     loading = false,
                     device = device,
-                    errorMessage = null,
+                    errorMessage = errorParaManter,
                     proximoPreparo = proximoPreparo,
                     sequenciaManhasDias = sequenciaManhasDias,
                 )
@@ -117,25 +131,54 @@ class HomeViewModel(
         0
     }
 
-    fun ligar() = runCommand { commandApi.ligar(it) }
+    fun ligar() = runCommand(AcaoComando.LIGAR)
 
-    fun desligar() = runCommand { commandApi.desligar(it) }
+    fun desligar() = runCommand(AcaoComando.DESLIGAR)
 
-    fun cancelar() = runCommand { commandApi.cancelar(it) }
+    fun cancelar() = runCommand(AcaoComando.CANCELAR)
 
     // O backend responde 202 sem o estado novo: ele só publicou o comando no MQTT. Por isso
     // relemos o dispositivo em vez de aproveitar a resposta — o estado muda quando a base reporta.
-    private fun runCommand(action: suspend (deviceId: String) -> ComandoResponse) {
+    // Em caso de falha de rede da nuvem, BleCommandFallback executa localmente via BLE (UC-06/07).
+    private fun runCommand(acao: AcaoComando) {
         val deviceId = _uiState.value.device?.id ?: return
         _uiState.update { it.copy(commandInFlight = true, errorMessage = null) }
         scope.launch {
             try {
-                action(deviceId)
-                lastStatsFetchMs = 0L
-                refresh()
-                _uiState.update { it.copy(commandInFlight = false) }
+                val resultado = if (fallback != null) {
+                    fallback.executar(deviceId, acao)
+                } else {
+                    when (acao) {
+                        AcaoComando.LIGAR -> commandApi.ligar(deviceId)
+                        AcaoComando.DESLIGAR -> commandApi.desligar(deviceId)
+                        AcaoComando.CANCELAR -> commandApi.cancelar(deviceId)
+                    }
+                    ComandoResultado.ViaNuvem(ComandoResponse("", acao, 0, ""))
+                }
+
+                if (resultado is ComandoResultado.ViaBle) {
+                    val estadoEstimado = when (acao) {
+                        AcaoComando.LIGAR -> "PREPARANDO"
+                        AcaoComando.DESLIGAR, AcaoComando.CANCELAR -> "PRONTO"
+                    }
+                    _uiState.update {
+                        it.copy(
+                            commandInFlight = false,
+                            device = it.device?.copy(estado = estadoEstimado),
+                            errorMessage = null,
+                        )
+                    }
+                } else {
+                    lastStatsFetchMs = 0L
+                    refresh()
+                    _uiState.update { it.copy(commandInFlight = false) }
+                }
+            } catch (e: BleError) {
+                _uiState.update { it.copy(commandInFlight = false, errorMessage = e.message) }
             } catch (e: ApiError) {
                 _uiState.update { it.copy(commandInFlight = false, errorMessage = e.message) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(commandInFlight = false, errorMessage = e.message ?: "Falha ao executar comando") }
             }
         }
     }

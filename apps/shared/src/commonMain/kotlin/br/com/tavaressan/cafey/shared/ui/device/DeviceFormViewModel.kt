@@ -12,17 +12,23 @@ import br.com.tavaressan.cafey.shared.domain.validation.DeviceFormErrors
 import br.com.tavaressan.cafey.shared.network.ApiError
 import br.com.tavaressan.cafey.shared.network.DeviceApi
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 // Padrões de `Dispositivo` no backend, pré-preenchidos no cadastro.
 private const val DEFAULT_TIMEZONE = "America/Sao_Paulo"
 private const val DEFAULT_DURATION_S = 300
 private const val DEFAULT_DESCALING_THRESHOLD = 200
+
+// Teto do passo "Conectando ao Wi-Fi": a conexão BLE pode levar até ~20 s (2 tentativas de 10 s)
+// e o firmware só desiste da rede após 20 s; sem resposta além disso, a notificação se perdeu.
+private const val WIFI_PROVISION_TIMEOUT_MS = 45_000L
 
 enum class DeviceFormStep {
     MANUAL,
@@ -84,6 +90,9 @@ class DeviceFormViewModel(
     )
     val uiState: StateFlow<DeviceFormUiState> = _uiState.asStateFlow()
 
+    private var scanJob: Job? = null
+    private var provisionJob: Job? = null
+
     init {
         if (deviceId != null) {
             scope.launch { load(deviceId) }
@@ -112,7 +121,8 @@ class DeviceFormViewModel(
     fun startBleScan() {
         val client = bleClient ?: return
         _uiState.update { it.copy(scanning = true, errorMessage = null) }
-        scope.launch {
+        scanJob?.cancel()
+        scanJob = scope.launch {
             client.escanearDispositivos()
                 .catch { e ->
                     _uiState.update { it.copy(scanning = false, errorMessage = e.message ?: "Falha ao escanear") }
@@ -125,6 +135,8 @@ class DeviceFormViewModel(
 
     fun selectDevice(device: BleDispositivo) {
         val client = bleClient ?: return
+        scanJob?.cancel()
+        scanJob = null
         _uiState.update { it.copy(loading = true, selectedDevice = device, errorMessage = null) }
         scope.launch {
             try {
@@ -137,10 +149,11 @@ class DeviceFormViewModel(
                     )
                 }
             } catch (e: Throwable) {
+                val detail = e.message ?: e::class.simpleName ?: "erro desconhecido"
                 _uiState.update {
                     it.copy(
                         loading = false,
-                        errorMessage = "Não foi possível conectar à cafeteira. Aproxime o celular.",
+                        errorMessage = "Não foi possível conectar à cafeteira ($detail). Aproxime o celular e tente novamente.",
                     )
                 }
             }
@@ -178,71 +191,105 @@ class DeviceFormViewModel(
             )
         }
 
-        scope.launch {
-            client.provisionarWifi(deviceId, state.wifiSsid, state.wifiPassword)
-                .catch { e ->
-                    _uiState.update {
-                        it.copy(
-                            wifiConnecting = false,
-                            step = DeviceFormStep.WIFI_CREDENTIALS,
-                            errorMessage = e.message ?: "Falha ao enviar credenciais Wi-Fi",
-                        )
-                    }
+        provisionJob?.cancel()
+        provisionJob = scope.launch {
+            val finished = withTimeoutOrNull(WIFI_PROVISION_TIMEOUT_MS) {
+                collectProvisioning(client, deviceId, state)
+            }
+            if (finished == null) {
+                _uiState.update {
+                    it.copy(
+                        wifiConnecting = false,
+                        step = DeviceFormStep.WIFI_CREDENTIALS,
+                        errorMessage = "Sem resposta da cafeteira. Confira se ela está ligada e perto do celular e tente novamente.",
+                    )
                 }
-                .collect { status ->
-                    when (status.state) {
-                        WifiProvisionState.CONNECTING -> {
-                            _uiState.update { it.copy(wifiStatusMessage = "Conectando à rede Wi-Fi...") }
-                        }
-                        WifiProvisionState.CONNECTED -> {
-                            val defaultName = state.selectedDevice?.nome?.ifBlank {
-                                state.deviceInfo?.serial ?: "Cafeteira"
-                            } ?: "Cafeteira"
-                            _uiState.update {
-                                it.copy(
-                                    wifiConnecting = false,
-                                    step = DeviceFormStep.CONFIRM_REGISTER,
-                                    nome = if (it.nome.isBlank()) defaultName else it.nome,
-                                    wifiStatusMessage = "Wi-Fi conectado com sucesso!",
-                                )
-                            }
-                        }
-                        WifiProvisionState.AUTH_FAILED -> {
-                            _uiState.update {
-                                it.copy(
-                                    wifiConnecting = false,
-                                    step = DeviceFormStep.WIFI_CREDENTIALS,
-                                    errorMessage = "Senha da rede Wi-Fi incorreta. Verifique os dados e tente novamente.",
-                                )
-                            }
-                        }
-                        WifiProvisionState.TIMEOUT -> {
-                            _uiState.update {
-                                it.copy(
-                                    wifiConnecting = false,
-                                    step = DeviceFormStep.WIFI_CREDENTIALS,
-                                    errorMessage = "Não foi possível encontrar a rede Wi-Fi. Verifique o sinal.",
-                                )
-                            }
-                        }
-                        WifiProvisionState.INVALID_PAYLOAD -> {
-                            _uiState.update {
-                                it.copy(
-                                    wifiConnecting = false,
-                                    step = DeviceFormStep.WIFI_CREDENTIALS,
-                                    errorMessage = "Dados da rede Wi-Fi inválidos.",
-                                )
-                            }
-                        }
-                        WifiProvisionState.DISCONNECTED -> {
-                            // Estado neutro/aguardando
-                        }
-                    }
-                }
+            }
         }
     }
 
+    /** Botão "Cancelar" do passo de conexão: encerra a escuta BLE e volta às credenciais. */
+    fun cancelProvisioning() {
+        provisionJob?.cancel()
+        provisionJob = null
+        _uiState.update {
+            it.copy(
+                wifiConnecting = false,
+                step = DeviceFormStep.WIFI_CREDENTIALS,
+                wifiStatusMessage = null,
+                errorMessage = null,
+            )
+        }
+    }
+
+    private suspend fun collectProvisioning(client: BleClient, deviceId: String, state: DeviceFormUiState) {
+        client.provisionarWifi(deviceId, state.wifiSsid, state.wifiPassword)
+            .catch { e ->
+                _uiState.update {
+                    it.copy(
+                        wifiConnecting = false,
+                        step = DeviceFormStep.WIFI_CREDENTIALS,
+                        errorMessage = e.message ?: "Falha ao enviar credenciais Wi-Fi",
+                    )
+                }
+            }
+            .collect { status ->
+                when (status.state) {
+                    WifiProvisionState.CONNECTING -> {
+                        _uiState.update { it.copy(wifiStatusMessage = "Conectando à rede Wi-Fi...") }
+                    }
+                    WifiProvisionState.CONNECTED -> {
+                        val defaultName = state.selectedDevice?.nome?.ifBlank {
+                            state.deviceInfo?.serial ?: "Cafeteira"
+                        } ?: "Cafeteira"
+                        _uiState.update {
+                            it.copy(
+                                wifiConnecting = false,
+                                step = DeviceFormStep.CONFIRM_REGISTER,
+                                nome = if (it.nome.isBlank()) defaultName else it.nome,
+                                wifiStatusMessage = "Wi-Fi conectado com sucesso!",
+                            )
+                        }
+                    }
+                    WifiProvisionState.AUTH_FAILED -> {
+                        _uiState.update {
+                            it.copy(
+                                wifiConnecting = false,
+                                step = DeviceFormStep.WIFI_CREDENTIALS,
+                                errorMessage = "Senha da rede Wi-Fi incorreta. Verifique os dados e tente novamente.",
+                            )
+                        }
+                    }
+                    WifiProvisionState.TIMEOUT -> {
+                        _uiState.update {
+                            it.copy(
+                                wifiConnecting = false,
+                                step = DeviceFormStep.WIFI_CREDENTIALS,
+                                errorMessage = "Não foi possível encontrar a rede Wi-Fi. Verifique o sinal.",
+                            )
+                        }
+                    }
+                    WifiProvisionState.INVALID_PAYLOAD -> {
+                        _uiState.update {
+                            it.copy(
+                                wifiConnecting = false,
+                                step = DeviceFormStep.WIFI_CREDENTIALS,
+                                errorMessage = "Dados da rede Wi-Fi inválidos.",
+                            )
+                        }
+                    }
+                    WifiProvisionState.DISCONNECTED -> {
+                        // Estado neutro/aguardando
+                    }
+                }
+            }
+    }
+
     fun setStep(step: DeviceFormStep) {
+        if (step != DeviceFormStep.BLE_SEARCH) {
+            scanJob?.cancel()
+            scanJob = null
+        }
         _uiState.update { it.copy(step = step, errorMessage = null) }
         if (step == DeviceFormStep.BLE_SEARCH) {
             startBleScan()
@@ -304,7 +351,11 @@ class DeviceFormViewModel(
         scope.launch {
             try {
                 if (state.deviceId == null) {
-                    deviceApi.criar(CriarDispositivoRequest(state.nome, timezone, duracaoPreparoS, limiarDescalcificacao))
+                    // Só o cadastro por BLE manda o serial: é ele que liga o registro à thing da placa.
+                    val serial = state.deviceInfo?.serial?.takeIf { state.step == DeviceFormStep.CONFIRM_REGISTER }
+                    deviceApi.criar(
+                        CriarDispositivoRequest(state.nome, timezone, duracaoPreparoS, limiarDescalcificacao, serial)
+                    )
                 } else {
                     deviceApi.atualizar(
                         state.deviceId,

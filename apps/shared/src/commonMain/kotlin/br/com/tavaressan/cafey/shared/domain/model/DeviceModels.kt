@@ -14,6 +14,8 @@ data class CriarDispositivoRequest(
     val timezone: String? = null,
     val duracaoPreparoS: Int? = null,
     val limiarDescalcificacao: Int? = null,
+    /** Serial lido da placa por BLE; o backend vincula a placa já registrada em vez de criar outra. */
+    val serial: String? = null,
 )
 
 @Serializable

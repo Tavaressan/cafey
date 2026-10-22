@@ -90,16 +90,25 @@ extern "C" void app_main(void) {
     // fica aguardando o app/BLE provisionar via WifiManager::provision().
     static cafey::app::BleService* g_ble_service = nullptr;
     static cafey::core::WifiManager wifi_manager;
-    wifi_manager.set_on_connected([] {
+    wifi_manager.set_on_connected_ip([](const std::string& ip) {
         g_conectividade.post(Message{MessageType::WifiConnected, 0});
         if (g_ble_service != nullptr) {
-            g_ble_service->publish_wifi_status("CONNECTED");
+            g_ble_service->publish_wifi_status("CONNECTED", ip);
         }
     });
-    wifi_manager.set_on_disconnected([] {
+    wifi_manager.set_on_disconnected_reason([](bool is_auth_failure) {
         g_conectividade.post(Message{MessageType::WifiDisconnected, 0});
         if (g_ble_service != nullptr) {
-            g_ble_service->publish_wifi_status("DISCONNECTED");
+            if (is_auth_failure) {
+                g_ble_service->publish_wifi_status("AUTH_FAILED", "", "Falha de autenticacao");
+            } else {
+                g_ble_service->publish_wifi_status("DISCONNECTED");
+            }
+        }
+    });
+    wifi_manager.set_on_provision_timeout([] {
+        if (g_ble_service != nullptr) {
+            g_ble_service->publish_wifi_status("TIMEOUT", "", "Tempo limite excedido");
         }
     });
     esp_err_t wifi_err = wifi_manager.init();
@@ -231,6 +240,10 @@ extern "C" void app_main(void) {
     // houver conexao, e republica o corrente a cada CONNECT).
     g_cafeteira.set_on_state_change([](bool brewing) {
         g_conectividade.post(Message{MessageType::EstadoChanged, brewing ? 1 : 0});
+        if (g_ble_service != nullptr) {
+            std::string state_str = brewing ? "PREPARANDO" : "OCIOSO";
+            g_ble_service->publish_state("{\"estado\":\"" + state_str + "\"}");
+        }
     });
 
     // Servico BLE (FW-17, spec §6.4, UC-04 #249): comando/estado/agendamentos delegam para
@@ -252,10 +265,14 @@ extern "C" void app_main(void) {
             wifi_manager.provision(ssid, password);
         });
     g_ble_service = &ble_service;
+    std::string ble_serial = mqtt_config.client_id.empty() ? "cafey" : mqtt_config.client_id;
+    ble_service.set_device_info(cafey::app::BleDeviceInfo(ble_serial, "1.0.0", "ESP32-WROOM-32"));
+
     static cafey::app::BleEventProxy ble_event_proxy(ble_server, event_queue_store);
+    ble_event_proxy.register_characteristics();
 
     if (ble_service.begin("cafey")) {
-        ble_event_proxy.begin();
+        ble_event_proxy.publish_pending();
         ESP_LOGI(TAG, "servico BLE ativo (comando/estado/agendamentos/wifi + proxy de eventos)");
     } else {
         ESP_LOGE(TAG, "falha ao iniciar o servico BLE");

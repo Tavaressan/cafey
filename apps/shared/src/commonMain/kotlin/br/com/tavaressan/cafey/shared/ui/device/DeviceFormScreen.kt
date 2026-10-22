@@ -95,7 +95,10 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
                 onConnect = viewModel::provisionWifi,
                 onBack = { viewModel.setStep(DeviceFormStep.BLE_SEARCH) },
             )
-            DeviceFormStep.WIFI_CONNECTING -> WifiConnectingStep(state = state)
+            DeviceFormStep.WIFI_CONNECTING -> WifiConnectingStep(
+                state = state,
+                onCancel = viewModel::cancelProvisioning,
+            )
             DeviceFormStep.CONFIRM_REGISTER -> ConfirmRegisterStep(
                 state = state,
                 onNomeChange = viewModel::onNomeChange,
@@ -304,7 +307,7 @@ private fun WifiCredentialsStep(
 }
 
 @Composable
-private fun WifiConnectingStep(state: DeviceFormUiState) {
+private fun WifiConnectingStep(state: DeviceFormUiState, onCancel: () -> Unit) {
     Text("Conectando ao Wi-Fi...", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
     Box(
         modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
@@ -318,6 +321,13 @@ private fun WifiConnectingStep(state: DeviceFormUiState) {
                 color = CafeyTheme.colors.ink,
             )
         }
+    }
+    OutlinedButton(
+        onClick = onCancel,
+        shape = CafeyTheme.shapes.small,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text("Cancelar")
     }
 }
 
