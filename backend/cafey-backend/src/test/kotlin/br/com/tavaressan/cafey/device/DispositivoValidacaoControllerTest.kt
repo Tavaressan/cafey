@@ -151,6 +151,19 @@ class DispositivoValidacaoControllerTest @Autowired constructor(
     }
 
     @Test
+    fun `PUT deve responder 400 com timezone nao suportado pelo dispositivo`() {
+        atualizar("""{"timezone":"BRT"}""")
+            .expectValidationFailed("timezone", "Timezone não suportado pelo dispositivo")
+    }
+
+    @Test
+    fun `PUT deve aceitar America Sao Paulo`() {
+        atualizar("""{"timezone":"America/Sao_Paulo"}""")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.timezone").value("America/Sao_Paulo"))
+    }
+
+    @Test
     fun `PUT sem timezone deve manter o timezone`() {
         atualizar("""{"nome":"Cafeteira Nova"}""")
             .andExpect(status().isOk)
@@ -182,6 +195,19 @@ class DispositivoValidacaoControllerTest @Autowired constructor(
     fun `POST deve responder 400 com timezone vazio`() {
         criar("""{"nome":"Nova","timezone":""}""")
             .expectValidationFailed("timezone", "Timezone não pode ser vazio")
+    }
+
+    @Test
+    fun `POST deve responder 400 com timezone nao suportado pelo dispositivo`() {
+        criar("""{"nome":"Nova","timezone":"BRT"}""")
+            .expectValidationFailed("timezone", "Timezone não suportado pelo dispositivo")
+    }
+
+    @Test
+    fun `POST deve aceitar America Sao Paulo`() {
+        criar("""{"nome":"Nova","timezone":"America/Sao_Paulo"}""")
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.timezone").value("America/Sao_Paulo"))
     }
 
     @Test

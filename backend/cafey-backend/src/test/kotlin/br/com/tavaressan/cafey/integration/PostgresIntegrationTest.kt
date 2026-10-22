@@ -21,7 +21,7 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * Suíte de integração que roda as migrações Flyway reais (V1..V8) contra um
+ * Suíte de integração que roda as migrações Flyway reais (V1..V9) contra um
  * PostgreSQL real via Testcontainers, validando recursos específicos do
  * banco (citext, tipos de data, índices únicos) que o H2 usado nos testes
  * unitários não reproduz fielmente.
@@ -48,13 +48,13 @@ class PostgresIntegrationTest {
     private lateinit var eventoPreparoRepository: EventoPreparoRepository
 
     @Test
-    fun `flyway aplica as migracoes V1 a V8 no schema_version`() {
+    fun `flyway aplica as migracoes V1 a V9 no schema_version`() {
         val versions = jdbcTemplate.queryForList(
             "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank",
             String::class.java,
         )
 
-        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8"), versions)
+        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9"), versions)
     }
 
     @Test
