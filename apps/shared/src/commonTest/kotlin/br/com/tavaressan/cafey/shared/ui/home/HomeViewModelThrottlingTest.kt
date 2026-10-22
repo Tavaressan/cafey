@@ -99,9 +99,12 @@ class HomeViewModelThrottlingTest {
         assertTrue(deviceCallCount >= 6, "Dispositivo deve ter sido consultado pelo menos 6 vezes")
         assertEquals(1, statsCallCount, "Chamadas a /estatisticas devem permanecer contidas em 1 pelo throttle de 60s")
 
-        // 3. Execução de comando deve invalidar throttle para capturar novo estado de preparo
+        // 3. Execução de comando deve invalidar throttle para capturar novo estado de preparo.
+        // O polling do init roda em paralelo (o runTest adianta o delay enquanto o MockEngine faz
+        // I/O); se cair na janela em que o comando zerou o throttle, busca /estatisticas de novo.
+        // Por isso "pelo menos 2", e não exatamente 2.
         viewModel.ligar()
         viewModel.uiState.first { !it.commandInFlight }
-        assertEquals(2, statsCallCount, "Comando executado deve forçar revalidação imediata de estatísticas")
+        assertTrue(statsCallCount >= 2, "Comando executado deve forçar revalidação imediata de estatísticas")
     }
 }
