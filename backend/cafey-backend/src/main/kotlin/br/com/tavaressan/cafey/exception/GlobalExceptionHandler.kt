@@ -8,10 +8,19 @@ import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.context.request.WebRequest
+import org.springframework.web.servlet.resource.NoResourceFoundException
 import java.net.URI
 
 @RestControllerAdvice
 class GlobalExceptionHandler {
+
+    @ExceptionHandler(NoResourceFoundException::class)
+    fun handleNoResourceFound(ex: NoResourceFoundException, request: WebRequest): ProblemDetail {
+        val problemDetail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, "Not Found")
+        problemDetail.title = "Not Found"
+        problemDetail.type = URI.create("about:blank")
+        return problemDetail
+    }
 
     @ExceptionHandler(ResourceNotFoundException::class)
     fun handleResourceNotFound(ex: ResourceNotFoundException, request: WebRequest): ProblemDetail {

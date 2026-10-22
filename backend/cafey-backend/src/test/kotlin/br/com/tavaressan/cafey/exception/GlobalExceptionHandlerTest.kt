@@ -3,6 +3,7 @@ package br.com.tavaressan.cafey.exception
 import br.com.tavaressan.cafey.controller.TestController
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
@@ -10,6 +11,9 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
 import org.springframework.test.web.servlet.setup.MockMvcBuilders
+import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.servlet.resource.NoResourceFoundException
 
 class GlobalExceptionHandlerTest {
 
@@ -17,9 +21,19 @@ class GlobalExceptionHandlerTest {
 
     @BeforeEach
     fun setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(TestController())
+        mockMvc = MockMvcBuilders.standaloneSetup(TestController(), MissingResourceTestController())
             .setControllerAdvice(GlobalExceptionHandler())
             .build()
+    }
+
+    @Test
+    fun `should handle NoResourceFoundException as a 404 ProblemDetail`() {
+        mockMvc.perform(get("/test/missing-resource"))
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.type").value("about:blank"))
+            .andExpect(jsonPath("$.title").value("Not Found"))
+            .andExpect(jsonPath("$.status").value(404))
+            .andExpect(jsonPath("$.detail").value("Not Found"))
     }
 
     @Test
@@ -65,4 +79,14 @@ class GlobalExceptionHandlerTest {
             .andExpect(jsonPath("$.status").value(500))
             .andExpect(jsonPath("$.detail").value("An unexpected error occurred"))
     }
+}
+
+@RestController
+private class MissingResourceTestController {
+    @GetMapping("/test/missing-resource")
+    fun missingResource(): Nothing = throw NoResourceFoundException(
+        HttpMethod.GET,
+        "/test/missing-resource",
+        "/test/missing-resource",
+    )
 }

@@ -1,9 +1,13 @@
 package br.com.tavaressan.cafey.security
 
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.boot.test.system.CapturedOutput
+import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc
+import org.junit.jupiter.api.extension.ExtendWith
 import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath
@@ -16,21 +20,32 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers.status
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
+@ExtendWith(OutputCaptureExtension::class)
 class TestControllerDefaultProfileTest @Autowired constructor(
     private val mockMvc: MockMvc
 ) {
 
     /**
-     * `/test/internal` também responde 500 quando `TestController` está ausente (o catch-all
-     * `GlobalExceptionHandler.handleAllExceptions` engole até `NoResourceFoundException`), então
-     * essa rota não discrimina bean registrado de bean ausente. `/test/not-found` sim: 404 com
-     * esse `detail` exato só sai de `handleResourceNotFound`, alcançável apenas através do
-     * controller real.
+     * `/test/internal` também responde 500 quando `TestController` está ausente, então essa rota
+     * não discrimina bean registrado de bean ausente. `/test/not-found` sim: 404 com esse `detail`
+     * exato só sai de `handleResourceNotFound`, alcançável apenas através do controller real.
      */
     @Test
     fun `test not-found continua acessivel fora do perfil prod`() {
         mockMvc.perform(get("/test/not-found"))
             .andExpect(status().isNotFound)
             .andExpect(jsonPath("$.detail").value("Test resource not found"))
+    }
+
+    @Test
+    fun `missing swagger resource responds 404 without error logging`(output: CapturedOutput) {
+        mockMvc.perform(get("/swagger-ui/naoexiste.js"))
+            .andExpect(status().isNotFound)
+            .andExpect(jsonPath("$.type").value("about:blank"))
+            .andExpect(jsonPath("$.title").value("Not Found"))
+            .andExpect(jsonPath("$.status").value(404))
+
+        assertFalse(output.contains("uri=/swagger-ui/naoexiste.js"), output.toString())
+        assertFalse(output.contains("NoResourceFoundException"), output.toString())
     }
 }
