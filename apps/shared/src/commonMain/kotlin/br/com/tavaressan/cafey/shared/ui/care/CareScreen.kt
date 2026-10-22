@@ -16,6 +16,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -211,11 +212,11 @@ private fun CuidadoCard(
     ) {
         if (destaque && !cuidado.precisaAtencao) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
-                CafeyStar(color = CafeyTheme.colors.brand, size = 14.dp)
+                CafeyStar(color = MaterialTheme.colorScheme.primary, size = 14.dp)
                 Text(
                     "Chegando",
                     style = CafeyTheme.typography.caption,
-                    color = CafeyTheme.colors.brand,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(start = 6.dp),
                 )
             }

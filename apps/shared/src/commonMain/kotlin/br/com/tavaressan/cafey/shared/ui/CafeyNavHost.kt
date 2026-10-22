@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -243,10 +244,12 @@ private fun CafeyBottomBar(currentRoute: String, onSelect: (String) -> Unit) {
                 onClick = { onSelect(tab.route) },
                 icon = { Icon(imageVector = tab.icon, contentDescription = tab.label) },
                 label = { Text(tab.label, style = CafeyTheme.typography.caption) },
+                // O ícone fica sobre o indicador brandTint, claro nos dois temas, e mantém o brand; o
+                // rótulo fica sobre o surface e segue o primary, que o tema escuro clareia.
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = CafeyTheme.colors.brand,
                     unselectedIconColor = CafeyTheme.colors.muted,
-                    selectedTextColor = CafeyTheme.colors.brand,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
                     unselectedTextColor = CafeyTheme.colors.muted,
                     indicatorColor = CafeyTheme.colors.brandTint,
                 ),
@@ -306,7 +309,7 @@ private fun CafeySideNav(sizeClass: NavShellSizeClass, currentRoute: String, onS
                     Icon(
                         imageVector = tab.icon,
                         contentDescription = null,
-                        tint = if (selected) CafeyTheme.colors.brand else CafeyTheme.colors.muted,
+                        tint = if (selected) MaterialTheme.colorScheme.primary else CafeyTheme.colors.muted,
                     )
                     Text(
                         text = tab.label,
@@ -319,7 +322,7 @@ private fun CafeySideNav(sizeClass: NavShellSizeClass, currentRoute: String, onS
                     Icon(
                         imageVector = tab.icon,
                         contentDescription = tab.label,
-                        tint = if (selected) CafeyTheme.colors.brand else CafeyTheme.colors.muted,
+                        tint = if (selected) MaterialTheme.colorScheme.primary else CafeyTheme.colors.muted,
                     )
                 }
             }
