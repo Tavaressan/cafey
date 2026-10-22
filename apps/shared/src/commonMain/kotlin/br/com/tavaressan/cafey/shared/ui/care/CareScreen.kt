@@ -198,12 +198,15 @@ private fun CuidadoCard(
             .fillMaxWidth()
             .padding(top = 16.dp)
             .testTag("cuidado-${cuidado.tipo.name}")
-            .background(
-                // `card--accent` do protótipo: o destaque (e qualquer cuidado vencido) ganha o tint da marca.
-                if (emAlerta) CafeyTheme.colors.brandTint else CafeyTheme.colors.surface,
+            .background(CafeyTheme.colors.surface, CafeyTheme.shapes.large)
+            // `card--accent` do protótipo: o destaque (e qualquer cuidado vencido) ganha borda de 1,5 na
+            // cor da marca, sem mudar o fundo. Um fundo brandTint quebrava o modo escuro: o tint não
+            // escurece e o texto `ink` fica claro sobre ele.
+            .border(
+                if (emAlerta) 1.5.dp else 1.dp,
+                if (emAlerta) CafeyTheme.colors.brand else CafeyTheme.colors.line,
                 CafeyTheme.shapes.large,
             )
-            .border(1.dp, CafeyTheme.colors.line, CafeyTheme.shapes.large)
             .padding(20.dp),
     ) {
         if (destaque && !cuidado.precisaAtencao) {
@@ -212,7 +215,7 @@ private fun CuidadoCard(
                 Text(
                     "Chegando",
                     style = CafeyTheme.typography.caption,
-                    color = CafeyTheme.colors.brandDeep,
+                    color = CafeyTheme.colors.brand,
                     modifier = Modifier.padding(start = 6.dp),
                 )
             }
