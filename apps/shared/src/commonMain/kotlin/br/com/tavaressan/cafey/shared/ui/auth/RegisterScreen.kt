@@ -26,6 +26,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
+import br.com.tavaressan.cafey.shared.ui.theme.CafeyWordmark
 
 /** UC-01 — tela de cadastro. */
 @Composable
@@ -48,6 +49,7 @@ fun RegisterScreen(onRegistered: () -> Unit, onGoToLogin: () -> Unit) {
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
+        CafeyWordmark(modifier = Modifier.padding(bottom = 24.dp), iconSize = 44.dp)
         Text("Criar conta", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
 
         OutlinedTextField(
