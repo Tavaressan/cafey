@@ -1,6 +1,12 @@
 #include "relay.hpp"
 
 namespace cafey::drivers {
+namespace {
+
+constexpr uint32_t kRelayActiveLevel = 0;
+constexpr uint32_t kRelayIdleLevel = 1;
+
+} // namespace
 
 Relay::Relay(gpio_num_t pin, bool auto_init)
     : pin_(pin),
@@ -50,15 +56,11 @@ esp_err_t Relay::init() {
         return ESP_ERR_INVALID_ARG;
     }
 
-    // Step 1: Force GPIO level LOW BEFORE configuring output mode to guarantee
-    // zero glitch when switching from high-impedance to output.
-    // External 10k R1 pull-down holds 0V; setting low level first maintains this.
-    // gpio_set_level(pin_, 0);
+    // Set the active-low relay's idle level before switching from high-impedance
+    // to output. External R1 pulls the line up while the ESP32 GPIO is floating.
+    gpio_set_level(pin_, kRelayIdleLevel);
 
-    // Active low de teste de bancada
-    gpio_set_level(pin_, 1);
-
-    // Step 2: Configure GPIO as output, pull-up/down disabled (external R1 handles pull-down),
+    // Configure GPIO as output with internal pull-up/down disabled (external R1 handles pull-up),
     // interrupts disabled.
     const gpio_config_t io_conf = {
         .pin_bit_mask = (1ULL << pin_),
@@ -74,11 +76,8 @@ esp_err_t Relay::init() {
         return err;
     }
 
-    // Step 3: Re-assert LOW state immediately after configuration
-    // err = gpio_set_level(pin_, 0);
-
-    // Active low de teste de bancada
-    err = gpio_set_level(pin_, 1);
+    // Re-assert the idle level immediately after configuration.
+    err = gpio_set_level(pin_, kRelayIdleLevel);
 
     if (err != ESP_OK) {
         ESP_LOGE("Relay", "Failed to set GPIO %d level: %d", pin_, err);
@@ -96,11 +95,8 @@ esp_err_t Relay::set(bool on) {
         ESP_LOGE("Relay", "Relay not initialized on GPIO %d", pin_);
         return ESP_ERR_INVALID_STATE;
     }
-    // Active High atual 
-    // esp_err_t err = gpio_set_level(pin_, on ? 1 : 0);
-
-    // Active Low de teste de bancada
-    esp_err_t err = gpio_set_level(pin_, on ? 0 : 1);
+    const uint32_t level = on ? kRelayActiveLevel : kRelayIdleLevel;
+    esp_err_t err = gpio_set_level(pin_, level);
 
     if (err == ESP_OK) {
         is_on_ = on;

@@ -33,6 +33,7 @@ import br.com.tavaressan.cafey.shared.domain.model.ProximoPreparo
 import br.com.tavaressan.cafey.shared.ui.LocalNavShellSizeClass
 import br.com.tavaressan.cafey.shared.ui.NavShellSizeClass
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyLightColors
+import br.com.tavaressan.cafey.shared.ui.theme.CafeyLogo
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyStar
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
@@ -48,7 +49,13 @@ fun HomeScreen(onGoToDeviceRegister: () -> Unit = {}) {
     val viewModel = viewModel<HomeViewModel>(
         factory = viewModelFactory {
             initializer {
-                HomeViewModel(container.deviceApi, container.commandApi, container.scheduleApi, container.eventApi)
+                HomeViewModel(
+                    container.deviceApi,
+                    container.commandApi,
+                    container.scheduleApi,
+                    container.eventApi,
+                    container.bleClient,
+                )
             }
         },
     )
@@ -230,7 +237,7 @@ private fun DeviceHeader(name: String, online: Boolean) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
     ) {
-        CafeyStar(color = CafeyTheme.colors.brand, size = 28.dp)
+        CafeyLogo(size = 34.dp)
         Column(modifier = Modifier.padding(start = 11.dp)) {
             Text(name, style = CafeyTheme.typography.cardTitle, color = CafeyTheme.colors.ink)
             Row(verticalAlignment = Alignment.CenterVertically) {

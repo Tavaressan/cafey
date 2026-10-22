@@ -108,11 +108,10 @@ bool EspNimbleServer::update_value(const std::string& uuid, const std::string& v
         if (std::memcmp(entry.uuid.value, target.value, 16) != 0) continue;
         entry.value = value;
         if (started_ && (entry.props & kBleNotify)) {
-            struct os_mbuf* om = ble_hs_mbuf_from_flat(value.data(),
-                                                       static_cast<uint16_t>(value.size()));
-            if (om != nullptr) {
-                ble_gatts_notify_custom(BLE_HS_CONN_HANDLE_NONE, entry.val_handle, om);
-            }
+            // notify_custom exige o handle de uma conexao real (com CONN_HANDLE_NONE
+            // retorna ENOTCONN); chr_updated notifica todo cliente inscrito, lendo
+            // o valor novo pelo access_cb.
+            ble_gatts_chr_updated(entry.val_handle);
         }
         return true;
     }
@@ -146,6 +145,15 @@ int EspNimbleServer::gap_event(struct ble_gap_event* event, void* /*arg*/) {
             break;
         case BLE_GAP_EVENT_DISCONNECT:
             self_->advertise();
+            break;
+        case BLE_GAP_EVENT_MTU:
+            ESP_LOGI(TAG, "MTU negociado: %u (conn %u)", event->mtu.value,
+                     event->mtu.conn_handle);
+            break;
+        case BLE_GAP_EVENT_SUBSCRIBE:
+            ESP_LOGI(TAG, "inscricao: handle %u notify %u->%u (conn %u)",
+                     event->subscribe.attr_handle, event->subscribe.prev_notify,
+                     event->subscribe.cur_notify, event->subscribe.conn_handle);
             break;
         default:
             break;

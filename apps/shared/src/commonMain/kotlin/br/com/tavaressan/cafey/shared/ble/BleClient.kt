@@ -11,7 +11,9 @@ import kotlinx.coroutines.flow.emptyFlow
  * mas para o transporte local (spec §6.4/§6.5 e UC-04 #249). */
 sealed class BleError(message: String, cause: Throwable? = null) : Exception(message, cause) {
     /** Nenhuma base BLE anunciando o serviço foi encontrada nas proximidades. */
-    data object BaseNaoEncontrada : BleError("Nenhuma base BLE encontrada nas proximidades")
+    open class BaseNaoEncontrada(motivo: String = "Nenhuma base BLE encontrada nas proximidades") : BleError(motivo) {
+        companion object : BaseNaoEncontrada()
+    }
 
     /** A base foi encontrada, mas a conexão/característica falhou. */
     class ConexaoFalhou(cause: Throwable) : BleError("Falha ao conectar por BLE à base", cause)
@@ -57,6 +59,9 @@ interface BleClient {
         password: String,
     ): Flow<WifiProvisionStatus> = emptyFlow()
 }
+
+/** Fábrica da implementação de [BleClient] para a plataforma corrente (retorna null em Desktop/Web). */
+expect fun createPlatformBleClient(): BleClient?
 
 /**
  * Recorte de [br.com.tavaressan.cafey.shared.network.CommandApi] usado por [BleCommandFallback] —

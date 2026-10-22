@@ -158,6 +158,7 @@ fun CafeyNavHost() {
                         BaseScreen(
                             onGoToAccount = { navController.navigate(ROUTE_ACCOUNT) },
                             onEditDevice = { id -> navController.navigate("$ROUTE_DEVICE_EDIT/$id") },
+                            onRegisterDevice = { navController.navigate(ROUTE_DEVICE_REGISTER) },
                         )
                     }
                     composable(ROUTE_ACCOUNT) {
