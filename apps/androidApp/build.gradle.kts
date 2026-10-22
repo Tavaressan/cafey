@@ -9,13 +9,15 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
+// URL de produção oficial (AWS Lightsail)
+val prodBackendBaseUrl = "https://cafey-backend.duckdns.org"
+
 // URL do backend usada pelo app Android (issue #147) — nunca hardcoded no código-fonte. Resolvida
 // nesta ordem de prioridade, para conviver emulador/aparelho físico/produção sem editar arquivo:
-// 1. `-PbackendBaseUrl=http://192.168.x.x:8080` na linha de comando;
+// 1. `-PbackendBaseUrl=https://...` na linha de comando;
 // 2. variável de ambiente `BACKEND_BASE_URL` (útil em CI);
-// 3. chave `backendBaseUrl` em `local.properties` (arquivo local, não versionado, já documentado
-//    no README para o `sdk.dir`);
-// 4. o alias do emulador Android (`10.0.2.2`), que continua funcionando sem nenhuma configuração.
+// 3. chave `backendBaseUrl` em `local.properties` (arquivo local, não versionado);
+// 4. o endpoint de produção oficial do Lightsail (`https://cafey-backend.duckdns.org`).
 val localProperties = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) file.inputStream().use(::load)
@@ -23,8 +25,8 @@ val localProperties = Properties().apply {
 val backendBaseUrl: String = (project.findProperty("backendBaseUrl") as String?)
     ?: System.getenv("BACKEND_BASE_URL")
     ?: localProperties.getProperty("backendBaseUrl")
-    ?: "http://10.0.2.2:8080"
-val backendHost: String = URI(backendBaseUrl).host ?: "10.0.2.2"
+    ?: prodBackendBaseUrl
+val backendHost: String = URI(backendBaseUrl).host ?: "cafey-backend.duckdns.org"
 
 // Gera o `network_security_config` de debug incluindo o host escolhido acima, além dos padrões de
 // desenvolvimento (emulador e loopback do `adb reverse`) — sem isso, um IP de rede local
@@ -35,7 +37,7 @@ val generateDebugNetworkSecurityConfig = tasks.register("generateDebugNetworkSec
     val outputDir = layout.buildDirectory.dir("generated/res/networkSecurityConfig/debug")
     outputs.dir(outputDir)
     doLast {
-        val hosts = linkedSetOf("10.0.2.2", "localhost", "127.0.0.1", backendHost)
+        val hosts = linkedSetOf("10.0.2.2", "localhost", "127.0.0.1", "cafey-backend.duckdns.org", backendHost)
         val xmlDir = outputDir.get().dir("xml").asFile.apply { mkdirs() }
         xmlDir.resolve("network_security_config.xml").writeText(
             buildString {
@@ -64,6 +66,16 @@ android {
         versionName = "0.1.0"
 
         buildConfigField("String", "BACKEND_BASE_URL", "\"$backendBaseUrl\"")
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            buildConfigField("String", "BACKEND_BASE_URL", "\"$prodBackendBaseUrl\"")
+        }
+        getByName("debug") {
+            buildConfigField("String", "BACKEND_BASE_URL", "\"$backendBaseUrl\"")
+        }
     }
 
     compileOptions {
