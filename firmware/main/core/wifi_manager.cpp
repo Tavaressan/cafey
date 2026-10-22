@@ -16,17 +16,29 @@ constexpr const char* TAG = "WifiManager";
 // Trampolins de evento: o ESP-IDF exige ponteiros de funcao livres (nao
 // ponteiros a membro), entao repassamos `this` via arg_ e despachamos ao
 // metodo correspondente da instancia.
-void on_wifi_event(void* arg, esp_event_base_t event_base, int32_t event_id, void* /*event_data*/) {
+void on_wifi_event(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     auto* self = static_cast<WifiManager*>(arg);
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
-        self->handle_disconnected();
+        uint8_t reason = 0;
+        if (event_data != nullptr) {
+            auto* event = static_cast<wifi_event_sta_disconnected_t*>(event_data);
+            reason = event->reason;
+        }
+        self->handle_disconnected(reason);
     }
 }
 
-void on_ip_event(void* arg, esp_event_base_t event_base, int32_t event_id, void* /*event_data*/) {
+void on_ip_event(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data) {
     auto* self = static_cast<WifiManager*>(arg);
     if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
-        self->handle_got_ip();
+        std::string ip_str;
+        if (event_data != nullptr) {
+            auto* event = static_cast<ip_event_got_ip_t*>(event_data);
+            char buf[16] = {0};
+            esp_ip4addr_ntoa(&event->ip_info.ip, buf, sizeof(buf));
+            ip_str = buf;
+        }
+        self->handle_got_ip(ip_str);
     }
 }
 
@@ -35,6 +47,11 @@ void on_ip_event(void* arg, esp_event_base_t event_base, int32_t event_id, void*
 void on_reconnect_timer(void* arg) {
     (void)arg;
     esp_wifi_connect();
+}
+
+void on_provision_timeout_timer(void* arg) {
+    auto* self = static_cast<WifiManager*>(arg);
+    if (self) self->handle_provision_timeout();
 }
 } // namespace
 
@@ -104,6 +121,32 @@ esp_err_t WifiManager::provision(const std::string& ssid, const std::string& pas
 
     ESP_LOGI(TAG, "Credenciais provisionadas para SSID '%s'", ssid.c_str());
     policy_.reset();
+
+#if defined(ESP_PLATFORM)
+    if (provision_timer_ == nullptr) {
+        esp_timer_create_args_t timer_args = {};
+        timer_args.callback = &on_provision_timeout_timer;
+        timer_args.arg = this;
+        timer_args.dispatch_method = ESP_TIMER_TASK;
+        timer_args.name = "wifi_prov_timeout";
+        esp_timer_create(&timer_args, &provision_timer_);
+    }
+    if (provision_timer_ != nullptr) {
+        esp_timer_stop(provision_timer_);
+        esp_timer_start_once(provision_timer_, 20ULL * 1000ULL * 1000ULL);
+    }
+#endif
+
+    if (state_ == WifiState::CONNECTED) {
+        // Conectado, o driver recusa esp_wifi_connect ("sta is connected"). Aplica a
+        // config nova e desconecta: handle_disconnected agenda a reconexao com ela,
+        // o que tambem valida a senha recebida.
+        err = apply_sta_config(ssid, password);
+        if (err != ESP_OK) return err;
+        ESP_LOGI(TAG, "Ja conectado; reconectando com as credenciais novas");
+        return esp_wifi_disconnect();
+    }
+
     return connect_with_stored_credentials();
 }
 
@@ -127,22 +170,38 @@ esp_err_t WifiManager::connect_with_stored_credentials() {
     return esp_wifi_connect();
 }
 
-void WifiManager::handle_disconnected() {
+void WifiManager::handle_disconnected(uint8_t reason) {
     if (state_ == WifiState::NOT_PROVISIONED) {
         // Desconexao sem provisionamento ainda: nada a reconectar.
         return;
     }
 
     state_ = WifiState::RECONNECTING;
+    bool is_auth = (reason == 2 || reason == 15 || reason == 202 || reason == 204);
+    if (on_disconnected_reason_) on_disconnected_reason_(is_auth);
     if (on_disconnected_) on_disconnected_();
     schedule_reconnect();
 }
 
-void WifiManager::handle_got_ip() {
+void WifiManager::handle_got_ip(const std::string& ip) {
     state_ = WifiState::CONNECTED;
+    ip_ = ip;
     policy_.reset();
-    ESP_LOGI(TAG, "Wi-Fi conectado, IP obtido");
+
+#if defined(ESP_PLATFORM)
+    if (provision_timer_ != nullptr) {
+        esp_timer_stop(provision_timer_);
+    }
+#endif
+
+    ESP_LOGI(TAG, "Wi-Fi conectado, IP obtido: %s", ip.c_str());
+    if (on_connected_ip_) on_connected_ip_(ip_);
     if (on_connected_) on_connected_();
+}
+
+void WifiManager::handle_provision_timeout() {
+    ESP_LOGW(TAG, "Timeout no provisionamento Wi-Fi (20s decorridos sem conexao)");
+    if (on_provision_timeout_) on_provision_timeout_();
 }
 
 void WifiManager::schedule_reconnect() {

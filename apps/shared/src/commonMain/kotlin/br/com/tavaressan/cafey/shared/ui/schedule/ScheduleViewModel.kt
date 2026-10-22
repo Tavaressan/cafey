@@ -26,13 +26,20 @@ data class ScheduleFormState(
     val diasAtivos: List<Boolean> = List(7) { it in 1..5 },
     // null = agendamento sem duração própria (usa a do dispositivo); nasce de uma edição ou de "Limpar Campos".
     val duracaoPreparoS: Int? = DURACAO_PREPARO_PADRAO_S,
+    val descricao: String = "",
     val errors: ScheduleFormErrors = ScheduleFormErrors(),
 ) {
     /**
-     * Botão "Limpar Campos": hora, dias e duração vazios, sem fechar o formulário. Mantém
+     * Botão "Limpar Campos": hora, dias, duração e descrição vazios, sem fechar o formulário. Mantém
      * [agendamentoId], então na edição continua sendo o mesmo agendamento.
      */
-    fun cleared() = copy(hora = "", diasAtivos = List(7) { false }, duracaoPreparoS = null, errors = ScheduleFormErrors())
+    fun cleared() = copy(
+        hora = "",
+        diasAtivos = List(7) { false },
+        duracaoPreparoS = null,
+        descricao = "",
+        errors = ScheduleFormErrors(),
+    )
 
     companion object {
         fun forEdit(agendamento: AgendamentoResponse) = ScheduleFormState(
@@ -42,6 +49,7 @@ data class ScheduleFormState(
             // Não pré-seleciona o padrão: salvar só a hora de um agendamento antigo não deve
             // trocar a duração dele (a do dispositivo) por 8 min.
             duracaoPreparoS = agendamento.duracaoPreparoS,
+            descricao = agendamento.descricao.orEmpty(),
         )
     }
 }
@@ -109,6 +117,10 @@ class ScheduleViewModel(
         _uiState.update { state -> state.editing?.let { state.copy(editing = it.copy(duracaoPreparoS = duracaoPreparoS)) } ?: state }
     }
 
+    fun onDescricaoChange(descricao: String) {
+        _uiState.update { state -> state.editing?.let { state.copy(editing = it.copy(descricao = descricao)) } ?: state }
+    }
+
     fun clearFields() {
         _uiState.update { state -> state.editing?.let { state.copy(editing = it.cleared()) } ?: state }
     }
@@ -127,16 +139,27 @@ class ScheduleViewModel(
         _uiState.update { it.copy(saving = true, errorMessage = null) }
         viewModelScope.launch {
             try {
+                val descricaoParam = form.descricao.trim().ifEmpty { null }
                 if (form.agendamentoId == null) {
                     scheduleApi.criar(
                         deviceId,
-                        CriarAgendamentoRequest(hora = form.hora, diasSemana = diasSemana, duracaoPreparoS = form.duracaoPreparoS),
+                        CriarAgendamentoRequest(
+                            hora = form.hora,
+                            diasSemana = diasSemana,
+                            duracaoPreparoS = form.duracaoPreparoS,
+                            descricao = descricaoParam,
+                        ),
                     )
                 } else {
                     scheduleApi.atualizar(
                         deviceId,
                         form.agendamentoId,
-                        AtualizarAgendamentoRequest(hora = form.hora, diasSemana = diasSemana, duracaoPreparoS = form.duracaoPreparoS),
+                        AtualizarAgendamentoRequest(
+                            hora = form.hora,
+                            diasSemana = diasSemana,
+                            duracaoPreparoS = form.duracaoPreparoS,
+                            descricao = descricaoParam,
+                        ),
                     )
                 }
                 _uiState.update { it.copy(saving = false, editing = null) }

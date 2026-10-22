@@ -2,6 +2,7 @@ package br.com.tavaressan.cafey.shared.ble
 
 import br.com.tavaressan.cafey.shared.domain.model.AcaoComando
 import br.com.tavaressan.cafey.shared.domain.model.BleEvento
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -21,6 +22,8 @@ class FakeBleClient(
     ),
     var erroAoLerInfo: Throwable? = null,
     var erroAoProvisionar: Throwable? = null,
+    /** Simula a notificação final que nunca chega: o fluxo fica aberto após os status. */
+    var manterProvisionamentoAberto: Boolean = false,
 ) : BleClient {
     val comandosEnviados = mutableListOf<Pair<String, AcaoComando>>()
     val confirmacoes = mutableListOf<Pair<String, List<String>>>()
@@ -57,6 +60,7 @@ class FakeBleClient(
             for (status in statusProvisionamentoRetorno) {
                 emit(status)
             }
+            if (manterProvisionamentoAberto) awaitCancellation()
         }
     }
 }

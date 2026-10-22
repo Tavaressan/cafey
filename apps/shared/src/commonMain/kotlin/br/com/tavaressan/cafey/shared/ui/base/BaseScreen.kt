@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -29,11 +31,16 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.domain.model.DispositivoResponse
 import br.com.tavaressan.cafey.shared.domain.model.PapelDispositivo
+import br.com.tavaressan.cafey.shared.ui.theme.CafeyLogo
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyStar
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
 @Composable
-fun BaseScreen(onGoToAccount: () -> Unit = {}, onEditDevice: (String) -> Unit = {}) {
+fun BaseScreen(
+    onGoToAccount: () -> Unit = {},
+    onEditDevice: (String) -> Unit = {},
+    onRegisterDevice: () -> Unit = {},
+) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<BaseViewModel>(
         factory = viewModelFactory { initializer { BaseViewModel(container.deviceApi, container.themePreference) } },
@@ -50,6 +57,7 @@ fun BaseScreen(onGoToAccount: () -> Unit = {}, onEditDevice: (String) -> Unit = 
         onToggleTheme = viewModel::toggleTheme,
         onGoToAccount = onGoToAccount,
         onEditDevice = { state.device?.let { onEditDevice(it.id) } },
+        onRegisterDevice = onRegisterDevice,
     )
 }
 
@@ -66,6 +74,7 @@ internal fun BaseContent(
     onToggleTheme: () -> Unit,
     onGoToAccount: () -> Unit = {},
     onEditDevice: () -> Unit = {},
+    onRegisterDevice: () -> Unit = {},
 ) {
     Column(modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground).padding(22.dp)) {
         Text("Base da cozinha", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
@@ -94,8 +103,24 @@ internal fun BaseContent(
                 color = CafeyTheme.colors.muted,
                 modifier = Modifier.padding(top = 24.dp),
             )
+            Button(
+                onClick = onRegisterDevice,
+                colors = ButtonDefaults.buttonColors(containerColor = CafeyTheme.colors.brand),
+                shape = CafeyTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            ) {
+                Text("Parear e Cadastrar Cafeteira (BLE)")
+            }
         } else {
             DeviceInfoCard(nome = device.nome, online = device.online)
+            Button(
+                onClick = onRegisterDevice,
+                colors = ButtonDefaults.buttonColors(containerColor = CafeyTheme.colors.brand),
+                shape = CafeyTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
+            ) {
+                Text("Provisionar Wi-Fi / Parear via BLE")
+            }
             // O backend só deixa o proprietário alterar ou excluir o dispositivo.
             if (device.papel == PapelDispositivo.PROPRIETARIO) {
                 OutlinedButton(onClick = onEditDevice, modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
@@ -131,7 +156,7 @@ private fun DeviceInfoCard(nome: String, online: Boolean) {
             .border(1.dp, CafeyTheme.colors.line, CafeyTheme.shapes.large)
             .padding(18.dp),
     ) {
-        CafeyStar(color = CafeyTheme.colors.brand, size = 28.dp)
+        CafeyLogo(size = 32.dp)
         Text(
             nome,
             style = CafeyTheme.typography.cardTitle,

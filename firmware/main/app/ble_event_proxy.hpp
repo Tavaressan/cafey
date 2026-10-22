@@ -24,19 +24,24 @@ namespace cafey::app {
  */
 class BleEventProxy {
 public:
-    static constexpr const char* kPendingUuid = "6b3d0005-0b0b-4a3a-9c0e-cafe1a000000";
-    static constexpr const char* kConfirmUuid = "6b3d0006-0b0b-4a3a-9c0e-cafe1a000000";
+    static constexpr const char* kPendingUuid = "6b3d0008-0b0b-4a3a-9c0e-cafe1a000000";
+    static constexpr const char* kConfirmUuid = "6b3d0009-0b0b-4a3a-9c0e-cafe1a000000";
 
     BleEventProxy(cafey::core::IBleServer& server, cafey::storage::EventQueueStore& queue)
         : server_(server), queue_(queue) {}
 
-    /** @brief Registra as caracteristicas e publica o estado atual da fila. */
-    void begin() {
+    /** @brief Registra as caracteristicas no servidor GATT antes de start(). */
+    void register_characteristics() {
         server_.add_characteristic(kPendingUuid,
                                    cafey::core::kBleRead | cafey::core::kBleNotify, nullptr);
         server_.add_characteristic(
             kConfirmUuid, cafey::core::kBleWrite,
             [this](const std::string& value) { handle_confirm(value); });
+    }
+
+    /** @brief Registra as caracteristicas e publica o estado atual da fila. */
+    void begin() {
+        register_characteristics();
         publish_pending();
     }
 

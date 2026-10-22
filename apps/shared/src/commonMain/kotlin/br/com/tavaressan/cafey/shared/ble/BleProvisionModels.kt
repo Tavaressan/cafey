@@ -3,7 +3,7 @@ package br.com.tavaressan.cafey.shared.ble
 import kotlinx.serialization.Serializable
 
 /**
- * UUIDs do serviço BLE Cafey (spec §6.4 e UC-04 #249).
+ * UUIDs do serviço BLE Cafey (spec §6.4, §6.5 e UC-04 #249).
  */
 object BleUuids {
     const val SERVICE = "6b3d0001-0b0b-4a3a-9c0e-cafe1a000000"
@@ -13,6 +13,8 @@ object BleUuids {
     const val WIFI_PROVISION = "6b3d0005-0b0b-4a3a-9c0e-cafe1a000000"
     const val WIFI_STATUS = "6b3d0006-0b0b-4a3a-9c0e-cafe1a000000"
     const val DEVICE_INFO = "6b3d0007-0b0b-4a3a-9c0e-cafe1a000000"
+    const val PENDING_EVENTS = "6b3d0008-0b0b-4a3a-9c0e-cafe1a000000"
+    const val CONFIRM_EVENTS = "6b3d0009-0b0b-4a3a-9c0e-cafe1a000000"
 }
 
 /**

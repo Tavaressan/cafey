@@ -166,11 +166,11 @@ O manual afirma: *o relé é acionado quando a entrada cai abaixo de aproximadam
 | NC (normalmente fechado) | corrente flui | corrente não flui |
 | NO (normalmente aberto) | corrente não flui | corrente flui |
 
-> **Verificado em bancada (2026-09-08, teste §4.6.3): acionamento *active-low* confirmado — IN em nível LOW energiza o relé.** A afirmação deixa de ser inferência a partir do manual e passa a ser resultado experimental. Consequências imediatas:
+> **Verificado em bancada (2026-09-08, teste §4.6.3): acionamento *active-low* confirmado — IN em nível LOW energiza o relé.** A afirmação deixou de ser inferência a partir do manual e passou a ser resultado experimental. Naquele momento, o esquema e o driver ainda precisavam ser alinhados; esse trabalho foi concluído depois no PR #237 e validado no dispositivo em 21/10/2026 (issue #169):
 >
-> - **Esquemático KiCad**: a polaridade do net `RELE_IN` ainda está desenhada como *active-high*. Deve ser corrigida para *active-low*, eliminando a última divergência entre o esquemático e a `spec-cafeteira-conectada.md`.
-> - **Firmware**: `kRelayActiveLevel = 0`, `kRelayIdleLevel = 1`; `init()` deve escrever o nível de repouso **HIGH** antes de configurar o pino como saída.
-> - **Configuração de contatos**: usar **NO**, mantendo a cafeteira desligada por padrão.
+> - **Esquemático KiCad**: `RELE_IN` e R1 pull-up de 10 kΩ representam o acionamento *active-low*.
+> - **Firmware**: o driver usa `kRelayActiveLevel = 0` e `kRelayIdleLevel = 1`, escrevendo HIGH antes e depois de configurar o GPIO como saída.
+> - **Configuração de contatos**: o caminho utiliza **NO**, mantendo a cafeteira desligada por padrão.
 
 ### 4.4 Jumper JD-VCC e isolação — ponto já registrado na spec
 
@@ -313,13 +313,13 @@ Registradas para não serem tratadas como verdade em decisões de projeto:
 
 - [x] ~~Conferir a Packing List física e substituir a §2 por quantidades de fato~~ — concluído em 2026-09-08.
 - [x] ~~Verificar se o kit inclui cabo micro-USB~~ — confirmado, 1 por kit.
-- [ ] **Decidir o pull-up do net `BOTAO`**: interno do ESP32 (sem compra) ou resistor externo de 10 kΩ (compra). Ver §2.1 A1.
-- [x] ~~Confirmar o modelo do módulo de relé~~ — **HL-52S V1.0**, conforme diagrama do manual (§4.6). Resta apenas conferir visualmente se a placa física traz a mesma serigrafia.
+- [x] **Pull-up do net `BOTAO` decidido**: resistor externo R2 de 10 kΩ, representado no esquemático e coberto pelo estoque confirmado em 08/10.
+- [ ] Conferir visualmente se a serigrafia do módulo físico corresponde ao modelo HL-52S V1.0 indicado pelo manual (§4.6).
 - [x] ~~Executar teste §4.6.3 de polaridade do relé~~ — concluído em 2026-09-08: **active-low confirmado**.
-- [ ] **Corrigir a polaridade do net `RELE_IN` no esquemático KiCad** para *active-low* (era a última divergência aberta entre esquemático e spec).
-- [ ] **Corrigir `relay.cpp`**: introduzir `kRelayActiveLevel`/`kRelayIdleLevel` e fazer `init()` escrever o nível de repouso antes de configurar o pino como saída.
+- [x] ~~Corrigir a polaridade do net `RELE_IN` no esquemático KiCad~~ — active-low e R1 pull-up registrados no PR #237.
+- [x] ~~Corrigir `relay.cpp`~~ — driver usa os níveis nomeados ativo LOW/ocioso HIGH e escreve o nível ocioso antes e depois de configurar o pino.
 - [ ] **Testar o comportamento do pino IN em alta impedância**: entre a energização da placa e a execução do `init()`, o GPIO do ESP32 fica como entrada flutuante. *Hipótese a verificar*: no HL-52S o IN é o cátodo do LED do optoacoplador, de modo que flutuante ⇒ sem corrente ⇒ relé desenergizado. Teste: alimentar o módulo com o IN desconectado e observar se o relé permanece aberto. Se não permanecer, é necessário um pull-up externo para VCC no IN.
-- [ ] Verificar em qual GPIO o net `RELE_IN` está alocado no esquemático KiCad — evitar GPIO 1, 3, 5, 14, 15 (PWM/HIGH no boot; ver §3.1).
+- [x] ~~Verificar o GPIO do net `RELE_IN`~~ — GPIO26 no esquemático e no driver; acionamento validado na issue #169.
 
 ---
 

@@ -2,6 +2,8 @@ package br.com.tavaressan.cafey.shared.ui.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.tavaressan.cafey.shared.ble.BleClient
+import br.com.tavaressan.cafey.shared.ble.BleEventProxy
 import br.com.tavaressan.cafey.shared.domain.model.EstatisticasConsumoResponse
 import br.com.tavaressan.cafey.shared.domain.model.EventoResponse
 import br.com.tavaressan.cafey.shared.network.ApiError
@@ -30,12 +32,22 @@ data class HistoryUiState(
 class HistoryViewModel(
     private val deviceApi: DeviceApi,
     private val eventApi: EventApi,
+    private val bleClient: BleClient? = null,
+    coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
 ) : ViewModel() {
+    private val scope = coroutineScope ?: viewModelScope
     private val _uiState = MutableStateFlow(HistoryUiState())
     val uiState: StateFlow<HistoryUiState> = _uiState.asStateFlow()
 
+    private val eventProxy: BleEventProxy? =
+        if (bleClient != null && bleClient.isSupported) {
+            BleEventProxy(eventApi, bleClient)
+        } else {
+            null
+        }
+
     init {
-        viewModelScope.launch {
+        scope.launch {
             try {
                 // MVP de um único dispositivo, mesma simplificação de HomeViewModel (APP-04).
                 val deviceId = deviceApi.listar().firstOrNull()?.id
@@ -43,6 +55,16 @@ class HistoryViewModel(
                     _uiState.update { it.copy(loading = false) }
                     return@launch
                 }
+
+                // UC-14 — sincroniza eventos pendentes via BLE antes de listar
+                if (eventProxy != null) {
+                    try {
+                        eventProxy.sincronizar(deviceId)
+                    } catch (_: Exception) {
+                        // BLE desconectado ou indisponível: segue fluxo normal via nuvem
+                    }
+                }
+
                 val estatisticas = eventApi.obterEstatisticas(deviceId)
                 val primeiraPagina = eventApi.listarEventos(deviceId, page = 0, size = PAGE_SIZE)
                 _uiState.update {
@@ -67,7 +89,7 @@ class HistoryViewModel(
         if (!state.hasMore || state.loadingMore) return
 
         _uiState.update { it.copy(loadingMore = true) }
-        viewModelScope.launch {
+        scope.launch {
             try {
                 val proximaPagina = eventApi.listarEventos(deviceId, page = state.page + 1, size = PAGE_SIZE)
                 _uiState.update {

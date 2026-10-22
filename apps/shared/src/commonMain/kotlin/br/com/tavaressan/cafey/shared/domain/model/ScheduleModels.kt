@@ -11,6 +11,7 @@ data class CriarAgendamentoRequest(
     val diasSemana: Short,
     val ativo: Boolean = true,
     val duracaoPreparoS: Int? = null,
+    val descricao: String? = null,
 )
 
 @Serializable
@@ -19,6 +20,7 @@ data class AtualizarAgendamentoRequest(
     val diasSemana: Short? = null,
     val ativo: Boolean? = null,
     val duracaoPreparoS: Int? = null,
+    val descricao: String? = null,
 )
 
 @Serializable
@@ -29,6 +31,7 @@ data class AgendamentoResponse(
     val diasSemana: Short,
     val ativo: Boolean,
     val duracaoPreparoS: Int? = null,
+    val descricao: String? = null,
     val criadoEm: String,
     val atualizadoEm: String,
 )
