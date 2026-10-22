@@ -22,6 +22,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -119,7 +120,8 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
                     confirmDelete = false
                     viewModel.delete()
                 }) {
-                    Text("Excluir", color = CafeyTheme.colors.brandDeep)
+                    // O diálogo segue o tema; brandDeep sobre o surface escuro fica ilegível.
+                    Text("Excluir", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
