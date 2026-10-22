@@ -7,15 +7,10 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.graphics.Color
 
 private val LocalCafeyColors = staticCompositionLocalOf { CafeyLightColors }
 private val LocalCafeyTypography = staticCompositionLocalOf<CafeyTypography?> { null }
 private val LocalCafeyShapes = staticCompositionLocalOf { CafeyDefaultShapes }
-
-// Brand usado como texto no tema escuro (`.theme-dark .tabbar__item.is-on` de cafey.css): o
-// `--brand` (#A33A21) sobre o ground escuro dá ~2,7:1, abaixo dos 4,5:1 exigidos para texto.
-private val BrandTextOnDark = Color(0xFFD9603F)
 
 /** Acesso à paleta corrente do tema Caféy: `CafeyTheme.colors.brand`, etc. */
 object CafeyTheme {
@@ -63,7 +58,9 @@ fun CafeyTheme(
 private fun materialColorScheme(colors: CafeyColors, darkTheme: Boolean): ColorScheme {
     val base = if (darkTheme) darkColorScheme() else lightColorScheme()
     return base.copy(
-        primary = if (darkTheme) BrandTextOnDark else colors.brand,
+        // No escuro, o brand (#A33A21) como texto daria ~2,7:1 sobre o ground; usa o brandDeep,
+        // que o tema escuro clareia para texto.
+        primary = if (darkTheme) colors.brandDeep else colors.brand,
         onPrimary = colors.brandOn,
         background = colors.ground,
         onBackground = colors.ink,
