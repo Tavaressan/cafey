@@ -8,9 +8,12 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection
+import org.springframework.core.io.ClassPathResource
 import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.data.domain.PageRequest
 import org.springframework.jdbc.core.JdbcTemplate
+import org.springframework.jdbc.datasource.DataSourceUtils
+import org.springframework.jdbc.datasource.init.ScriptUtils
 import org.springframework.test.context.ActiveProfiles
 import org.springframework.transaction.annotation.Transactional
 import org.testcontainers.containers.PostgreSQLContainer
@@ -21,7 +24,7 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * Suíte de integração que roda as migrações Flyway reais (V1..V8) contra um
+ * Suíte de integração que roda as migrações Flyway reais (V1..V9) contra um
  * PostgreSQL real via Testcontainers, validando recursos específicos do
  * banco (citext, tipos de data, índices únicos) que o H2 usado nos testes
  * unitários não reproduz fielmente.
@@ -48,13 +51,49 @@ class PostgresIntegrationTest {
     private lateinit var eventoPreparoRepository: EventoPreparoRepository
 
     @Test
-    fun `flyway aplica as migracoes V1 a V8 no schema_version`() {
+    fun `flyway aplica as migracoes V1 a V9 no schema_version`() {
         val versions = jdbcTemplate.queryForList(
             "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank",
             String::class.java,
         )
 
-        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8"), versions)
+        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9"), versions)
+    }
+
+    @Test
+    @Transactional
+    fun `migration V9 corrige timezone legado nao suportado e preserva os suportados`() {
+        val invalidoId = UUID.randomUUID()
+        val validoId = UUID.randomUUID()
+        jdbcTemplate.update(
+            "INSERT INTO dispositivos (id, nome, timezone) VALUES (?, ?, ?), (?, ?, ?)",
+            invalidoId,
+            "Timezone legado inválido",
+            "BRT",
+            validoId,
+            "Timezone válido",
+            "America/Manaus",
+        )
+
+        val dataSource = requireNotNull(jdbcTemplate.dataSource)
+        val connection = DataSourceUtils.getConnection(dataSource)
+        try {
+            ScriptUtils.executeSqlScript(
+                connection,
+                ClassPathResource("db/migration/V9__corrigir_timezone_dispositivo_nao_suportado.sql")
+            )
+        } finally {
+            DataSourceUtils.releaseConnection(connection, dataSource)
+        }
+
+        val timezones = jdbcTemplate.queryForList(
+            "SELECT timezone FROM dispositivos WHERE id IN (?, ?) ORDER BY id",
+            String::class.java,
+            invalidoId,
+            validoId,
+        )
+        assertEquals(1, timezones.count { it == "America/Sao_Paulo" })
+        assertEquals(1, timezones.count { it == "America/Manaus" })
     }
 
     @Test

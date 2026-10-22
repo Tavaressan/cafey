@@ -368,7 +368,7 @@ Quando a base está sem internet mas o celular está conectado, o aplicativo atu
 | serial | text | Identificador do ESP32, único |
 | apelido | text | Ex.: "cafeteira da cozinha" |
 | firmware | text | Versão instalada |
-| timezone | text | IANA, ex. `America/Sao_Paulo` (referência para o NTP do ESP32) |
+| timezone | text | Identificador IANA suportado pelo firmware (atualmente, 16 zonas brasileiras, `UTC` e `Etc/UTC`); padrão `America/Sao_Paulo` |
 | estado | text | Espelho do tópico MQTT `estado` (`OCIOSO`, `PREPARANDO`, etc.) |
 | ultimo_visto | timestamptz | Atualizado pelo tópico MQTT de saúde |
 | ciclos_desde_descalcificacao | int | default 0 (base do alerta de manutenção) |

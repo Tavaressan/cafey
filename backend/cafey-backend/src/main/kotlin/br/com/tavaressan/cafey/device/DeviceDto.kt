@@ -27,6 +27,7 @@ data class CriarDispositivoRequest(
 
     @field:Size(max = TIMEZONE_MAX, message = "Timezone deve ter no máximo 50 caracteres")
     @field:Pattern(regexp = NAO_EM_BRANCO, message = "Timezone não pode ser vazio")
+    @field:TimezoneSuportado
     val timezone: String? = null,
 
     @field:Min(value = 30, message = "Duração de preparo deve ter no mínimo 30s")
@@ -44,6 +45,7 @@ data class AtualizarDispositivoRequest(
 
     @field:Size(max = TIMEZONE_MAX, message = "Timezone deve ter no máximo 50 caracteres")
     @field:Pattern(regexp = NAO_EM_BRANCO, message = "Timezone não pode ser vazio")
+    @field:TimezoneSuportado
     val timezone: String? = null,
 
     @field:Min(value = 30, message = "Duração de preparo deve ter no mínimo 30s")

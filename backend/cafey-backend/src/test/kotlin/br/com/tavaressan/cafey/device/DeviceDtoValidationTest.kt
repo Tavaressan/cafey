@@ -102,10 +102,12 @@ class DeviceDtoValidationTest {
     // --- timezone ---
 
     @Test
-    fun `should accept timezone with exactly 50 characters`() {
-        val timezone = "a".repeat(50)
-        assertTrue(validator.validate(criar(timezone = timezone)).isEmpty())
-        assertTrue(validator.validate(atualizar(timezone = timezone)).isEmpty())
+    fun `should accept timezone supported by firmware`() {
+        val timezones = listOf("America/Sao_Paulo", "America/Manaus", "UTC", "Etc/UTC")
+        timezones.forEach { timezone ->
+            assertTrue(validator.validate(criar(timezone = timezone)).isEmpty())
+            assertTrue(validator.validate(atualizar(timezone = timezone)).isEmpty())
+        }
     }
 
     @Test
@@ -128,6 +130,13 @@ class DeviceDtoValidationTest {
             listOf("Timezone não pode ser vazio"),
             validator.validate(atualizar(timezone = timezone)).map { it.message }
         )
+    }
+
+    @Test
+    fun `should reject timezone not supported by firmware in both DTOs`() {
+        val message = "Timezone não suportado pelo dispositivo"
+        assertEquals(listOf(message), validator.validate(criar(timezone = "BRT")).map { it.message })
+        assertEquals(listOf(message), validator.validate(atualizar(timezone = "BRT")).map { it.message })
     }
 
     // --- nome ---

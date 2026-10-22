@@ -308,7 +308,7 @@ O teto de 900 s é o mesmo de `ComandoRequest`. Os tamanhos 255 e 50 são os das
 
 **Description:**
 
-`timezone` tem no máximo 50 caracteres (o tamanho da coluna) e, se informado, não pode ser vazio nem só espaços, no POST e no PUT. Sem `timezone`, o POST usa `America/Sao_Paulo` e o PUT não altera. Motivo da recusa de fuso em branco: desde o commit `700d3a8` (PR #221), mudar o timezone republica na hora o payload retido de agendamentos, então um fuso em branco chegaria ao firmware. A validação de fuso IANA continua fora do escopo (Non-Goals). (origem: #215)
+`timezone` tem no máximo 50 caracteres (o tamanho da coluna) e, se informado, não pode ser vazio nem só espaços, no POST e no PUT. Sem `timezone`, o POST usa `America/Sao_Paulo` e o PUT não altera. Motivo da recusa de fuso em branco: desde o commit `700d3a8` (PR #221), mudar o timezone republica na hora o payload retido de agendamentos, então um fuso em branco chegaria ao firmware. A validação de fuso IANA ficou fora do escopo original da #215; a issue #253 depois definiu a allowlist limitada aos identificadores suportados pelo firmware.
 
 **Acceptance Criteria:**
 
