@@ -1,8 +1,12 @@
 package br.com.tavaressan.cafey.exception
 
 import br.com.tavaressan.cafey.controller.TestController
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.extension.ExtendWith
+import org.springframework.boot.test.system.CapturedOutput
+import org.springframework.boot.test.system.OutputCaptureExtension
 import org.springframework.http.HttpMethod
 import org.springframework.http.MediaType
 import org.springframework.test.web.servlet.MockMvc
@@ -78,6 +82,20 @@ class GlobalExceptionHandlerTest {
             .andExpect(jsonPath("$.title").value("Internal Server Error"))
             .andExpect(jsonPath("$.status").value(500))
             .andExpect(jsonPath("$.detail").value("An unexpected error occurred"))
+    }
+
+    // Issue #252 — o 500 genérico precisa deixar a exceção e o stack trace no log.
+    @Test
+    @ExtendWith(OutputCaptureExtension::class)
+    fun `should log general Exception with stack trace`(output: CapturedOutput) {
+        mockMvc.perform(get("/test/internal"))
+            .andExpect(status().isInternalServerError)
+
+        assertThat(output.out)
+            .contains("ERROR")
+            .contains("Erro não tratado em uri=/test/internal")
+            .contains("java.lang.RuntimeException: Test internal error")
+            .contains("at br.com.tavaressan.cafey.controller.TestController.internal")
     }
 }
 
