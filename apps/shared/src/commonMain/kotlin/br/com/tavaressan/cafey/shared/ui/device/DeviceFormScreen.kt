@@ -1,5 +1,6 @@
 package br.com.tavaressan.cafey.shared.ui.device
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -232,9 +233,12 @@ private fun WifiCredentialsStep(
     )
 
     state.selectedDevice?.let { dev ->
+        // Mesmo `card--accent` do destaque de Cuidados: fundo brandTint deixava o texto `ink` ilegível
+        // no modo escuro.
         Card(
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = CafeyTheme.colors.brandTint),
+            colors = CardDefaults.cardColors(containerColor = CafeyTheme.colors.surface),
+            border = BorderStroke(1.5.dp, CafeyTheme.colors.brand),
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text("Dispositivo: ${dev.nome}", style = CafeyTheme.typography.cardTitle, color = CafeyTheme.colors.ink)
@@ -334,7 +338,8 @@ private fun ConfirmRegisterStep(
     state.deviceInfo?.let { info ->
         Card(
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = CafeyTheme.colors.brandTint),
+            colors = CardDefaults.cardColors(containerColor = CafeyTheme.colors.surface),
+            border = BorderStroke(1.5.dp, CafeyTheme.colors.brand),
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
                 Text("Número Serial da Cafeteira:", style = CafeyTheme.typography.bodySmall, color = CafeyTheme.colors.muted)
