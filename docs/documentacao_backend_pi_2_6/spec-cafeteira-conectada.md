@@ -466,6 +466,11 @@ O contador incrementa apenas em preparo com resultado `CONCLUIDO`. Preparo inter
 | UC-08 | Consultar estado atual em tempo real |
 | UC-09 | Cancelar preparo em andamento |
 
+> **Nota (22/10/2026):** pela premissa P7 (spec-backend), a cafeteira só fica ligada durante um
+> preparo temporizado. Por isso "desligar agora" (UC-07) e "cancelar preparo" (UC-09) são a mesma
+> ação. O app atende o UC-07 pelo botão "Cancelar preparo", exibido durante o preparo, e não tem
+> um botão "Desligar" separado. A ação `DESLIGAR` continua aceita pela API e pelo firmware.
+
 ### 8.3 Agendamento
 
 | ID | Caso de uso |
