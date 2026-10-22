@@ -13,8 +13,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -111,9 +111,8 @@ class ResetPasswordViewModelTest {
         viewModel.onNovaSenhaChange("novaSenhaSegura")
         viewModel.onConfirmacaoSenhaChange("novaSenhaSegura")
         viewModel.submit()
-        advanceUntilIdle()
-
-        val state = viewModel.uiState.value
+        // A chamada HTTP do MockEngine roda fora do agendador do teste; advanceUntilIdle não a espera.
+        val state = viewModel.uiState.first { it.success || it.errorMessage != null }
         assertTrue(state.success)
         assertNull(state.errorMessage)
     }
@@ -130,9 +129,8 @@ class ResetPasswordViewModelTest {
         viewModel.onNovaSenhaChange("novaSenhaSegura")
         viewModel.onConfirmacaoSenhaChange("novaSenhaSegura")
         viewModel.submit()
-        advanceUntilIdle()
-
-        val state = viewModel.uiState.value
+        // A chamada HTTP do MockEngine roda fora do agendador do teste; advanceUntilIdle não a espera.
+        val state = viewModel.uiState.first { it.success || it.errorMessage != null }
         assertFalse(state.success)
         assertEquals("Token de recuperação inválido ou expirado", state.errorMessage)
     }

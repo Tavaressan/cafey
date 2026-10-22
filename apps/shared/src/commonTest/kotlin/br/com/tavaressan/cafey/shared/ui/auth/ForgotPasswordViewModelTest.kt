@@ -13,8 +13,8 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -85,9 +85,8 @@ class ForgotPasswordViewModelTest {
 
         viewModel.onEmailChange("usuario@example.com")
         viewModel.submit()
-        advanceUntilIdle()
-
-        val state = viewModel.uiState.value
+        // A chamada HTTP do MockEngine roda fora do agendador do teste; advanceUntilIdle não a espera.
+        val state = viewModel.uiState.first { it.successMessage != null || it.errorMessage != null }
         assertNull(state.emailError)
         assertNull(state.errorMessage)
         assertEquals("Instruções de recuperação enviadas com sucesso.", state.successMessage)
@@ -103,9 +102,8 @@ class ForgotPasswordViewModelTest {
 
         viewModel.onEmailChange("usuario@example.com")
         viewModel.submit()
-        advanceUntilIdle()
-
-        val state = viewModel.uiState.value
+        // A chamada HTTP do MockEngine roda fora do agendador do teste; advanceUntilIdle não a espera.
+        val state = viewModel.uiState.first { it.successMessage != null || it.errorMessage != null }
         assertNull(state.successMessage)
         assertEquals("Muitas tentativas. Aguarde 1 minuto.", state.errorMessage)
     }
