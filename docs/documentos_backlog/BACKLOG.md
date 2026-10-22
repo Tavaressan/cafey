@@ -1,7 +1,9 @@
 # Backlog — Cafey
 
 Derivado de `docs/spec-cafeteira-conectada.md` (v1.1), `docs/spec-backend.md`
-(v1.1), `STATUS.md` e `README.md`. Posição de referência: 01/09/2026, Fase 1.
+(v1.1), `STATUS.md` e `README.md`. O planejamento de fases foi definido em
+01/09/2026; os marcos do EnGeTec foram atualizados conforme o calendário oficial
+em 22/10/2026.
 
 ## Convenções
 
@@ -21,11 +23,14 @@ isolamento elétrico.
 | Data | Critério | Itens que o compõem |
 |---|---|---|
 | 04/09 | Relé aciona carga por comando do ESP32; backend autentica ponta a ponta | HW-05, BE-04 |
-| 20/09 | Artigo submetido ao EnGeTec | ART-12 |
+| 10/11 | Encerramento das submissões do EnGeTec 2026 | ART-13 |
+| 27–28/11 | Apresentações dos artigos aprovados no EnGeTec 2026 | ART-14 |
 | 25/09 | Comando do mobile chega à base via AWS IoT | APP-04, BE-08, FW-10 |
 | 02/10 | Montagem elétrica validada por profissional | HW-16 |
 | 09/10 | Agendamento dispara offline; histórico com eventos reais | FW-14, BE-12 |
 | 16/10 | Projeto pronto para a banca | DOC-06 |
+
+Calendário oficial do 9º EnGeTec 2026: submissões de 08/09 a 10/11; evento em 27 e 28/11. Fonte: [site oficial do EnGeTec](https://engetec.fateczl.edu.br/).
 
 ---
 
@@ -33,7 +38,7 @@ isolamento elétrico.
 
 | ID | Item | Fase | Depende | Prio |
 |---|---|---|---|---|
-| HW-01 | Comprar componentes: cafeteira Britânia CP30, módulo de relé de gatilho alto, HLK-PM01, fusível 8 A, tomada fêmea e cabo NBR 14136, botão, LED RGB cátodo comum | 1 | — | crítico |
+| HW-01 | Comprar os itens ainda pendentes da lista revisada em `docs/lista-compras-cafeteira.md`, após conferir o estoque | 1 | — | crítico |
 | HW-02 | Conferir serigrafia do DevKit pino a pino contra o símbolo `ESP32_30pin` | 1 | HW-01 | |
 | HW-03 | Conferir ordem VCC/GND/IN e NC/COM/NO na serigrafia do módulo de relé (trocar COM com NO inverte a lógica) | 1 | HW-01 | |
 | HW-04 | Identificar as pernas físicas do LED RGB com multímetro em teste de diodo | 1 | HW-01 | |
@@ -62,7 +67,7 @@ O firmware é desenvolvido em **C++** sobre o framework oficial **ESP-IDF** (com
 |---|---|---|---|---|
 | FW-01 | Esqueleto ESP-IDF em C++: CMake configurado para C++, `idf.py`, menuconfig, particionamento de flash, ponto de entrada `app_main` (`extern "C"`) e estrutura com `.cpp`/`.hpp`, build no DevKit | 1 | — | |
 | FW-02 | Estrutura de Active Objects em classes C++ sobre FreeRTOS: Cafeteira, Conectividade, Agendador, cada um com fila própria e encapsulamento orientado a objetos | 2 | FW-01 | |
-| FW-03 | Driver do relé em C++ em GPIO26 com gatilho alto e pull-down; verificar ausência de acionamento espúrio no boot | 1 | FW-01, HW-03 | crítico |
+| FW-03 | Driver do relé em C++ no GPIO26: ativo em LOW, ocioso em HIGH com R1 pull-up; prevenir acionamento espúrio no boot | 1 | FW-01, HW-03 | crítico |
 | FW-04 | Driver do botão em C++ em GPIO27: toque curto liga/desliga, toque durante preparo cancela; evento com origem `BOTAO` | 2 | FW-02 | crítico |
 | FW-05 | Driver do LED RGB em C++ conforme §5.3: cor indica estado da cafeteira, piscar indica problema de rede | 2 | FW-02, HW-04 | |
 | FW-06 | Persistência em NVS em C++: agendamentos e fila circular de eventos, com mutex / RAII lock no acesso | 2 | FW-02 | crítico |
@@ -145,15 +150,15 @@ Segue a ordem de execução do §10 da especificação do backend.
 | ART-03 | Resolver com o professor as duas dúvidas do template: primeira página aparentemente ausente e uso de livros nas referências | 1 | — | crítico |
 | ART-04 | Preâmbulo: título, resumo e palavras-chave em português, inglês e espanhol, com no máximo 180 palavras por resumo | 2 | ART-03 | crítico |
 | ART-05 | Seção 1 — Introdução (sem subtítulos, conforme o template) | 2 | ART-03 | crítico |
-| ART-06 | Seção 2 — Fundamentação Teórica, subseções 2.1 a 2.5 | 2 | ART-05 | crítico |
+| ART-06 | Seção 2 — Fundamentação Teórica, subseções 2.1 a 2.6 | 2 | ART-05 | crítico |
 | ART-07 | Seção 3 — Materiais e Métodos, subseções 3.1 a 3.6 | 2 | ART-06 | crítico |
-| ART-08 | Seção 4 — Resultados e Discussões, subseções 4.1 a 4.4 | 2 | HW-05, ART-07 | crítico |
+| ART-08 | Seção 4 — Resultados e Discussão, subseções 4.1 a 4.5 | 2 | HW-05, ART-07 | crítico |
 | ART-09 | Seção 5 — Considerações Finais | 2 | ART-08 | crítico |
-| ART-10 | Referências em norma única (ABNT ou APA) mantida em todo o texto | 2 | ART-09 | crítico |
+| ART-10 | Referências pela ABNT NBR 6023 e citações autor-data pela NBR 10520/2023 | 2 | ART-09 | crítico |
 | ART-11 | Declaração de responsabilidade e declaração de uso (ou não uso) de IA; apagar o parágrafo de fundo amarelo | 2 | ART-10 | crítico |
 | ART-12 | Revisão de formatação contra o template: fontes, espaçamentos, margens, figuras e tabelas | 2 | ART-11 | crítico |
-| ART-13 | Submissão — **marco 20/09** | 2 | ART-12 | crítico |
-| ART-14 | Apresentação no evento (requisito para o certificado e para os anais) | 4 | ART-13 | |
+| ART-13 | Submissão — **prazo oficial 10/11/2026** | 2 | ART-12 | crítico |
+| ART-14 | Apresentação no evento — **27–28/11/2026** (requisito para o certificado e para os anais) | 4 | ART-13 | |
 
 ---
 
@@ -194,9 +199,10 @@ HW-01 ─┬─ HW-02/03/04 ── HW-05 (marco 04/09)
 BE-01 ── BE-02 ── BE-03 ── BE-04 (marco 04/09) ── BE-10 ── BE-13
 FW-01 ── FW-02 ── FW-09 ── FW-10 ─┬─ FW-11/12/13
                                   └─ BE-11 ── APP-04 (marco 25/09)
-ART-03 ── ART-05..12 ── ART-13 (marco 20/09)
+ART-03 ── ART-05..12 ── ART-13 (prazo oficial 10/11/2026)
 ```
 
-A compra dos componentes (HW-01) é o gargalo declarado no `README.md`: bloqueia
-bancada, desenho mecânico e validação elétrica ao mesmo tempo. As trilhas de
-backend, aplicativos e artigo não dependem dela.
+As compras de HW-01 continuam pendentes segundo `STATUS.md` e
+`docs/lista-compras-cafeteira.md`. Isso bloqueia a montagem e a validação física
+que dependem das peças. As trilhas de backend, aplicativos e artigo não dependem
+dessa compra.
