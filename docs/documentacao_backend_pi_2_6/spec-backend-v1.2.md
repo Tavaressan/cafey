@@ -147,7 +147,7 @@ Revisão de `spec-cafeteira-conectada.md` §7.2. As mudanças estão marcadas.
 | serial | text | Único; identificador do ESP32 |
 | apelido | text | |
 | firmware | text | |
-| timezone | text | **Novo.** IANA, ex. `America/Sao_Paulo` |
+| timezone | text | **Novo.** Identificador IANA suportado pelo firmware; atualmente, 16 zonas brasileiras e `UTC`/`Etc/UTC`. Padrão: `America/Sao_Paulo`. |
 | estado | text | **Novo.** Espelho do tópico `estado` |
 | ultimo_visto | timestamptz | Do tópico `saude` |
 | ciclos_desde_descalcificacao | int | `default 0` |
@@ -158,10 +158,13 @@ Revisão de `spec-cafeteira-conectada.md` §7.2. As mudanças estão marcadas.
 `timezone` fecha a lacuna do §7.2 original: `agendamentos.hora` era `time` sem
 referência de fuso, e o ESP32 sincroniza NTP em UTC. Sem esse campo, "07:00" não
 tem significado definido — o dispositivo precisa de uma referência explícita
-para converter. Guardar o identificador IANA em vez de um deslocamento fixo
-mantém a informação estável se o aparelho mudar de região ou se as regras de
-fuso do país forem alteradas: o identificador continua válido, apenas a base de
-dados de fusos é atualizada.
+para converter. O campo armazena um identificador IANA, mas o firmware atual não
+inclui a base completa de fusos: backend e firmware aceitam apenas as 16 zonas
+brasileiras implementadas em `firmware/main/app/timezone_offset.cpp`, além de
+`UTC` e `Etc/UTC`. Ao adicionar fusos, os dois allowlists precisam ser atualizados
+juntos; uma zona desconhecida no firmware faria os agendamentos serem avaliados
+em UTC. Portanto, a validação da API rejeita qualquer identificador fora do
+conjunto suportado.
 
 `limiar_descalcificacao` resolve a pendência 6 do §13 da especificação, com
 default no meio da faixa de 60 a 90 ciclos citada no §7.3.
