@@ -17,7 +17,7 @@ Execução individual, oito semanas. Hardware e software avançam em paralelo, m
 | ✅ | Decisões de hardware fechadas (alimentação, relé, LED, proteção, pinagem) |
 | ✅ | Esquemático KiCad validado nó a nó contra a especificação |
 | ✅ | Repositório e documentação de estado |
-| ✅ | Compra dos componentes |
+| ✅ | Compra do kit inicial de bancada (ESP32, módulo de relé e itens de prototipagem) |
 | ✅ | Conferência de bancada: serigrafia do DevKit, pinagem do módulo de relé, pernas do LED |
 | ✅ | Protótipo do relé em bancada acionado pelo ESP32 |
 | ✅ | Esqueleto do backend com autenticação |

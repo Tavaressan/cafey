@@ -18,19 +18,20 @@ Contexto do parque instalado de cafeteiras não programáveis; a alternativa usu
 3. Materiais e Métodos
  
 3.1 Critérios de seleção do aparelho-alvo (chave mecânica com travamento, potência, plugue NBR 14136)
-3.2 Arquitetura do módulo: ESP32, relé, fonte AC-DC embarcada, LED, botão
+3.2 Arquitetura do módulo: ESP32, relé, fonte AC-DC embarcada, LED e botão
 3.3 Projeto elétrico e dimensionamento do relé
 3.4 Firmware: Active Objects, persistência em NVS, agendamento local
 3.5 Contrato de tópicos MQTT e idempotência da lista de agendamentos
-3.6 Procedimento de verificação em bancada
+3.6 Procedimento de verificação e critérios de validação
  
-4. Resultados e Discussões
+4. Resultados e Discussão
  
 4.1 Esquemático consolidado e verificação por ERC/netlist
-4.2 Acionamento da carga por comando do ESP32
-4.3 Comparação com tomadas inteligentes comerciais [2, 9]
-4.4 Limitações e ameaças à validade
+4.2 Acionamento do relé e verificação funcional
+4.3 Funcionamento local, persistência e idempotência
+4.4 Comparação com tomadas inteligentes comerciais [2, 9]
+4.5 Limitações e ameaças à validade
  
 5. Considerações Finais
  
-Referências — ABNT ou APA, escolhido uma vez e mantido no texto todo. Depois delas, com duas linhas de espaço, a declaração de responsabilidade sobre conteúdo e direitos autorais, e uma das duas declarações de uso de IA (apague a que não usar, e apague o parágrafo de fundo amarelo em qualquer caso).
+Referências conforme a ABNT NBR 6023; citações no sistema autor-data conforme a NBR 10520/2023. Depois das referências, com duas linhas de espaço, a declaração de responsabilidade sobre conteúdo e direitos autorais, e uma das duas declarações de uso de IA (apague a que não usar e o parágrafo de fundo amarelo em qualquer caso).
