@@ -2,6 +2,7 @@ package br.com.tavaressan.cafey.device
 
 import br.com.tavaressan.cafey.config.AwsIotProperties
 import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.exception.ConflitoException
 import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
 import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import br.com.tavaressan.cafey.exception.ServicoIndisponivelException
@@ -9,6 +10,7 @@ import br.com.tavaressan.cafey.mapper.DispositivoMapper
 import br.com.tavaressan.cafey.mqtt.ComandoPayload
 import br.com.tavaressan.cafey.mqtt.MqttClientService
 import br.com.tavaressan.cafey.schedule.AgendamentosAlteradosEvent
+import br.com.tavaressan.cafey.user.Usuario
 import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
@@ -81,6 +83,7 @@ class DispositivoService(
         val usuario = usuarioRepository.findById(usuarioId).orElseThrow {
             ResourceNotFoundException("Usuário não encontrado")
         }
+        request.serial?.let { return vincularPorSerial(UUID.fromString(it), usuario) }
 
         val salvo = dispositivoRepository.save(dispositivoMapper.toEntity(request))
 
@@ -92,6 +95,29 @@ class DispositivoService(
         usuarioDispositivoRepository.save(vinculo)
 
         return dispositivoMapper.toResponse(salvo, PapelDispositivo.PROPRIETARIO)
+    }
+
+    /**
+     * Cadastro por BLE: o serial é o id que o backend deu à placa (nome da thing no AWS IoT), então
+     * só vincula um dispositivo que já existe. Criar com id vindo do app deixaria qualquer conta
+     * inventar ids.
+     */
+    private fun vincularPorSerial(dispositivoId: UUID, usuario: Usuario): DispositivoResponse {
+        val dispositivo = dispositivoRepository.findById(dispositivoId).orElseThrow {
+            ResourceNotFoundException("Cafeteira não reconhecida pelo servidor. Confira se ela foi registrada antes do cadastro.")
+        }
+        val proprietario = usuarioDispositivoRepository.findByDispositivoId(dispositivoId)
+            .find { it.papel == PapelDispositivo.PROPRIETARIO }
+
+        if (proprietario == null) {
+            usuarioDispositivoRepository.save(
+                UsuarioDispositivo(usuario = usuario, dispositivo = dispositivo, papel = PapelDispositivo.PROPRIETARIO)
+            )
+        } else if (proprietario.usuario.id != usuario.id) {
+            throw ConflitoException("Esta cafeteira já pertence a outra conta.")
+        }
+        // Mesmo dono: recadastro idempotente; timezone e duração mudam só pelo `atualizar`, que versiona.
+        return dispositivoMapper.toResponse(dispositivo, PapelDispositivo.PROPRIETARIO)
     }
 
     @Transactional

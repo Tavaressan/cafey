@@ -225,4 +225,43 @@ class DispositivoValidacaoControllerTest @Autowired constructor(
 
         assertEquals(2, usuarioDispositivoRepository.findByUsuarioId(proprietario.id!!).size)
     }
+
+    // --- POST com serial (cadastro por BLE) ---
+
+    @Test
+    fun `POST com serial da propria cafeteira devolve o mesmo dispositivo sem duplicar`() {
+        criar("""{"nome":"Outro nome","serial":"${dispositivo.id}"}""")
+            .andExpect(status().isCreated)
+            .andExpect(jsonPath("$.id").value(dispositivo.id.toString()))
+            .andExpect(jsonPath("$.nome").value("Cafeteira Cozinha"))
+
+        assertEquals(1, usuarioDispositivoRepository.findByUsuarioId(proprietario.id!!).size)
+    }
+
+    @Test
+    fun `POST com serial de cafeteira de outra conta deve responder 409`() {
+        val outra = usuarioRepository.save(
+            Usuario(nome = "Outra Conta", email = "outra-${UUID.randomUUID()}@cafey.com", senhaHash = "hash")
+        )
+        try {
+            mockMvc.perform(
+                post("/dispositivos")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtTokenService.generateAccessToken(outra.id!!, outra.email))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("""{"nome":"Minha","serial":"${dispositivo.id}"}""")
+            )
+                .andExpect(status().isConflict)
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("Esta cafeteira já pertence a outra conta."))
+        } finally {
+            usuarioRepository.delete(outra)
+        }
+    }
+
+    @Test
+    fun `POST com serial que nao e UUID deve responder 400`() {
+        // Quando a leitura BLE falha, o app usa o endereço MAC como serial.
+        criar("""{"nome":"Minha","serial":"84:1F:E8:69:97:1C"}""")
+            .expectValidationFailed("serial", "Serial da cafeteira inválido")
+    }
 }
