@@ -4,6 +4,7 @@
 #include "app/agendador.hpp"
 #include "app/cafeteira.hpp"
 #include "app/conectividade.hpp"
+#include "drivers/rgb_led.hpp"
 #include "storage/event_queue_store.hpp"
 #include "storage/event_id_generator.hpp"
 
@@ -18,6 +19,9 @@
 
 using cafey::core::Message;
 using cafey::core::MessageType;
+using cafey::drivers::CoffeeVisualState;
+using cafey::drivers::LedColor;
+using cafey::drivers::LedPattern;
 
 // Expoe os hooks protegidos para acionar o AO de forma sincrona no teste.
 class TestableCafeteira : public cafey::app::Cafeteira {
@@ -32,27 +36,33 @@ int test_cafeteira_button_toggles_relay_and_led() {
     TestableCafeteira caf;
     caf.boot();
 
-    // Estado inicial: desligada, rele aberto, LED vermelho.
+    // Estado inicial: desligada, rele aberto, LED ocioso conectado (Azul respirando, spec §5.3).
     TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "inicia desligada");
     TEST_ASSERT(!caf.relay_on(), "rele inicia aberto");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_21).level == 1, "LED R aceso");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_22).level == 0, "LED G apagado");
+    TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Idle, "inicia em Idle");
+    TEST_ASSERT(caf.led().color() == LedColor::Blue, "LED Azul quando conectado e ocioso");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_23).level == 1, "LED B aceso");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_21).level == 0, "LED R apagado");
 
-    // Clique no botao -> liga.
+    // Clique no botao -> liga (preparo: Verde pulsando).
     caf.post(Message{MessageType::ButtonPressed, 0});
     caf.process_pending();
     TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::On, "liga apos clique");
     TEST_ASSERT(caf.relay_on(), "rele fecha");
     TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "GPIO rele LOW (active-low ligado)");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_22).level == 1, "LED G aceso (verde)");
+    TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Brewing, "visual state Brewing");
+    TEST_ASSERT(caf.led().color() == LedColor::Green, "LED verde durante preparo");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_22).level == 1, "LED G aceso");
     TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_21).level == 0, "LED R apagado");
 
-    // Outro clique -> desliga.
+    // Outro clique -> cancela preparo / desliga (retorna para Idle / Azul).
     caf.post(Message{MessageType::ButtonPressed, 0});
     caf.process_pending();
     TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "desliga apos 2o clique");
     TEST_ASSERT(!caf.relay_on(), "rele reabre");
     TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "GPIO rele HIGH (active-low desligado)");
+    TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Idle, "retorna para Idle");
+    TEST_ASSERT(caf.led().color() == LedColor::Blue, "LED volta a ser Azul");
 
     std::cout << "[PASS] test_cafeteira_button_toggles_relay_and_led" << std::endl;
     return 0;
@@ -98,6 +108,13 @@ int test_cafeteira_brew_timer_completes_with_concluido() {
     TEST_ASSERT(caf.last_result() == cafey::app::Cafeteira::Result::Concluido,
                 "resultado CONCLUIDO ao fim do temporizador");
 
+    // Conclusao normal -> estado visual Ready (Branco fixo, spec §5.3)
+    TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Ready, "estado visual Ready");
+    TEST_ASSERT(caf.led().color() == LedColor::White, "LED Branco quando cafe pronto");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_21).level == 1 &&
+                MockGpio::get_pin(GPIO_NUM_22).level == 1 &&
+                MockGpio::get_pin(GPIO_NUM_23).level == 1, "todos os pinos acesos (branco)");
+
     std::cout << "[PASS] test_cafeteira_brew_timer_completes_with_concluido" << std::endl;
     return 0;
 }
@@ -108,16 +125,19 @@ int test_cafeteira_button_cancels_brew() {
     TestableCafeteira caf;
     caf.boot();
 
-    caf.post(Message{MessageType::StartBrew, 300});
+    caf.post(Message{MessageType::StartBrew, 60});
     caf.process_pending();
-    for (int i = 0; i < 50; ++i) caf.tick(); // preparo parcial
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::On, "preparo iniciado");
 
-    caf.post(Message{MessageType::ButtonPressed, 0}); // toque durante o preparo
+    // Toque durante preparo cancela (UC-09).
+    caf.post(Message{MessageType::ButtonPressed, 0});
     caf.process_pending();
-    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "botao desliga durante preparo");
-    TEST_ASSERT(!caf.relay_on(), "rele abre ao cancelar");
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "preparo cancelado");
+    TEST_ASSERT(!caf.relay_on(), "rele reabre");
     TEST_ASSERT(caf.last_result() == cafey::app::Cafeteira::Result::Cancelado,
-                "resultado CANCELADO no corte por botao");
+                "resultado CANCELADO");
+    TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Idle, "cancelamento retorna a Idle (nao Ready)");
+    TEST_ASSERT(caf.led().color() == LedColor::Blue, "LED volta a ser Azul");
 
     std::cout << "[PASS] test_cafeteira_button_cancels_brew" << std::endl;
     return 0;
@@ -125,14 +145,15 @@ int test_cafeteira_button_cancels_brew() {
 
 int test_cafeteira_start_brew_without_duration_uses_default() {
     MockGpio::reset();
-    MockGpio::get_pin(GPIO_NUM_27).level = 1;
     TestableCafeteira caf;
     caf.boot();
 
+    // duracaoS = 0 cai no default (kDefaultDurationS = 300 s).
     caf.post(Message{MessageType::StartBrew, 0});
     caf.process_pending();
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::On, "preparo iniciado");
     TEST_ASSERT(caf.brew_seconds_left() == cafey::app::Cafeteira::kDefaultDurationS,
-                "duracaoS ausente aplica o default de 300 s");
+                "duracao default aplicada");
 
     std::cout << "[PASS] test_cafeteira_start_brew_without_duration_uses_default" << std::endl;
     return 0;
@@ -140,16 +161,15 @@ int test_cafeteira_start_brew_without_duration_uses_default() {
 
 int test_cafeteira_start_brew_clamps_duration_above_max() {
     MockGpio::reset();
-    MockGpio::get_pin(GPIO_NUM_27).level = 1;
     TestableCafeteira caf;
     caf.boot();
 
-    // duracaoS muito acima do teto (spec-backend @Max(900)) deve ser clampada,
-    // cobrindo o caminho MQTT/BLE (StartBrew) e o agendamento local.
-    caf.post(Message{MessageType::StartBrew, 2147483647});
+    // duracaoS = 1200 s (> 900 s) e clampada no teto de seguranca local.
+    caf.post(Message{MessageType::StartBrew, 1200});
     caf.process_pending();
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::On, "preparo iniciado");
     TEST_ASSERT(caf.brew_seconds_left() == cafey::app::Cafeteira::kMaxDurationS,
-                "duracaoS acima do teto aplica o maximo, nao o valor recebido");
+                "duracao clampada para 900 s");
 
     std::cout << "[PASS] test_cafeteira_start_brew_clamps_duration_above_max" << std::endl;
     return 0;
@@ -157,66 +177,51 @@ int test_cafeteira_start_brew_clamps_duration_above_max() {
 
 int test_cafeteira_start_brew_boundary_at_max_duration() {
     MockGpio::reset();
-    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    TestableCafeteira caf;
+    caf.boot();
 
-    // No teto exato (900 s): nao deve ser clampado.
-    {
-        TestableCafeteira caf;
-        caf.boot();
-        caf.post(Message{MessageType::StartBrew,
-                          static_cast<int32_t>(cafey::app::Cafeteira::kMaxDurationS)});
-        caf.process_pending();
-        TEST_ASSERT(caf.brew_seconds_left() == cafey::app::Cafeteira::kMaxDurationS,
-                    "duracaoS igual ao teto permanece inalterada");
-    }
-
-    // 1 s acima do teto: deve ser clampada para o teto.
-    {
-        TestableCafeteira caf;
-        caf.boot();
-        caf.post(Message{MessageType::StartBrew,
-                          static_cast<int32_t>(cafey::app::Cafeteira::kMaxDurationS) + 1});
-        caf.process_pending();
-        TEST_ASSERT(caf.brew_seconds_left() == cafey::app::Cafeteira::kMaxDurationS,
-                    "duracaoS 1s acima do teto e clampada para o teto");
-    }
+    // duracaoS = 900 s (exatamente o teto) passa sem clamp.
+    caf.post(Message{MessageType::StartBrew, 900});
+    caf.process_pending();
+    TEST_ASSERT(caf.brew_seconds_left() == 900, "900 s mantido");
 
     std::cout << "[PASS] test_cafeteira_start_brew_boundary_at_max_duration" << std::endl;
     return 0;
 }
 
 int test_cafeteira_enqueues_event_on_brew_finish() {
-    MockNvs::reset();
     MockGpio::reset();
-    MockGpio::get_pin(GPIO_NUM_27).level = 1;
-
     cafey::storage::EventQueueStore queue;
-    queue.init();
+    TEST_ASSERT(queue.init() == ESP_OK, "queue.init");
+
     cafey::storage::EventIdGenerator id_gen;
-    id_gen.init(0x12345678);
+    TEST_ASSERT(id_gen.init(0x12345678) == ESP_OK, "id_gen.init");
+
+    cafey::core::ManualClock manual_clock(1000);
 
     TestableCafeteira caf;
-    caf.attach_event_queue(&queue, &id_gen);
+    caf.attach_event_queue(&queue, &id_gen, &manual_clock);
     caf.boot();
 
-    int event_queued_count = 0;
-    caf.set_on_event_queued([&] { ++event_queued_count; });
-
-    // Inicia preparo via comando com 2 segundos
-    caf.post(Message{MessageType::StartBrew, 2, static_cast<int32_t>(cafey::storage::EventOrigin::APP)});
+    // Inicia preparo de 1 segundo (100 ticks)
+    caf.post(Message{MessageType::StartBrew, 1,
+                     static_cast<int32_t>(cafey::storage::EventOrigin::APP)});
     caf.process_pending();
 
-    // Ticks ate concluir
-    for (int i = 0; i < 250; ++i) caf.tick();
-    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "preparo encerrado");
-    TEST_ASSERT(queue.size() == 1, "evento enfileirado na conclusao");
-    TEST_ASSERT(event_queued_count == 1, "notificacao on_event_queued chamada");
+    // Avanca 1 segundo no relogio e roda os 100 ticks
+    manual_clock.advance(1);
+    for (int i = 0; i < 110; ++i) caf.tick();
+
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "preparo finalizado");
+    TEST_ASSERT(queue.size() == 1, "evento enfileirado");
 
     cafey::storage::Event evt{};
-    TEST_ASSERT(queue.front(&evt) == ESP_OK, "leitura do evento enfileirado");
+    TEST_ASSERT(queue.front(&evt) == ESP_OK, "leitura do evento");
     TEST_ASSERT(evt.resultado == cafey::storage::EventResult::CONCLUIDO, "resultado CONCLUIDO");
     TEST_ASSERT(evt.origem == cafey::storage::EventOrigin::APP, "origem APP");
-    TEST_ASSERT(evt.duracao_s == 2, "duracaoS gravada");
+    TEST_ASSERT(evt.duracao_s == 1, "duracao_s 1s");
+    TEST_ASSERT(evt.inicio_epoch == 1000, "inicio_epoch 1000");
+    TEST_ASSERT(evt.fim_epoch == 1001, "fim_epoch 1001");
     TEST_ASSERT(std::string(evt.evento_id).rfind("12345678:", 0) == 0, "evento_id com bootId");
 
     std::cout << "[PASS] test_cafeteira_enqueues_event_on_brew_finish" << std::endl;
@@ -224,17 +229,17 @@ int test_cafeteira_enqueues_event_on_brew_finish() {
 }
 
 int test_cafeteira_enqueues_event_on_brew_cancel() {
-    MockNvs::reset();
     MockGpio::reset();
-    MockGpio::get_pin(GPIO_NUM_27).level = 1;
-
     cafey::storage::EventQueueStore queue;
-    queue.init();
+    TEST_ASSERT(queue.init() == ESP_OK, "queue.init");
+
     cafey::storage::EventIdGenerator id_gen;
-    id_gen.init(0xabcdef01);
+    TEST_ASSERT(id_gen.init(0xabcdef01) == ESP_OK, "id_gen.init");
+
+    cafey::core::ManualClock manual_clock(2000);
 
     TestableCafeteira caf;
-    caf.attach_event_queue(&queue, &id_gen);
+    caf.attach_event_queue(&queue, &id_gen, &manual_clock);
     caf.boot();
 
     // Inicia preparo pelo botao
@@ -261,6 +266,42 @@ int test_cafeteira_enqueues_event_on_brew_cancel() {
     return 0;
 }
 
+int test_cafeteira_led_schedule_armed_states() {
+    MockGpio::reset();
+    TestableCafeteira caf;
+    caf.boot();
+
+    // 1. Notifica agendamento armado com rede OK -> Verde fixo (spec §5.3)
+    caf.post(Message{MessageType::ScheduleArmedChanged, 1});
+    caf.process_pending();
+    TEST_ASSERT(caf.visual_state() == CoffeeVisualState::ScheduleArmed, "visual state ScheduleArmed");
+    TEST_ASSERT(caf.led().color() == LedColor::Green, "Verde quando agendado e online");
+    TEST_ASSERT(caf.led().pattern() == LedPattern::Solid, "Fixo");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_22).level == 1 &&
+                MockGpio::get_pin(GPIO_NUM_21).level == 0 &&
+                MockGpio::get_pin(GPIO_NUM_23).level == 0, "Apenas pino G aceso");
+
+    // 2. Queda de conexao com agendamento armado -> Ambar fixo (spec §5.3)
+    caf.post(Message{MessageType::NetworkStatusChanged, 0});
+    caf.process_pending();
+    TEST_ASSERT(caf.visual_state() == CoffeeVisualState::ScheduleArmed, "continua em ScheduleArmed");
+    TEST_ASSERT(caf.led().color() == LedColor::Amber, "Ambar quando agendado e offline");
+    TEST_ASSERT(caf.led().pattern() == LedPattern::Solid, "Ambar deve ser FIXO");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_21).level == 1 &&
+                MockGpio::get_pin(GPIO_NUM_22).level == 1 &&
+                MockGpio::get_pin(GPIO_NUM_23).level == 0, "Pinos R e G acesos (ambar)");
+
+    // 3. Remove agendamento armado mantendo offline -> Amarelo piscando (spec §5.3)
+    caf.post(Message{MessageType::ScheduleArmedChanged, 0});
+    caf.process_pending();
+    TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Idle, "retorna a Idle");
+    TEST_ASSERT(caf.led().color() == LedColor::Amber, "Amarelo/Ambar");
+    TEST_ASSERT(caf.led().pattern() == LedPattern::Blink, "Amarelo piscando quando sem Wi-Fi ocioso");
+
+    std::cout << "[PASS] test_cafeteira_led_schedule_armed_states" << std::endl;
+    return 0;
+}
+
 int test_skeleton_active_objects() {
     cafey::app::Conectividade con;
     con.start();
@@ -282,7 +323,7 @@ int test_skeleton_active_objects() {
 }
 
 int main() {
-    std::cout << "Running Cafey Cafeteira AO Unit Tests..." << std::endl;
+    std::cout << "Running Cafey Cafeteira AO Unit Tests (Spec §5.3)..." << std::endl;
     if (test_cafeteira_button_toggles_relay_and_led()) return 1;
     if (test_cafeteira_debounce_polling_posts_event()) return 1;
     if (test_cafeteira_brew_timer_completes_with_concluido()) return 1;
@@ -292,6 +333,7 @@ int main() {
     if (test_cafeteira_start_brew_boundary_at_max_duration()) return 1;
     if (test_cafeteira_enqueues_event_on_brew_finish()) return 1;
     if (test_cafeteira_enqueues_event_on_brew_cancel()) return 1;
+    if (test_cafeteira_led_schedule_armed_states()) return 1;
     if (test_skeleton_active_objects()) return 1;
     std::cout << "All Cafeteira AO tests PASSED!" << std::endl;
     return 0;

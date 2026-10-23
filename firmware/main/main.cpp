@@ -8,7 +8,7 @@
  * Pinagem (conforme STATUS.md e esquematico KiCad):
  * - Rele (GPIO26): gatilho de nivel BAIXO (HL-52S, LOW = liga), R1 pull-up 10k externo
  * - Botao (GPIO27): pull-up externo R2 10k + C3 100nF, solto=1, pressionado=0
- * - LED RGB: catodo comum (R=21, G=22, B=23)
+ * - LED RGB: catodo comum (R=21, G=22, B=23) — cores de estado conforme spec §5.3
  */
 
 #include <string>
@@ -50,6 +50,9 @@ extern "C" void app_main(void) {
 
     ESP_LOGI(TAG, "boot - Cafey IoT (Active Objects)");
 
+    // Inicia status de rede da Cafeteira como desconectado (Amarelo piscando se ocioso, spec §5.3)
+    g_cafeteira.set_network_ok(false);
+
     // Fila da Conectividade antes de qualquer produtor (Wi-Fi, MQTT, Cafeteira):
     // post() em fila inexistente descarta a mensagem.
     g_conectividade.init();
@@ -85,19 +88,41 @@ extern "C" void app_main(void) {
     });
     g_conectividade.attach_event_queue(&event_queue_store);
 
+    static cafey::core::MqttConfigStore mqtt_config_store;
+    static cafey::core::MqttConfig mqtt_config;
+    static cafey::core::EspMqttClient mqtt_client;
+    const bool has_mqtt_config = (mqtt_config_store.load(mqtt_config) == ESP_OK);
+
+    // Notifica a Cafeteira sobre agendamentos armados (spec §5.3: Verde/Ambar fixo)
+    static const auto notify_schedules_armed = [](const cafey::storage::Schedule* list, size_t count) {
+        bool armed = false;
+        for (size_t i = 0; i < count; ++i) {
+            if (list[i].active) {
+                armed = true;
+                break;
+            }
+        }
+        g_cafeteira.post(Message{MessageType::ScheduleArmedChanged, armed ? 1 : 0});
+    };
+
     // Inicializa Wi-Fi (STA) com reconexao automatica em backoff e credenciais
     // de provisionamento persistidas em NVS (UC-04 #249). Sem credenciais gravadas,
     // fica aguardando o app/BLE provisionar via WifiManager::provision().
     static cafey::app::BleService* g_ble_service = nullptr;
     static cafey::core::WifiManager wifi_manager;
-    wifi_manager.set_on_connected_ip([](const std::string& ip) {
+    wifi_manager.set_on_connected_ip([has_mqtt_config](const std::string& ip) {
         g_conectividade.post(Message{MessageType::WifiConnected, 0});
         if (g_ble_service != nullptr) {
             g_ble_service->publish_wifi_status("CONNECTED", ip);
         }
+        // Se nao tem MQTT configurado, a conexao Wi-Fi valida o status de rede
+        if (!has_mqtt_config) {
+            g_cafeteira.post(Message{MessageType::NetworkStatusChanged, 1});
+        }
     });
     wifi_manager.set_on_disconnected_reason([](bool is_auth_failure) {
         g_conectividade.post(Message{MessageType::WifiDisconnected, 0});
+        g_cafeteira.post(Message{MessageType::NetworkStatusChanged, 0});
         if (g_ble_service != nullptr) {
             if (is_auth_failure) {
                 g_ble_service->publish_wifi_status("AUTH_FAILED", "", "Falha de autenticacao");
@@ -144,6 +169,7 @@ extern "C" void app_main(void) {
         for (size_t i = 0; i < n; ++i) loaded[i] = schedule_store.at(i);
         apply_timezone(schedule_store.timezone());
         g_agendador.set_schedules(loaded, n);
+        notify_schedules_armed(loaded, n);
     }
 
     // SNTP em background: ao sincronizar, o Agendador passa a disparar por horario
@@ -196,6 +222,7 @@ extern "C" void app_main(void) {
         }
         apply_timezone(schedule_store.timezone());
         g_agendador.set_schedules(list, count);
+        notify_schedules_armed(list, count);
         ESP_LOGI(TAG, "agendamentos versao %u aplicados: %u item(ns)",
                  static_cast<unsigned>(meta.version), static_cast<unsigned>(count));
         for (size_t i = 0; i < count; ++i) {
@@ -208,18 +235,17 @@ extern "C" void app_main(void) {
     // MQTT/TLS ao AWS IoT Core (FW-21). Endpoint, client_id (= nome da thing) e
     // certificados vem da NVS (namespace cafey_mqtt, #169); sem eles o
     // dispositivo segue com BLE e preparo local.
-    static cafey::core::MqttConfigStore mqtt_config_store;
-    static cafey::core::MqttConfig mqtt_config;
-    static cafey::core::EspMqttClient mqtt_client;
-    if (mqtt_config_store.load(mqtt_config) == ESP_OK) {
+    if (has_mqtt_config) {
         static const cafey::core::MqttTopics topics(mqtt_config.client_id);
         cafey::app::UplinkPublisher::make_last_will(topics, mqtt_config);
 
         mqtt_client.set_on_connected([] {
             g_conectividade.post(Message{MessageType::MqttConnected, 0});
+            g_cafeteira.post(Message{MessageType::NetworkStatusChanged, 1});
         });
         mqtt_client.set_on_disconnected([] {
             g_conectividade.post(Message{MessageType::MqttDisconnected, 0});
+            g_cafeteira.post(Message{MessageType::NetworkStatusChanged, 0});
         });
         mqtt_client.set_on_message([](const std::string& topic, const std::string& payload) {
             if (topic == topics.comando) {
@@ -255,11 +281,10 @@ extern "C" void app_main(void) {
         [](const cafey::app::CoffeeCommand& cmd) { handle_command(cmd); },
         [](const cafey::storage::Schedule* list, size_t count,
            const cafey::app::SchedulePayloadMeta& meta) {
-            // Mesmo caminho logico do downlink `agendamentos`: persiste e
-            // recarrega o Agendador com a lista completa (idempotente).
             schedule_store.replace_all(list, count, meta.timezone.c_str());
             apply_timezone(schedule_store.timezone());
             g_agendador.set_schedules(list, count);
+            notify_schedules_armed(list, count);
         },
         [](const std::string& ssid, const std::string& password) {
             wifi_manager.provision(ssid, password);
