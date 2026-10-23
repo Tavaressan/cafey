@@ -40,6 +40,7 @@ add_executable(test_cafeteira
     ../main/app/conectividade.cpp
     ../main/app/agendador.cpp
     ../main/drivers/relay.cpp
+    ../main/drivers/rgb_led.cpp
     ../main/storage/event_queue_store.cpp
     ../main/storage/event_id_generator.cpp
     ../main/storage/nvs_store.cpp
