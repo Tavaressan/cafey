@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -94,7 +93,6 @@ fun HomeScreen(onGoToDeviceRegister: () -> Unit = {}) {
                     commandInFlight = state.commandInFlight,
                     onPrepare = viewModel::ligar,
                     onCancel = viewModel::cancelar,
-                    onTurnOff = viewModel::desligar,
                 )
             },
             sidebar = {
@@ -315,7 +313,6 @@ private fun StageCard(
     commandInFlight: Boolean,
     onPrepare: () -> Unit,
     onCancel: () -> Unit,
-    onTurnOff: () -> Unit,
 ) {
     val (stateLabel, starColor) = when (deviceState) {
         DeviceState.Idle -> "Pronta" to CafeyTheme.colors.blue
@@ -376,15 +373,6 @@ private fun StageCard(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Preparar agora", style = CafeyTheme.typography.buttonLabel, color = CafeyTheme.colors.brandOn)
-                }
-                OutlinedButton(
-                    onClick = onTurnOff,
-                    enabled = !commandInFlight,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = CafeyTheme.colors.ink3),
-                    shape = CafeyTheme.shapes.small,
-                    modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-                ) {
-                    Text("Desligar", style = CafeyTheme.typography.body)
                 }
             }
         }

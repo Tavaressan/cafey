@@ -133,8 +133,6 @@ class HomeViewModel(
 
     fun ligar() = runCommand(AcaoComando.LIGAR)
 
-    fun desligar() = runCommand(AcaoComando.DESLIGAR)
-
     fun cancelar() = runCommand(AcaoComando.CANCELAR)
 
     // O backend responde 202 sem o estado novo: ele só publicou o comando no MQTT. Por isso
