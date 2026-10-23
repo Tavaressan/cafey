@@ -5,6 +5,7 @@ import br.com.tavaressan.cafey.event.EventoService
 import br.com.tavaressan.cafey.event.IngestaoEventoRequest
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.Instant
@@ -55,7 +56,6 @@ class MqttIngestionService(
         }
     }
 
-    @Transactional
     fun processarEvento(dispositivoId: UUID, payload: EventoPayload) {
         val req = IngestaoEventoRequest(
             eventoId = payload.eventoId,
@@ -66,6 +66,10 @@ class MqttIngestionService(
             timestamp = payload.timestamp,
             detalheErro = payload.detalheErro
         )
-        eventoService.ingestar(dispositivoId, req)
+        try {
+            eventoService.ingestar(dispositivoId, req)
+        } catch (e: DataIntegrityViolationException) {
+            logger.info("Evento concorrente duplicado ignorado: dispositivo={}, eventoId={}", dispositivoId, payload.eventoId)
+        }
     }
 }
