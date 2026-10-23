@@ -60,7 +60,7 @@ data class CompartilhamentoResponse(
     val nome: String,
     val email: String,
     val papel: PapelDispositivo,
-    val compartilhadoEm: String,
+    val compartilhadoEm: String = "",
 )
 
 /**

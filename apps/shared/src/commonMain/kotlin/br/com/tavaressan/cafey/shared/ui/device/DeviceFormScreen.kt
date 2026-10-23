@@ -470,6 +470,10 @@ private fun ManualFormStep(
     }
 
     if (!isCreate) {
+        DeviceGuestsSection(deviceId = state.deviceId!!)
+    }
+
+    if (!isCreate) {
         TextButton(
             onClick = onConfirmDelete,
             enabled = !state.saving,
