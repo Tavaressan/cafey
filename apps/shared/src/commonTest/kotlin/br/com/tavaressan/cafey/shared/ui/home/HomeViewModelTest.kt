@@ -22,12 +22,14 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlin.time.Instant
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class HomeViewModelTest {
@@ -297,5 +299,185 @@ class HomeViewModelTest {
         val stateAfter = viewModel.uiState.first { !it.loading && it.device?.id == "cafey-2" }
         assertEquals("cafey-2", stateAfter.device?.id)
         assertEquals("Caféy Escritório", stateAfter.device?.nome)
+    }
+
+    @Test
+    fun offlineDevice_setsIsOfflineTrue_andDisablesCanSendCommand() = runTest(testDispatcher) {
+        var commandRequested = false
+        val engine = MockEngine { request ->
+            when (request.url.encodedPath) {
+                "/dispositivos" -> respond(
+                    content = """
+                        [
+                            {
+                                "id": "cafey-offline",
+                                "nome": "Caféy Desconectada",
+                                "timezone": "America/Sao_Paulo",
+                                "estado": "PRONTO",
+                                "online": false,
+                                "ultimoVisto": "2026-10-26T12:00:00Z",
+                                "versaoAgendamentos": 1,
+                                "duracaoPreparoS": 300,
+                                "limiarDescalcificacao": 100,
+                                "contadorPreparos": 10,
+                                "papel": "PROPRIETARIO",
+                                "criadoEm": "2026-09-01T10:00:00Z",
+                                "atualizadoEm": "2026-10-15T21:00:00Z"
+                            }
+                        ]
+                    """.trimIndent(),
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                "/dispositivos/cafey-offline/agendamentos" -> respond(content = "[]", status = HttpStatusCode.OK, headers = jsonHeaders)
+                "/dispositivos/cafey-offline/estatisticas" -> respond(
+                    content = """{"totalPreparosConcluidos":10,"porOrigem":{},"tempoTotalPreparoSegundos":3000,"sequenciaManhasDias":0}""",
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                "/dispositivos/cafey-offline/comando" -> {
+                    commandRequested = true
+                    respond(content = "{}", status = HttpStatusCode.Accepted, headers = jsonHeaders)
+                }
+                else -> respond(content = "{}", status = HttpStatusCode.OK, headers = jsonHeaders)
+            }
+        }
+
+        val (deviceApi, commandApi, otherApis) = createApis(engine)
+        val (scheduleApi, eventApi) = otherApis
+
+        val viewModel = HomeViewModel(
+            deviceApi = deviceApi,
+            commandApi = commandApi,
+            scheduleApi = scheduleApi,
+            eventApi = eventApi,
+            coroutineScope = backgroundScope,
+        )
+
+        val state = viewModel.uiState.first { !it.loading }
+        assertTrue(state.isOffline, "Dispositivo com online=false deve definir isOffline=true")
+        assertTrue(state.isDeviceOffline, "isDeviceOffline deve refletir isOffline")
+        assertFalse(state.canSendCommand, "Dispositivo offline deve desabilitar comandos imediatos (canSendCommand=false)")
+
+        // Executar comando não deve chamar API de comando quando offline
+        viewModel.ligar()
+        assertFalse(commandRequested, "Comando não deve ser emitido quando cafeteira estiver offline")
+        assertFalse(viewModel.uiState.value.commandInFlight)
+    }
+
+    @Test
+    fun staleUltimoVisto_setsIsOfflineTrue_andDisablesCanSendCommand() = runTest(testDispatcher) {
+        val baseTimeMs = Instant.parse("2026-10-26T12:00:00Z").toEpochMilliseconds()
+        // 3 minutos após o último visto (> 2 minutos de tolerância)
+        val staleTimeMs = baseTimeMs + 3 * 60 * 1000L
+
+        val engine = MockEngine { request ->
+            when (request.url.encodedPath) {
+                "/dispositivos" -> respond(
+                    content = """
+                        [
+                            {
+                                "id": "cafey-stale",
+                                "nome": "Caféy Inativa",
+                                "timezone": "America/Sao_Paulo",
+                                "estado": "PRONTO",
+                                "online": true,
+                                "ultimoVisto": "2026-10-26T12:00:00Z",
+                                "versaoAgendamentos": 1,
+                                "duracaoPreparoS": 300,
+                                "limiarDescalcificacao": 100,
+                                "contadorPreparos": 10,
+                                "papel": "PROPRIETARIO",
+                                "criadoEm": "2026-09-01T10:00:00Z",
+                                "atualizadoEm": "2026-10-15T21:00:00Z"
+                            }
+                        ]
+                    """.trimIndent(),
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                "/dispositivos/cafey-stale/agendamentos" -> respond(content = "[]", status = HttpStatusCode.OK, headers = jsonHeaders)
+                "/dispositivos/cafey-stale/estatisticas" -> respond(
+                    content = """{"totalPreparosConcluidos":10,"porOrigem":{},"tempoTotalPreparoSegundos":3000,"sequenciaManhasDias":0}""",
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                else -> respond(content = "{}", status = HttpStatusCode.OK, headers = jsonHeaders)
+            }
+        }
+
+        val (deviceApi, commandApi, otherApis) = createApis(engine)
+        val (scheduleApi, eventApi) = otherApis
+
+        val viewModel = HomeViewModel(
+            deviceApi = deviceApi,
+            commandApi = commandApi,
+            scheduleApi = scheduleApi,
+            eventApi = eventApi,
+            coroutineScope = backgroundScope,
+            nowProvider = { staleTimeMs },
+        )
+
+        val state = viewModel.uiState.first { !it.loading }
+        assertTrue(state.isOffline, "Dispositivo com ultimoVisto > 2 min deve ser considerado offline")
+        assertFalse(state.canSendCommand, "Dispositivo com telemetria expirada não pode enviar comandos")
+    }
+
+    @Test
+    fun recentUltimoVisto_setsIsOfflineFalse_andEnablesCanSendCommand() = runTest(testDispatcher) {
+        val baseTimeMs = Instant.parse("2026-10-26T12:00:00Z").toEpochMilliseconds()
+        // 1 minuto após o último visto (dentro da tolerância de 2 minutos)
+        val freshTimeMs = baseTimeMs + 1 * 60 * 1000L
+
+        val engine = MockEngine { request ->
+            when (request.url.encodedPath) {
+                "/dispositivos" -> respond(
+                    content = """
+                        [
+                            {
+                                "id": "cafey-fresh",
+                                "nome": "Caféy Ativa",
+                                "timezone": "America/Sao_Paulo",
+                                "estado": "PRONTO",
+                                "online": true,
+                                "ultimoVisto": "2026-10-26T12:00:00Z",
+                                "versaoAgendamentos": 1,
+                                "duracaoPreparoS": 300,
+                                "limiarDescalcificacao": 100,
+                                "contadorPreparos": 10,
+                                "papel": "PROPRIETARIO",
+                                "criadoEm": "2026-09-01T10:00:00Z",
+                                "atualizadoEm": "2026-10-15T21:00:00Z"
+                            }
+                        ]
+                    """.trimIndent(),
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                "/dispositivos/cafey-fresh/agendamentos" -> respond(content = "[]", status = HttpStatusCode.OK, headers = jsonHeaders)
+                "/dispositivos/cafey-fresh/estatisticas" -> respond(
+                    content = """{"totalPreparosConcluidos":10,"porOrigem":{},"tempoTotalPreparoSegundos":3000,"sequenciaManhasDias":0}""",
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                else -> respond(content = "{}", status = HttpStatusCode.OK, headers = jsonHeaders)
+            }
+        }
+
+        val (deviceApi, commandApi, otherApis) = createApis(engine)
+        val (scheduleApi, eventApi) = otherApis
+
+        val viewModel = HomeViewModel(
+            deviceApi = deviceApi,
+            commandApi = commandApi,
+            scheduleApi = scheduleApi,
+            eventApi = eventApi,
+            coroutineScope = backgroundScope,
+            nowProvider = { freshTimeMs },
+        )
+
+        val state = viewModel.uiState.first { !it.loading }
+        assertFalse(state.isOffline, "Dispositivo com ultimoVisto recente (< 2 min) deve permanecer online")
+        assertTrue(state.canSendCommand, "Dispositivo online pode receber comandos imediatos")
     }
 }

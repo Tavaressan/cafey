@@ -74,7 +74,12 @@ fun HomeScreen(onGoToDeviceRegister: () -> Unit = {}) {
             .padding(22.dp),
     ) {
         if (state.loading) {
-            DeviceHeader(device = state.device, devices = state.devices, onSelectDevice = viewModel::selectDevice)
+            DeviceHeader(
+                device = state.device,
+                devices = state.devices,
+                isOffline = state.isOffline,
+                onSelectDevice = viewModel::selectDevice,
+            )
             Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = CafeyTheme.colors.brand)
             }
@@ -90,7 +95,16 @@ fun HomeScreen(onGoToDeviceRegister: () -> Unit = {}) {
             return@Column
         }
 
-        DeviceHeader(device = state.device, devices = state.devices, onSelectDevice = viewModel::selectDevice)
+        DeviceHeader(
+            device = state.device,
+            devices = state.devices,
+            isOffline = state.isOffline,
+            onSelectDevice = viewModel::selectDevice,
+        )
+
+        if (state.isOffline) {
+            OfflineBanner()
+        }
 
         HomeContentLayout(
             sizeClass = LocalNavShellSizeClass.current,
@@ -98,6 +112,8 @@ fun HomeScreen(onGoToDeviceRegister: () -> Unit = {}) {
                 StageCard(
                     deviceState = state.deviceState,
                     commandInFlight = state.commandInFlight,
+                    canSendCommand = state.canSendCommand,
+                    isOffline = state.isOffline,
                     onPrepare = viewModel::ligar,
                     onCancel = viewModel::cancelar,
                 )
@@ -240,11 +256,12 @@ private fun StreakCard(sequenciaManhasDias: Int) {
 private fun DeviceHeader(
     device: DispositivoResponse?,
     devices: List<DispositivoResponse> = emptyList(),
+    isOffline: Boolean = false,
     onSelectDevice: (String) -> Unit = {},
 ) {
     var expanded by remember { mutableStateOf(false) }
     val name = device?.nome ?: "Caféy"
-    val online = device?.online ?: false
+    val online = (device?.online == true) && !isOffline
     val hasMultiple = devices.size > 1
 
     Row(
@@ -375,10 +392,42 @@ private fun ErrorBanner(message: String) {
     }
 }
 
+/**
+ * Alerta visual exibido quando o dispositivo está desconectado da nuvem (via Last Will ou tolerância > 2 min).
+ */
 @Composable
-private fun StageCard(
+internal fun OfflineBanner() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp)
+            .background(CafeyTheme.colors.sunken, CafeyTheme.shapes.medium)
+            .border(1.dp, CafeyTheme.colors.line, CafeyTheme.shapes.medium)
+            .padding(16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(CafeyTheme.colors.dim),
+            )
+            Text(
+                text = "Cafeteira desconectada da nuvem",
+                color = CafeyTheme.colors.ink,
+                style = CafeyTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 10.dp),
+            )
+        }
+    }
+}
+
+@Composable
+internal fun StageCard(
     deviceState: DeviceState,
     commandInFlight: Boolean,
+    canSendCommand: Boolean = !commandInFlight,
+    isOffline: Boolean = false,
     onPrepare: () -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -423,7 +472,7 @@ private fun StageCard(
             if (deviceState == DeviceState.Brewing) {
                 Button(
                     onClick = onCancel,
-                    enabled = !commandInFlight,
+                    enabled = canSendCommand,
                     colors = ButtonDefaults.buttonColors(containerColor = CafeyTheme.colors.brand),
                     shape = CafeyTheme.shapes.small,
                     contentPadding = PaddingValues(vertical = 16.dp),
@@ -434,7 +483,7 @@ private fun StageCard(
             } else {
                 Button(
                     onClick = onPrepare,
-                    enabled = !commandInFlight,
+                    enabled = canSendCommand,
                     colors = ButtonDefaults.buttonColors(containerColor = CafeyTheme.colors.brand),
                     shape = CafeyTheme.shapes.small,
                     contentPadding = PaddingValues(vertical = 16.dp),
@@ -442,6 +491,15 @@ private fun StageCard(
                 ) {
                     Text("Preparar agora", style = CafeyTheme.typography.buttonLabel, color = CafeyTheme.colors.brandOn)
                 }
+            }
+
+            if (isOffline) {
+                Text(
+                    text = "Cafeteira desconectada. Comandos indisponíveis.",
+                    style = CafeyTheme.typography.caption,
+                    color = CafeyTheme.colors.muted,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
             }
         }
     }
