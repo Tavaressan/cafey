@@ -69,7 +69,7 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 fun ScheduleScreen() {
     val container = LocalAppContainer.current
     val viewModel = viewModel<ScheduleViewModel>(
-        factory = viewModelFactory { initializer { ScheduleViewModel(container.deviceApi, container.scheduleApi) } },
+        factory = viewModelFactory { initializer { ScheduleViewModel(container.deviceApi, container.scheduleApi, container.activeDeviceId) } },
     )
     val state by viewModel.uiState.collectAsState()
     val editing = state.editing

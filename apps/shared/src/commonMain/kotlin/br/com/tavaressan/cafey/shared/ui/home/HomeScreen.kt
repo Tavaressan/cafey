@@ -2,6 +2,13 @@ package br.com.tavaressan.cafey.shared.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import br.com.tavaressan.cafey.shared.domain.model.DispositivoResponse
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,7 +74,7 @@ fun HomeScreen(onGoToDeviceRegister: () -> Unit = {}) {
             .padding(22.dp),
     ) {
         if (state.loading) {
-            DeviceHeader(name = "Caféy", online = false)
+            DeviceHeader(device = state.device, devices = state.devices, onSelectDevice = viewModel::selectDevice)
             Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = CafeyTheme.colors.brand)
             }
@@ -83,7 +90,7 @@ fun HomeScreen(onGoToDeviceRegister: () -> Unit = {}) {
             return@Column
         }
 
-        DeviceHeader(name = state.device?.nome ?: "Caféy", online = state.device?.online ?: false)
+        DeviceHeader(device = state.device, devices = state.devices, onSelectDevice = viewModel::selectDevice)
 
         HomeContentLayout(
             sizeClass = LocalNavShellSizeClass.current,
@@ -230,27 +237,88 @@ private fun StreakCard(sequenciaManhasDias: Int) {
 }
 
 @Composable
-private fun DeviceHeader(name: String, online: Boolean) {
+private fun DeviceHeader(
+    device: DispositivoResponse?,
+    devices: List<DispositivoResponse> = emptyList(),
+    onSelectDevice: (String) -> Unit = {},
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val name = device?.nome ?: "Caféy"
+    val online = device?.online ?: false
+    val hasMultiple = devices.size > 1
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
     ) {
         CafeyLogo(size = 34.dp)
-        Column(modifier = Modifier.padding(start = 11.dp)) {
-            Text(name, style = CafeyTheme.typography.cardTitle, color = CafeyTheme.colors.ink)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(if (online) CafeyTheme.colors.blue else CafeyTheme.colors.dim),
-                )
-                Text(
-                    text = if (online) "Online" else "Offline",
-                    style = CafeyTheme.typography.caption,
-                    color = CafeyTheme.colors.muted,
-                    modifier = Modifier.padding(start = 6.dp),
-                )
+        Box(modifier = Modifier.padding(start = 11.dp)) {
+            Column(
+                modifier = Modifier
+                    .clip(CafeyTheme.shapes.small)
+                    .clickable(enabled = hasMultiple) { expanded = true }
+                    .padding(vertical = 2.dp, horizontal = 4.dp),
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(name, style = CafeyTheme.typography.cardTitle, color = CafeyTheme.colors.ink)
+                    if (hasMultiple) {
+                        Text(
+                            text = " ▼",
+                            style = CafeyTheme.typography.caption,
+                            color = CafeyTheme.colors.muted,
+                            modifier = Modifier.padding(start = 4.dp),
+                        )
+                    }
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(if (online) CafeyTheme.colors.blue else CafeyTheme.colors.dim),
+                    )
+                    Text(
+                        text = if (online) "Online" else "Offline",
+                        style = CafeyTheme.typography.caption,
+                        color = CafeyTheme.colors.muted,
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
+                }
+            }
+
+            if (hasMultiple) {
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.background(CafeyTheme.colors.surface),
+                ) {
+                    devices.forEach { dev ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(if (dev.online) CafeyTheme.colors.blue else CafeyTheme.colors.dim),
+                                    )
+                                    Text(
+                                        text = dev.nome,
+                                        style = if (dev.id == device?.id) CafeyTheme.typography.cardTitle else CafeyTheme.typography.body,
+                                        color = CafeyTheme.colors.ink,
+                                    )
+                                }
+                            },
+                            onClick = {
+                                expanded = false
+                                onSelectDevice(dev.id)
+                            },
+                        )
+                    }
+                }
             }
         }
     }

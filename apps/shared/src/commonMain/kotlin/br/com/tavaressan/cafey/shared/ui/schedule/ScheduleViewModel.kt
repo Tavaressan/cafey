@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /** Estado do formulário de criação/edição — `null` em [ScheduleUiState.editing] = modo lista. */
@@ -67,18 +68,34 @@ data class ScheduleUiState(
 class ScheduleViewModel(
     private val deviceApi: DeviceApi,
     private val scheduleApi: ScheduleApi,
+    private val activeDeviceId: StateFlow<String?>? = null,
+    coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
+    constructor(deviceApi: DeviceApi, scheduleApi: ScheduleApi) : this(deviceApi, scheduleApi, null, null)
+
+    private val scope = coroutineScope ?: viewModelScope
     private val _uiState = MutableStateFlow(ScheduleUiState())
     val uiState: StateFlow<ScheduleUiState> = _uiState.asStateFlow()
 
     init {
-        viewModelScope.launch { load() }
+        if (activeDeviceId != null) {
+            scope.launch {
+                activeDeviceId.collect { newId ->
+                    if (newId != null && _uiState.value.deviceId != newId) {
+                        _uiState.update { it.copy(loading = true) }
+                        load()
+                    }
+                }
+            }
+        }
+        scope.launch { load() }
     }
 
     private suspend fun load() {
         try {
-            // MVP de um único dispositivo, mesma simplificação de HomeViewModel (APP-04).
-            val deviceId = deviceApi.listar().firstOrNull()?.id
+            val devices = deviceApi.listar()
+            val targetId = activeDeviceId?.value
+            val deviceId = devices.firstOrNull { it.id == targetId }?.id ?: devices.firstOrNull()?.id
             val agendamentos = deviceId?.let { scheduleApi.listar(it) }.orEmpty()
             _uiState.update { it.copy(loading = false, deviceId = deviceId, agendamentos = agendamentos, errorMessage = null) }
         } catch (e: ApiError) {
@@ -86,7 +103,7 @@ class ScheduleViewModel(
         }
     }
 
-    fun refresh() = viewModelScope.launch { load() }
+    fun refresh() = scope.launch { load() }
 
     fun startCreate() {
         _uiState.update { it.copy(editing = ScheduleFormState()) }

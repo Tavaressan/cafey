@@ -43,7 +43,7 @@ fun BaseScreen(
 ) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<BaseViewModel>(
-        factory = viewModelFactory { initializer { BaseViewModel(container.deviceApi, container.themePreference) } },
+        factory = viewModelFactory { initializer { BaseViewModel(container.deviceApi, container.themePreference, container.activeDeviceId) } },
     )
     val state by viewModel.uiState.collectAsState()
 

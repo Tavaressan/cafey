@@ -14,6 +14,7 @@ import br.com.tavaressan.cafey.shared.network.createDemoHttpClient
 import br.com.tavaressan.cafey.shared.network.platformDefaultBaseUrl
 import br.com.tavaressan.cafey.shared.preferences.ThemePreference
 import br.com.tavaressan.cafey.shared.preferences.createThemePreferenceStorage
+import kotlinx.coroutines.flow.MutableStateFlow
 
 /**
  * Composição manual de dependências da camada `shared` — sem framework de DI, é pequeno o
@@ -51,6 +52,13 @@ class AppContainer(
     // Issue #182 — alternador claro/escuro da tela "Base"; precisa viver aqui (não num ViewModel de
     // tela) porque é lido acima do NavHost (App.kt, para CafeyTheme) e alterado de dentro dele.
     val themePreference: ThemePreference = ThemePreference(createThemePreferenceStorage())
+
+    // Issue #282 — Suporte a múltiplos dispositivos com seletor no cabeçalho/navegação
+    val activeDeviceId: MutableStateFlow<String?> = MutableStateFlow(null)
+
+    fun selectDevice(id: String?) {
+        activeDeviceId.value = id
+    }
 
     companion object {
         fun demo(

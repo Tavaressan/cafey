@@ -51,7 +51,7 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 fun CareScreen() {
     val container = LocalAppContainer.current
     val viewModel = viewModel<CareViewModel>(
-        factory = viewModelFactory { initializer { CareViewModel(container.deviceApi, container.eventApi) } },
+        factory = viewModelFactory { initializer { CareViewModel(container.deviceApi, container.eventApi, container.activeDeviceId) } },
     )
     val state by viewModel.uiState.collectAsState()
 
