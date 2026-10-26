@@ -157,3 +157,10 @@ add_executable(test_ble_event_proxy
     ../main/core/mutex_lock.cpp
 )
 add_test(NAME BleEventProxyTest COMMAND test_ble_event_proxy)
+
+
+add_executable(test_csr_generator
+    test_csr_generator.cpp
+    ../main/core/csr_generator.cpp
+)
+add_test(NAME CsrGeneratorTest COMMAND test_csr_generator)

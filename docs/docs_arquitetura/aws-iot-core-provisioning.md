@@ -24,6 +24,7 @@
 6. [Critério de aceite — como validar](#6-critério-de-aceite--como-validar)
 7. [Recursos provisionados](#recursos-provisionados)
 8. [Status e pendências](#status-e-pendências)
+9. [Script de fábrica: CSR gerado no ESP32 (INFRA-10)](#9-script-de-fábrica-csr-gerado-no-esp32-infra-10)
 
 ---
 
@@ -371,3 +372,42 @@ disponível neste ambiente sandboxed:
 Nenhum desses itens bloqueia o fechamento da pendência 4 do spec-backend nem o critério central da
 issue #123 (recursos AWS IoT Core reais, com políticas de mínimo privilégio, existindo e
 funcionando) — são follow-ups de integração física/deploy, não lacunas no provisionamento em si.
+
+
+---
+
+## 9. Script de fábrica: CSR gerado no ESP32 (INFRA-10)
+
+> **Origem:** issue #274 (INFRA-10). Evolução do modelo manual de provisionamento (§4) para garantir que **a chave privada nunca saia do microcontrolador** e não trafegue em computadores de bancada ou scripts externos.
+
+### 9.1. Arquitetura de Segurança da Chave Privada
+
+No provisionamento manual inicial (§4), as chaves e certificados eram gerados pelo AWS CLI no host do desenvolvedor (`aws iot create-keys-and-certificate`) e inseridos no arquivo CSV antes de compilar a imagem NVS.
+
+Com a implementação do módulo `csr_generator` (`firmware/main/core/csr_generator.*`) e do script de fábrica (`firmware/tools/provision_device_csr.py`), o fluxo foi aprimorado para atender às melhores práticas de segurança de IoT:
+
+1. **Geração local de par de chaves ECC:** O microcontrolador gera autonomamente um par de chaves em curva elíptica NIST P-256 (`secp256r1` / `MBEDTLS_ECP_DP_SECP256R1`) usando o gerador de números pseudoaleatórios por hardware (TRNG) do ESP32 via mbedTLS.
+2. **Armazenamento seguro em NVS:** A chave privada gerada em formato PEM é gravada diretamente na partição NVS sob a chave `key` no namespace `cafey_mqtt` (`nvs_set_str`). Quando a criptografia de NVS estiver ativa (FW-25, #277), essa chave estará protegida contra leitura física por meio das chaves na partição `nvs_keys`.
+3. **Extração exclusiva do CSR:** O ESP32 gera a Requisição de Assinatura de Certificado (CSR - Certificate Signing Request) com Common Name (CN) e Subject Alternative Name definidos para o UUID do dispositivo (`CN=<uuid>`), assina a requisição com sua chave privada interna e emite o bloco PEM via comando serial `factory_csr <UUID>`.
+4. **Isolamento da chave privada:** A chave privada **jamais** é impressa no log serial ou retornada em respostas de comando. Apenas o CSR público sai do microcontrolador.
+
+### 9.2. Execução do Script de Fábrica
+
+O script `firmware/tools/provision_device_csr.py` automatiza todo o processo de esteira de manufatura/bancada:
+
+```bash
+# Provisionamento automático via porta serial:
+python firmware/tools/provision_device_csr.py --port COM3 --region sa-east-1
+
+# Modo simulação (dry-run) para testes em CI:
+python firmware/tools/provision_device_csr.py --dry-run
+```
+
+#### Passos executados pelo script:
+1. **Comunicação serial:** Envia o comando `factory_csr <UUID>` e aguarda os delimitadores `BEGIN CAFEY FACTORY CSR` e `END CAFEY FACTORY CSR`. Salva o CSR obtido em `firmware/certs/factory_out/<UUID>.csr`.
+2. **Criação da Thing na AWS:** Invoca `aws iot create-thing --thing-name <UUID>`.
+3. **Emissão de certificado a partir do CSR:** Executa `aws iot create-certificate-from-csr` passando o CSR gerado no hardware. O AWS IoT Core atua como autoridade certificadora e emite o certificado X.509 assinado sem jamais ter tido acesso à chave privada.
+4. **Vinculação de políticas:** Associa a política `cafey-device-policy` e vincula o certificado à Thing criada.
+5. **Geração da partição NVS sem chave privada:** O script compõe o arquivo `provisioning.csv` contendo apenas `broker`, `clientid`, `rootca` e o `cert` público gerado pela AWS. Como a chave privada já foi gravada na NVS pelo próprio firmware no passo 1, a imagem NVS gerada por `nvs_partition_gen.py` não contém segredos assimétricos de manufatura.
+6. **Gravação via esptool:** O binário gerado é gravado no offset `0x9000` (`write_flash 0x9000`).
+7. **Emissão do registro SQL:** O script imprime no terminal a query pronta para cadastrar o dispositivo como sem proprietário (`INSERT INTO dispositivos ...`), permitindo que ele seja posteriormente vinculado por um usuário via app mobile.

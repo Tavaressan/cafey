@@ -9,6 +9,7 @@ idf_component_register(
         "core/ntp_sync.cpp"
         "core/wifi_credentials.cpp"
         "core/wifi_manager.cpp"
+        "core/csr_generator.cpp"
         "core/mqtt_config_store.cpp"
         "core/esp_mqtt_client.cpp"
         "core/esp_nimble_server.cpp"
@@ -30,6 +31,7 @@ idf_component_register(
         "app"
     REQUIRES
         bt
+        console
         driver
         esp_driver_gpio
         esp_common
@@ -41,6 +43,7 @@ idf_component_register(
         freertos
         log
         lwip
+        mbedtls
         mqtt
         nvs_flash
 )
