@@ -16,6 +16,7 @@ import br.com.tavaressan.cafey.event.EventoService
 import br.com.tavaressan.cafey.event.IngestaoEventoRequest
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.dao.DataIntegrityViolationException
 import java.time.Instant
 import java.util.Optional
 import java.util.UUID
@@ -105,5 +106,24 @@ class MqttIngestionServiceTest {
 
         val dummy = IngestaoEventoRequest("e", "PREPARO", "CONCLUIDO", "APP", 0, Instant.now())
         verify(eventoService).ingestar(any() ?: dispositivoId, any() ?: dummy)
+    }
+
+    @Test
+    fun `should ignore duplicate event when data integrity violation occurs concurrently`() {
+        `when`(eventoService.ingestar(any() ?: dispositivoId, any() ?: IngestaoEventoRequest("e", "PREPARO", "CONCLUIDO", "APP", 0, Instant.now())))
+            .thenThrow(DataIntegrityViolationException("duplicate key value violates unique constraint"))
+
+        val payload = EventoPayload(
+            eventoId = "evt-duplicado",
+            tipo = "PREPARO",
+            resultado = "CONCLUIDO",
+            origem = "APP",
+            duracaoS = 300,
+            timestamp = Instant.now()
+        )
+
+        assertDoesNotThrow {
+            ingestionService.processarEvento(dispositivoId, payload)
+        }
     }
 }
