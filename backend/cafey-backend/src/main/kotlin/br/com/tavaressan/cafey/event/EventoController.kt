@@ -7,7 +7,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.data.domain.Page
+import org.springframework.http.HttpHeaders
 import org.springframework.http.HttpStatus
+import org.springframework.http.MediaType
 import org.springframework.http.ProblemDetail
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -47,6 +49,25 @@ class EventoController(
         val usuarioId = UUID.fromString(jwt.subject)
         val result = eventoService.listar(dispositivoId, usuarioId, resultado, inicio, fim, page, size)
         return ResponseEntity.ok(result)
+    }
+
+    @Operation(summary = "Exporta o histórico de eventos de preparo em formato CSV para análise acadêmica")
+    @ApiResponse(
+        responseCode = "200",
+        description = "Histórico de preparos e eventos exportado em formato CSV conforme RFC 4180",
+        content = [Content(mediaType = "text/csv")]
+    )
+    @GetMapping("/eventos/exportar", produces = ["text/csv"])
+    fun exportarEventosCsv(
+        @AuthenticationPrincipal jwt: Jwt,
+        @PathVariable dispositivoId: UUID
+    ): ResponseEntity<String> {
+        val usuarioId = UUID.fromString(jwt.subject)
+        val csv = eventoService.exportarCsv(dispositivoId, usuarioId)
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"eventos-$dispositivoId.csv\"")
+            .body(csv)
     }
 
     @Operation(summary = "Obtém as estatísticas de consumo do dispositivo")

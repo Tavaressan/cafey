@@ -31,6 +31,13 @@ interface EventoPreparoRepository : JpaRepository<EventoPreparo, UUID> {
         pageable: Pageable
     ): Page<EventoPreparo>
 
+    // Issue #285 — exportação de histórico de preparos em CSV para análise acadêmica
+    @Query(
+        "SELECT e FROM EventoPreparo e WHERE e.dispositivo.id = :dispositivoId AND e.tipo = 'PREPARO' " +
+        "ORDER BY e.timestamp ASC"
+    )
+    fun findEventosParaExportacao(dispositivoId: UUID): List<EventoPreparo>
+
     @Query("SELECT e.origem as origem, COUNT(e) as count FROM EventoPreparo e WHERE e.dispositivo.id = :dispositivoId AND e.resultado = 'CONCLUIDO' GROUP BY e.origem")
     fun countPorOrigem(dispositivoId: UUID): List<Array<Any>>
 
