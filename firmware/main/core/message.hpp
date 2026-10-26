@@ -26,6 +26,9 @@ enum class MessageType : uint8_t {
     // Agendador
     TimeSynced,
     ScheduleFired,
+    // Estado do LED / Sistema (spec §5.3)
+    NetworkStatusChanged, // arg: 1 = online, 0 = offline
+    ScheduleArmedChanged, // arg: 1 = armado, 0 = sem agendamento
 };
 
 /**

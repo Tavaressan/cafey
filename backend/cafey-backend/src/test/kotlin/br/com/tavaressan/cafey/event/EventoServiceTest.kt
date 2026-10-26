@@ -6,6 +6,7 @@ import br.com.tavaressan.cafey.device.PapelDispositivo
 import br.com.tavaressan.cafey.device.UsuarioDispositivo
 import br.com.tavaressan.cafey.device.UsuarioDispositivoRepository
 import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import br.com.tavaressan.cafey.user.Usuario
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
@@ -294,6 +295,62 @@ class EventoServiceTest {
 
         assertThrows<BadCredentialsException> {
             service.processarProxyBle(dispositivoId, req, usuarioId)
+        }
+    }
+
+    @Test
+    fun `should export empty csv with header when no events`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(ownerLink)
+        `when`(eventoPreparoRepository.findEventosParaExportacao(dispositivoId)).thenReturn(emptyList())
+
+        val csv = service.exportarCsv(dispositivoId, usuarioId)
+
+        assertEquals("evento_id,inicio,fim,duracao_s,origem,resultado\r\n", csv)
+    }
+
+    @Test
+    fun `should export csv with formatted events`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(ownerLink)
+
+        val t1 = Instant.parse("2026-10-23T10:00:00Z")
+        val evt1 = EventoPreparo(
+            eventoId = "boot1:1",
+            dispositivo = device,
+            tipo = "PREPARO",
+            resultado = "CONCLUIDO",
+            origem = "APP",
+            duracaoS = 300,
+            timestamp = t1
+        )
+        val t2 = Instant.parse("2026-10-23T11:00:00Z")
+        val evt2 = EventoPreparo(
+            eventoId = "boot1:2",
+            dispositivo = device,
+            tipo = "PREPARO",
+            resultado = "CANCELADO",
+            origem = "BOTAO",
+            duracaoS = 45,
+            timestamp = t2
+        )
+        `when`(eventoPreparoRepository.findEventosParaExportacao(dispositivoId)).thenReturn(listOf(evt1, evt2))
+
+        val csv = service.exportarCsv(dispositivoId, usuarioId)
+
+        val expected = StringBuilder()
+            .append("evento_id,inicio,fim,duracao_s,origem,resultado\r\n")
+            .append("boot1:1,2026-10-23T10:00:00Z,2026-10-23T10:05:00Z,300,APP,CONCLUIDO\r\n")
+            .append("boot1:2,2026-10-23T11:00:00Z,2026-10-23T11:00:45Z,45,BOTAO,CANCELADO\r\n")
+            .toString()
+
+        assertEquals(expected, csv)
+    }
+
+    @Test
+    fun `should reject csv export when user has no access to device`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(null)
+
+        assertThrows<ResourceNotFoundException> {
+            service.exportarCsv(dispositivoId, usuarioId)
         }
     }
 }

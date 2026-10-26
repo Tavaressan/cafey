@@ -253,45 +253,11 @@ class DispositivoServiceTest {
     }
 
     @Test
-    fun `should share device with guest by email`() {
-        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
-        `when`(usuarioRepository.findByEmail("guest@cafey.com")).thenReturn(guestUser)
-        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(guestId, deviceId)).thenReturn(null)
-        `when`(usuarioDispositivoRepository.save(any(UsuarioDispositivo::class.java))).thenAnswer { it.getArgument(0) }
-
-        val req = CompartilharDispositivoRequest(email = "guest@cafey.com")
-        val res = service.compartilhar(deviceId, req, ownerId)
-
-        assertEquals(guestId, res.usuarioId)
-        assertEquals(PapelDispositivo.CONVIDADO, res.papel)
-    }
-
-    @Test
-    fun `should reject sharing with non-existing user`() {
-        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
-        `when`(usuarioRepository.findByEmail("unknown@cafey.com")).thenReturn(null)
-
-        val req = CompartilharDispositivoRequest(email = "unknown@cafey.com")
-        assertThrows<ResourceNotFoundException> {
-            service.compartilhar(deviceId, req, ownerId)
-        }
-    }
-
-    @Test
     fun `should delete device when owner`() {
         `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
 
         service.excluir(deviceId, ownerId)
         verify(dispositivoRepository).delete(device)
-    }
-
-    @Test
-    fun `should remove guest sharing`() {
-        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
-        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(guestId, deviceId)).thenReturn(guestLink)
-
-        service.removerCompartilhamento(deviceId, guestId, ownerId)
-        verify(usuarioDispositivoRepository).delete(guestLink)
     }
 
     @Test

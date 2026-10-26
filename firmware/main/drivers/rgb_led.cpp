@@ -20,8 +20,9 @@ esp_err_t RgbLed::init() {
     }
     initialized_ = true;
     color_ = LedColor::Off;
-    blinking_ = false;
+    pattern_ = LedPattern::Solid;
     lit_ = true;
+    tick_counter_ = 0;
     write(LedColor::Off);
     return ESP_OK;
 }
@@ -30,36 +31,98 @@ LedColor RgbLed::color_for(CoffeeVisualState state, bool network_ok) {
     if (state == CoffeeVisualState::Error) {
         return LedColor::Red;
     }
-    if (!network_ok) {
-        // Sem rede: ocioso ou com agendamento armado -> ambar (spec §5.3).
-        if (state == CoffeeVisualState::Idle ||
-            state == CoffeeVisualState::ScheduleArmed) {
-            return LedColor::Amber;
-        }
+    if (state == CoffeeVisualState::Brewing) {
+        return LedColor::Green;
     }
-    switch (state) {
-        case CoffeeVisualState::Idle:
-            return LedColor::Blue;
-        case CoffeeVisualState::ScheduleArmed:
-        case CoffeeVisualState::Brewing:
-            return LedColor::Green;
-        case CoffeeVisualState::Ready:
-            return LedColor::White;
-        default:
-            return LedColor::Off;
+    if (state == CoffeeVisualState::Ready) {
+        return LedColor::White;
     }
+    if (state == CoffeeVisualState::ScheduleArmed) {
+        // Verde fixo se conectado, Âmbar fixo se desconectado (spec §5.3)
+        return network_ok ? LedColor::Green : LedColor::Amber;
+    }
+    // CoffeeVisualState::Idle: Azul respirando se conectado, Amarelo piscando se sem Wi-Fi
+    return network_ok ? LedColor::Blue : LedColor::Amber;
+}
+
+LedPattern RgbLed::pattern_for(CoffeeVisualState state, bool network_ok) {
+    if (state == CoffeeVisualState::Error) {
+        return LedPattern::Solid;
+    }
+    if (state == CoffeeVisualState::Brewing) {
+        return LedPattern::Pulse; // Verde pulsando
+    }
+    if (state == CoffeeVisualState::Ready) {
+        return LedPattern::Solid; // Branco fixo
+    }
+    if (state == CoffeeVisualState::ScheduleArmed) {
+        // Verde fixo se conectado, Âmbar fixo se desconectado
+        return LedPattern::Solid;
+    }
+    // CoffeeVisualState::Idle: Azul respirando se conectado, Amarelo piscando se desconectado
+    return network_ok ? LedPattern::Breathe : LedPattern::Blink;
 }
 
 void RgbLed::update(CoffeeVisualState state, bool network_ok) {
+    visual_state_ = state;
+    network_ok_ = network_ok;
     color_ = color_for(state, network_ok);
-    // Piscar sinaliza problema de rede; o estado de erro fica fixo em vermelho.
-    blinking_ = !network_ok && state != CoffeeVisualState::Error;
+    pattern_ = pattern_for(state, network_ok);
     lit_ = true;
+    tick_counter_ = 0;
     write(color_);
 }
 
+void RgbLed::tick() {
+    if (!initialized_) return;
+
+    ++tick_counter_;
+
+    switch (pattern_) {
+        case LedPattern::Solid: {
+            if (!lit_) {
+                lit_ = true;
+                write(color_);
+            }
+            break;
+        }
+        case LedPattern::Blink: {
+            // Amarelo piscando (1 Hz: 500 ms aceso, 500 ms apagado com tick de 10 ms = 50 ticks)
+            const bool should_be_lit = (tick_counter_ % 100) < 50;
+            if (lit_ != should_be_lit) {
+                lit_ = should_be_lit;
+                write(lit_ ? color_ : LedColor::Off);
+            }
+            break;
+        }
+        case LedPattern::Pulse: {
+            // Verde pulsando (2 Hz: 250 ms aceso, 250 ms apagado = 25 ticks)
+            const bool should_be_lit = (tick_counter_ % 50) < 25;
+            if (lit_ != should_be_lit) {
+                lit_ = should_be_lit;
+                write(lit_ ? color_ : LedColor::Off);
+            }
+            break;
+        }
+        case LedPattern::Breathe: {
+            // Azul respirando: ciclo de 2,4 s (240 ticks de 10 ms)
+            // Software PWM a 100 Hz (janela de 10 ticks = 100 ms)
+            const uint16_t cycle_tick = tick_counter_ % 240;
+            const uint16_t intensity = (cycle_tick < 120) ? cycle_tick : (240 - cycle_tick); // 0 a 120
+            const uint16_t duty = 1 + (intensity * 9) / 120; // 1 a 10
+            const uint16_t pwm_slot = (tick_counter_ % 10);
+            const bool should_be_lit = pwm_slot < duty;
+            if (lit_ != should_be_lit) {
+                lit_ = should_be_lit;
+                write(lit_ ? color_ : LedColor::Off);
+            }
+            break;
+        }
+    }
+}
+
 void RgbLed::refresh() {
-    if (!blinking_) {
+    if (pattern_ == LedPattern::Solid) {
         if (!lit_) {
             lit_ = true;
             write(color_);

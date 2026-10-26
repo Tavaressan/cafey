@@ -13,25 +13,42 @@ Cafeteira::Cafeteira(gpio_num_t relay_pin, gpio_num_t button_pin,
                      gpio_num_t led_r, gpio_num_t led_g, gpio_num_t led_b)
     : ActiveObject("cafeteira", 16, 4096, 5, /*tick_period_ms=*/10),
       relay_(relay_pin),
-      button_pin_(button_pin),
-      led_r_(led_r),
-      led_g_(led_g),
-      led_b_(led_b) {}
+      led_(led_r, led_g, led_b),
+      button_pin_(button_pin) {}
 
-void Cafeteira::led_set(bool r, bool g, bool b) {
-    gpio_set_level(led_r_, r ? 1 : 0);
-    gpio_set_level(led_g_, g ? 1 : 0);
-    gpio_set_level(led_b_, b ? 1 : 0);
+void Cafeteira::set_network_ok(bool ok) {
+    network_ok_ = ok;
+    led_.update(visual_state_, network_ok_);
+}
+
+void Cafeteira::set_schedules_armed(bool armed) {
+    has_armed_schedules_ = armed;
+    apply_state();
+}
+
+void Cafeteira::set_error(bool error) {
+    has_error_ = error;
+    apply_state();
 }
 
 void Cafeteira::apply_state() {
     if (state_ == State::On) {
         relay_.turn_on();
-        led_set(false, true, false); // verde = ligada
+        ready_ticks_left_ = 0;
+        visual_state_ = drivers::CoffeeVisualState::Brewing;
     } else {
         relay_.turn_off();
-        led_set(true, false, false); // vermelho = desligada
+        if (ready_ticks_left_ > 0) {
+            visual_state_ = drivers::CoffeeVisualState::Ready;
+        } else if (has_error_) {
+            visual_state_ = drivers::CoffeeVisualState::Error;
+        } else if (has_armed_schedules_) {
+            visual_state_ = drivers::CoffeeVisualState::ScheduleArmed;
+        } else {
+            visual_state_ = drivers::CoffeeVisualState::Idle;
+        }
     }
+    led_.update(visual_state_, network_ok_);
     if (on_state_change_) on_state_change_(state_ == State::On);
 }
 
@@ -47,6 +64,7 @@ void Cafeteira::start_brew(uint32_t duration_s, cafey::storage::EventOrigin orig
     }
     brew_ticks_total_ = duration_s * kTicksPerSecond;
     brew_ticks_left_ = brew_ticks_total_;
+    ready_ticks_left_ = 0;
     current_origin_ = origin;
     brew_start_epoch_ = clock_ ? static_cast<uint32_t>(clock_->now()) : 0;
     last_result_ = Result::None;
@@ -93,6 +111,7 @@ void Cafeteira::cancel_brew() {
     }
     brew_ticks_left_ = 0;
     brew_ticks_total_ = 0;
+    ready_ticks_left_ = 0;
     state_ = State::Off;
     apply_state();
 }
@@ -107,20 +126,14 @@ void Cafeteira::finish_brew() {
     last_result_ = Result::Concluido;
     enqueue_brew_event(cafey::storage::EventResult::CONCLUIDO, duracao_s);
     state_ = State::Off;
+    // Spec §5.3: Branco fixo (alguns minutos) | Café pronto
+    ready_ticks_left_ = kReadyDurationS * kTicksPerSecond;
     apply_state();
 }
 
 void Cafeteira::on_start() {
     relay_.init();
-
-    const gpio_config_t led_cfg = {
-        .pin_bit_mask = (1ULL << led_r_) | (1ULL << led_g_) | (1ULL << led_b_),
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    gpio_config(&led_cfg);
+    led_.init();
 
     const gpio_config_t btn_cfg = {
         .pin_bit_mask = (1ULL << button_pin_),
@@ -140,6 +153,16 @@ void Cafeteira::on_start() {
 }
 
 void Cafeteira::on_tick() {
+    // Atualiza o padrao visual do LED (respira/pisca/pulsa/fixo)
+    led_.tick();
+
+    // Temporizador de "Cafe pronto" (Branco fixo por alguns minutos)
+    if (ready_ticks_left_ > 0 && state_ == State::Off) {
+        if (--ready_ticks_left_ == 0) {
+            apply_state();
+        }
+    }
+
     int level = gpio_get_level(button_pin_);
     if (level != btn_reading_) {
         btn_reading_ = level;
@@ -164,6 +187,12 @@ void Cafeteira::on_tick() {
 void Cafeteira::dispatch(const Message& msg) {
     switch (msg.type) {
         case MessageType::ButtonPressed:
+            if (ready_ticks_left_ > 0) {
+                // Clique durante o aviso de pronto: dispensa o estado pronto
+                ready_ticks_left_ = 0;
+                apply_state();
+                break;
+            }
             // Toque curto: liga (inicia preparo) / desliga (cancela).
             if (state_ == State::Off) {
                 start_brew(kDefaultDurationS, cafey::storage::EventOrigin::BOTAO);
@@ -191,6 +220,12 @@ void Cafeteira::dispatch(const Message& msg) {
             break;
         case MessageType::TimeSynced:
             ntp_synced_ = true;
+            break;
+        case MessageType::NetworkStatusChanged:
+            set_network_ok(msg.arg != 0);
+            break;
+        case MessageType::ScheduleArmedChanged:
+            set_schedules_armed(msg.arg != 0);
             break;
         default:
             break;
