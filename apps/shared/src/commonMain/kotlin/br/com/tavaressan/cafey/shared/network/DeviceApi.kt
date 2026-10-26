@@ -59,4 +59,11 @@ class DeviceApi(private val apiClient: ApiClient) {
         method = HttpMethod.Get
         url { path("dispositivos", id, "compartilhamentos") }
     }
+
+    suspend fun removerCompartilhamento(id: String, convidadoId: String) {
+        apiClient.http.apiRequest<Unit> {
+            method = HttpMethod.Delete
+            url { path("dispositivos", id, "compartilhar", convidadoId) }
+        }
+    }
 }

@@ -29,13 +29,27 @@ data class BaseUiState(
 class BaseViewModel(
     private val deviceApi: DeviceApi,
     private val themePreference: ThemePreference,
+    private val activeDeviceId: StateFlow<String?>? = null,
+    coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
 ) : ViewModel() {
+    constructor(deviceApi: DeviceApi, themePreference: ThemePreference) : this(deviceApi, themePreference, null, null)
+
+    private val scope = coroutineScope ?: viewModelScope
     private val _uiState = MutableStateFlow(BaseUiState())
     val uiState: StateFlow<BaseUiState> = _uiState.asStateFlow()
 
     init {
-        viewModelScope.launch {
+        scope.launch {
             themePreference.darkTheme.collect { dark -> _uiState.update { it.copy(darkTheme = dark) } }
+        }
+        if (activeDeviceId != null) {
+            scope.launch {
+                activeDeviceId.collect { id ->
+                    if (id != null && _uiState.value.device?.id != id) {
+                        loadDevice()
+                    }
+                }
+            }
         }
     }
 
@@ -44,10 +58,11 @@ class BaseViewModel(
      * ou exclusão do dispositivo, o ViewModel é o mesmo e precisa buscar o dado de novo.
      */
     fun loadDevice() {
-        viewModelScope.launch {
+        scope.launch {
             try {
-                // MVP de um único dispositivo, mesma simplificação de HomeViewModel (APP-04).
-                val device = deviceApi.listar().firstOrNull()
+                val allDevices = deviceApi.listar()
+                val targetId = activeDeviceId?.value
+                val device = allDevices.firstOrNull { it.id == targetId } ?: allDevices.firstOrNull()
                 _uiState.update { it.copy(loading = false, device = device, errorMessage = null) }
             } catch (e: ApiError) {
                 _uiState.update { it.copy(loading = false, errorMessage = e.message) }
@@ -56,6 +71,6 @@ class BaseViewModel(
     }
 
     fun toggleTheme() {
-        viewModelScope.launch { themePreference.toggle() }
+        scope.launch { themePreference.toggle() }
     }
 }

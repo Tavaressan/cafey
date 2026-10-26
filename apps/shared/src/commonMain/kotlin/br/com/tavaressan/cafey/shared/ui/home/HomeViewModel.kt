@@ -40,6 +40,7 @@ private const val STATS_POLL_INTERVAL_MS = 60_000L
 data class HomeUiState(
     val loading: Boolean = true,
     val device: DispositivoResponse? = null,
+    val devices: List<DispositivoResponse> = emptyList(),
     val commandInFlight: Boolean = false,
     val errorMessage: String? = null,
     val proximoPreparo: ProximoPreparo? = null,
@@ -54,12 +55,23 @@ class HomeViewModel(
     private val scheduleApi: ScheduleApi,
     private val eventApi: EventApi,
     private val bleClient: BleClient? = null,
+    private val activeDeviceId: MutableStateFlow<String?>? = null,
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
 ) : ViewModel() {
+    constructor(
+        deviceApi: DeviceApi,
+        commandApi: CommandApi,
+        scheduleApi: ScheduleApi,
+        eventApi: EventApi,
+        bleClient: BleClient?,
+        coroutineScope: kotlinx.coroutines.CoroutineScope?,
+    ) : this(deviceApi, commandApi, scheduleApi, eventApi, bleClient, null, coroutineScope)
+
     private val scope = coroutineScope ?: viewModelScope
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     private var lastStatsFetchMs = 0L
+    private var selectedDeviceId: String? = null
 
     private val fallback: BleCommandFallback? =
         if (bleClient != null && bleClient.isSupported) {
@@ -69,6 +81,17 @@ class HomeViewModel(
         }
 
     init {
+        if (activeDeviceId != null) {
+            scope.launch {
+                activeDeviceId.collect { newId ->
+                    if (newId != null && _uiState.value.device?.id != newId) {
+                        selectedDeviceId = newId
+                        lastStatsFetchMs = 0L
+                        refresh()
+                    }
+                }
+            }
+        }
         scope.launch {
             while (isActive) {
                 refresh()
@@ -79,9 +102,15 @@ class HomeViewModel(
 
     internal suspend fun refresh() {
         try {
-            // MVP de um único dispositivo — troca de aparelho fica para uma issue futura de
-            // gerenciamento de dispositivos (fora do escopo de APP-04).
-            val device = deviceApi.listar().firstOrNull()
+            val devices = deviceApi.listar()
+            val targetId = activeDeviceId?.value ?: selectedDeviceId
+            val device = devices.firstOrNull { it.id == targetId } ?: devices.firstOrNull()
+            if (device != null) {
+                selectedDeviceId = device.id
+                if (activeDeviceId != null && activeDeviceId.value != device.id) {
+                    activeDeviceId.value = device.id
+                }
+            }
             val proximoPreparo = device?.let { buscarProximoPreparo(it.id) }
             val nowMs = Clock.System.now().toEpochMilliseconds()
             val sequenciaManhasDias = if (device != null) {
@@ -99,6 +128,7 @@ class HomeViewModel(
                 current.copy(
                     loading = false,
                     device = device,
+                    devices = devices,
                     errorMessage = errorParaManter,
                     proximoPreparo = proximoPreparo,
                     sequenciaManhasDias = sequenciaManhasDias,
@@ -106,6 +136,17 @@ class HomeViewModel(
             }
         } catch (e: ApiError) {
             _uiState.update { it.copy(loading = false, errorMessage = e.message) }
+        }
+    }
+
+        fun selectDevice(id: String) {
+        if (selectedDeviceId == id && _uiState.value.device?.id == id) return
+        selectedDeviceId = id
+        activeDeviceId?.value = id
+        lastStatsFetchMs = 0L
+        scope.launch {
+            _uiState.update { it.copy(loading = true) }
+            refresh()
         }
     }
 

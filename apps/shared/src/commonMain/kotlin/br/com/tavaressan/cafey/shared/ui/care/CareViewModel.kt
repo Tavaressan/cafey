@@ -30,20 +30,35 @@ data class CareUiState(
 class CareViewModel(
     private val deviceApi: DeviceApi,
     private val eventApi: EventApi,
+    private val activeDeviceId: StateFlow<String?>? = null,
     coroutineScope: CoroutineScope? = null,
 ) : ViewModel() {
+    constructor(deviceApi: DeviceApi, eventApi: EventApi) : this(deviceApi, eventApi, null, null)
+    constructor(deviceApi: DeviceApi, eventApi: EventApi, coroutineScope: CoroutineScope?) : this(deviceApi, eventApi, null, coroutineScope)
+
     private val scope = coroutineScope ?: viewModelScope
     private val _uiState = MutableStateFlow(CareUiState())
     val uiState: StateFlow<CareUiState> = _uiState.asStateFlow()
 
     init {
+        if (activeDeviceId != null) {
+            scope.launch {
+                activeDeviceId.collect { newId ->
+                    if (newId != null && _uiState.value.deviceId != newId) {
+                        _uiState.update { it.copy(loading = true) }
+                        load()
+                    }
+                }
+            }
+        }
         scope.launch { load() }
     }
 
     private suspend fun load() {
         try {
-            // MVP de um único dispositivo, mesma simplificação de HomeViewModel (APP-04).
-            val device = deviceApi.listar().firstOrNull()
+            val allDevices = deviceApi.listar()
+            val targetId = activeDeviceId?.value
+            val device = allDevices.firstOrNull { it.id == targetId } ?: allDevices.firstOrNull()
             if (device == null) {
                 _uiState.update { it.copy(loading = false, cuidados = null, errorMessage = null) }
                 return

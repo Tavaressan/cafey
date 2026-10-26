@@ -414,13 +414,34 @@ fun createDemoMockEngine(): MockEngine = MockEngine { request ->
                             "usuarioId": "usr-convidado-1",
                             "nome": "Convidado Caféy",
                             "email": "convidado@cafey.com",
-                            "papel": "CONVIDADO"
+                            "papel": "CONVIDADO",
+                            "compartilhadoEm": "2026-10-15T21:00:00Z"
                         }
                     ]
                 """.trimIndent(),
                 status = HttpStatusCode.OK,
                 headers = jsonHeaders,
             )
+        }
+
+        path.endsWith("/compartilhar") && method == "POST" -> {
+            respond(
+                content = """
+                    {
+                        "usuarioId": "usr-convidado-2",
+                        "nome": "Novo Convidado",
+                        "email": "convidado2@cafey.com",
+                        "papel": "CONVIDADO",
+                        "compartilhadoEm": "2026-10-15T21:00:00Z"
+                    }
+                """.trimIndent(),
+                status = HttpStatusCode.Created,
+                headers = jsonHeaders,
+            )
+        }
+
+        path.contains("/compartilhar/") && method == "DELETE" -> {
+            respond(content = "", status = HttpStatusCode.NoContent)
         }
 
         // Fallback seguro para rotas não mapeadas em demo

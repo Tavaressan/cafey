@@ -33,8 +33,16 @@ class HistoryViewModel(
     private val deviceApi: DeviceApi,
     private val eventApi: EventApi,
     private val bleClient: BleClient? = null,
+    private val activeDeviceId: StateFlow<String?>? = null,
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
 ) : ViewModel() {
+    constructor(
+        deviceApi: DeviceApi,
+        eventApi: EventApi,
+        bleClient: BleClient?,
+        coroutineScope: kotlinx.coroutines.CoroutineScope?,
+    ) : this(deviceApi, eventApi, bleClient, null, coroutineScope)
+
     private val scope = coroutineScope ?: viewModelScope
     private val _uiState = MutableStateFlow(HistoryUiState())
     val uiState: StateFlow<HistoryUiState> = _uiState.asStateFlow()
@@ -47,39 +55,52 @@ class HistoryViewModel(
         }
 
     init {
-        scope.launch {
-            try {
-                // MVP de um único dispositivo, mesma simplificação de HomeViewModel (APP-04).
-                val deviceId = deviceApi.listar().firstOrNull()?.id
-                if (deviceId == null) {
-                    _uiState.update { it.copy(loading = false) }
-                    return@launch
-                }
-
-                // UC-14 — sincroniza eventos pendentes via BLE antes de listar
-                if (eventProxy != null) {
-                    try {
-                        eventProxy.sincronizar(deviceId)
-                    } catch (_: Exception) {
-                        // BLE desconectado ou indisponível: segue fluxo normal via nuvem
+        if (activeDeviceId != null) {
+            scope.launch {
+                activeDeviceId.collect { newId ->
+                    if (newId != null && _uiState.value.deviceId != newId) {
+                        _uiState.update { it.copy(loading = true) }
+                        load()
                     }
                 }
-
-                val estatisticas = eventApi.obterEstatisticas(deviceId)
-                val primeiraPagina = eventApi.listarEventos(deviceId, page = 0, size = PAGE_SIZE)
-                _uiState.update {
-                    it.copy(
-                        loading = false,
-                        deviceId = deviceId,
-                        estatisticas = estatisticas,
-                        eventos = primeiraPagina.content,
-                        page = primeiraPagina.number,
-                        hasMore = !primeiraPagina.last,
-                    )
-                }
-            } catch (e: ApiError) {
-                _uiState.update { it.copy(loading = false, errorMessage = e.message) }
             }
+        }
+        scope.launch { load() }
+    }
+
+    private suspend fun load() {
+        try {
+            val allDevices = deviceApi.listar()
+            val targetId = activeDeviceId?.value
+            val deviceId = allDevices.firstOrNull { it.id == targetId }?.id ?: allDevices.firstOrNull()?.id
+            if (deviceId == null) {
+                _uiState.update { it.copy(loading = false, deviceId = null, eventos = emptyList(), estatisticas = null) }
+                return
+            }
+
+            if (eventProxy != null) {
+                try {
+                    eventProxy.sincronizar(deviceId)
+                } catch (_: Exception) {
+                    // BLE desconectado ou indisponível: segue fluxo normal via nuvem
+                }
+            }
+
+            val estatisticas = eventApi.obterEstatisticas(deviceId)
+            val primeiraPagina = eventApi.listarEventos(deviceId, page = 0, size = PAGE_SIZE)
+            _uiState.update {
+                it.copy(
+                    loading = false,
+                    deviceId = deviceId,
+                    estatisticas = estatisticas,
+                    eventos = primeiraPagina.content,
+                    page = primeiraPagina.number,
+                    hasMore = !primeiraPagina.last,
+                    errorMessage = null,
+                )
+            }
+        } catch (e: ApiError) {
+            _uiState.update { it.copy(loading = false, errorMessage = e.message) }
         }
     }
 
