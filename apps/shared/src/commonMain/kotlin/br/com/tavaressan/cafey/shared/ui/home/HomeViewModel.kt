@@ -25,8 +25,12 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+
+/** Janela de tolerância para considerar o dispositivo desconectado (spec §6.3: > 2 minutos sem atualização). */
+internal const val OFFLINE_TOLERANCE_MS = 120_000L
 
 /** Intervalo de sondagem do estado do dispositivo (UC-08). O backend (`EventoController` /
  * `DispositivoController`) só expõe REST, sem stream nem WebSocket — sem push disponível, 5s é
@@ -37,6 +41,23 @@ private const val POLL_INTERVAL_MS = 5_000L
 /** Intervalo de atualização da sequência de manhãs (métrica analítica diária; não precisa rodar a cada 5s). */
 private const val STATS_POLL_INTERVAL_MS = 60_000L
 
+/**
+ * Avalia se o dispositivo deve ser considerado offline:
+ * - Se `device.online == false` (notificado via Last Will pelo broker ou backend)
+ * - Se `ultimoVisto` exceder a janela de tolerância de 2 minutos em relação ao tempo atual.
+ */
+internal fun isDispositivoOffline(device: DispositivoResponse?, nowMs: Long): Boolean {
+    if (device == null) return false
+    if (!device.online) return true
+    val ultimoVisto = device.ultimoVisto ?: return false
+    return try {
+        val ultimoVistoMs = Instant.parse(ultimoVisto).toEpochMilliseconds()
+        (nowMs - ultimoVistoMs) > OFFLINE_TOLERANCE_MS
+    } catch (_: Exception) {
+        false
+    }
+}
+
 data class HomeUiState(
     val loading: Boolean = true,
     val device: DispositivoResponse? = null,
@@ -45,8 +66,11 @@ data class HomeUiState(
     val errorMessage: String? = null,
     val proximoPreparo: ProximoPreparo? = null,
     val sequenciaManhasDias: Int = 0,
+    val isOffline: Boolean = false,
 ) {
+    val isDeviceOffline: Boolean get() = isOffline
     val deviceState: DeviceState get() = device?.let { DeviceState.from(it.estado) } ?: DeviceState.Unknown("")
+    val canSendCommand: Boolean get() = device != null && !loading && !commandInFlight && !isOffline
 }
 
 class HomeViewModel(
@@ -57,6 +81,7 @@ class HomeViewModel(
     private val bleClient: BleClient? = null,
     private val activeDeviceId: MutableStateFlow<String?>? = null,
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
+    private val nowProvider: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) : ViewModel() {
     constructor(
         deviceApi: DeviceApi,
@@ -112,7 +137,8 @@ class HomeViewModel(
                 }
             }
             val proximoPreparo = device?.let { buscarProximoPreparo(it.id) }
-            val nowMs = Clock.System.now().toEpochMilliseconds()
+            val nowMs = nowProvider()
+            val isOffline = isDispositivoOffline(device, nowMs)
             val sequenciaManhasDias = if (device != null) {
                 if (nowMs - lastStatsFetchMs >= STATS_POLL_INTERVAL_MS || _uiState.value.sequenciaManhasDias == 0) {
                     lastStatsFetchMs = nowMs
@@ -132,6 +158,7 @@ class HomeViewModel(
                     errorMessage = errorParaManter,
                     proximoPreparo = proximoPreparo,
                     sequenciaManhasDias = sequenciaManhasDias,
+                    isOffline = isOffline,
                 )
             }
         } catch (e: ApiError) {
@@ -139,7 +166,7 @@ class HomeViewModel(
         }
     }
 
-        fun selectDevice(id: String) {
+    fun selectDevice(id: String) {
         if (selectedDeviceId == id && _uiState.value.device?.id == id) return
         selectedDeviceId = id
         activeDeviceId?.value = id
@@ -180,6 +207,7 @@ class HomeViewModel(
     // relemos o dispositivo em vez de aproveitar a resposta — o estado muda quando a base reporta.
     // Em caso de falha de rede da nuvem, BleCommandFallback executa localmente via BLE (UC-06/07).
     private fun runCommand(acao: AcaoComando) {
+        if (!_uiState.value.canSendCommand) return
         val deviceId = _uiState.value.device?.id ?: return
         _uiState.update { it.copy(commandInFlight = true, errorMessage = null) }
         scope.launch {
