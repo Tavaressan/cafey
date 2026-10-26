@@ -100,6 +100,38 @@ class EventoService(
     }
 
     @Transactional(readOnly = true)
+    fun exportarCsv(dispositivoId: UUID, usuarioId: UUID): String {
+        validaAcesso(dispositivoId, usuarioId)
+
+        val eventos = eventoPreparoRepository.findEventosParaExportacao(dispositivoId)
+
+        val sb = StringBuilder()
+        sb.append("evento_id,inicio,fim,duracao_s,origem,resultado\r\n")
+
+        for (evento in eventos) {
+            val inicio = evento.timestamp
+            val fim = evento.timestamp.plusSeconds(evento.duracaoS.toLong())
+
+            sb.append(escapeCsv(evento.eventoId)).append(",")
+            sb.append(escapeCsv(inicio.toString())).append(",")
+            sb.append(escapeCsv(fim.toString())).append(",")
+            sb.append(evento.duracaoS).append(",")
+            sb.append(escapeCsv(evento.origem)).append(",")
+            sb.append(escapeCsv(evento.resultado)).append("\r\n")
+        }
+
+        return sb.toString()
+    }
+
+    private fun escapeCsv(value: String): String {
+        return if (value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r")) {
+            "\"" + value.replace("\"", "\"\"") + "\""
+        } else {
+            value
+        }
+    }
+
+    @Transactional(readOnly = true)
     fun obterEstatisticas(dispositivoId: UUID, usuarioId: UUID): EstatisticasConsumoResponse {
         validaAcesso(dispositivoId, usuarioId)
 

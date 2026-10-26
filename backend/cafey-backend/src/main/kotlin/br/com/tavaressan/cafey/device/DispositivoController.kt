@@ -24,7 +24,8 @@ import java.util.UUID
 @RestController
 @RequestMapping("/dispositivos")
 class DispositivoController(
-    private val dispositivoService: DispositivoService
+    private val dispositivoService: DispositivoService,
+    private val compartilhamentoService: CompartilhamentoService
 ) {
 
     @Operation(summary = "Lista os dispositivos do usuário autenticado")
@@ -162,7 +163,7 @@ class DispositivoController(
         @Valid @RequestBody request: CompartilharDispositivoRequest
     ): ResponseEntity<CompartilhamentoResponse> {
         val usuarioId = UUID.fromString(jwt.subject)
-        val compartilhamento = dispositivoService.compartilhar(id, request, usuarioId)
+        val compartilhamento = compartilhamentoService.compartilhar(id, request, usuarioId)
         return ResponseEntity.status(HttpStatus.CREATED).body(compartilhamento)
     }
 
@@ -173,7 +174,7 @@ class DispositivoController(
         @PathVariable id: UUID
     ): ResponseEntity<List<CompartilhamentoResponse>> {
         val usuarioId = UUID.fromString(jwt.subject)
-        val compartilhamentos = dispositivoService.listarCompartilhamentos(id, usuarioId)
+        val compartilhamentos = compartilhamentoService.listarCompartilhamentos(id, usuarioId)
         return ResponseEntity.ok(compartilhamentos)
     }
 
@@ -191,7 +192,7 @@ class DispositivoController(
         @PathVariable convidadoId: UUID
     ): ResponseEntity<Void> {
         val usuarioId = UUID.fromString(jwt.subject)
-        dispositivoService.removerCompartilhamento(id, convidadoId, usuarioId)
+        compartilhamentoService.removerCompartilhamento(id, convidadoId, usuarioId)
         return ResponseEntity.noContent().build()
     }
 }
