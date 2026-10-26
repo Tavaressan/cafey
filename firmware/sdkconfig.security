@@ -1,0 +1,23 @@
+# Configuração de Segurança em Produção — ESP32 (Cafey Firmware)
+# ATENÇÃO: Habilitar Secure Boot v2 e Flash Encryption queima eFuses físicos irreversíveis no ESP32.
+# Este arquivo deve ser usado apenas com idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.security"
+# e EXCLUSIVAMENTE em placas reserva de teste/produção.
+
+# 1. Secure Boot v2
+CONFIG_SECURE_BOOT=y
+CONFIG_SECURE_BOOT_V2_ENABLED=y
+CONFIG_SECURE_BOOT_BUILD_SIGNED_BINARIES=y
+CONFIG_SECURE_BOOT_SIGNING_KEY="secure_boot_signing_key.pem"
+CONFIG_SECURE_BOOT_ENABLE_AGGRESSIVE_REVOCATION=y
+
+# 2. Flash Encryption
+CONFIG_SECURE_FLASH_ENC_ENABLED=y
+CONFIG_SECURE_FLASH_ENCRYPTION_MODE_RELEASE=y
+CONFIG_SECURE_FLASH_CHECK_ENC_EN_IN_APP=y
+
+# 3. NVS Encryption (exige partição nvs_keys de 4KB)
+CONFIG_NVS_ENCRYPTION=y
+
+# 4. Desativação de interfaces de depuração em hardware (JTAG e ROM download)
+CONFIG_SECURE_DISABLE_ROM_DL_MODE=y
+CONFIG_SECURE_BOOT_INSECURE=n
