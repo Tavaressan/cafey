@@ -2,7 +2,7 @@
 
 Firmware do módulo IoT da cafeteira Cafey desenvolvido em **C++17** sobre o framework oficial **ESP-IDF** (com FreeRTOS).
 
-Fatia atual: **I/O local, Driver do Relé (com proteção anti-glitch no boot) e módulo Wi-Fi (conexão, reconexão automática e provisionamento de credenciais — UC-04)**. Botão alterna o relé; LED RGB indica o estado.
+Fatia atual: **I/O local, Driver do Relé (com proteção anti-glitch no boot), Driver do LED RGB com cores de estado (spec §5.3) e módulo Wi-Fi/BLE (conexão, reconexão automática e provisionamento de credenciais — UC-04)**. Botão alterna o relé; LED RGB indica o estado do sistema.
 
 ## Pinagem Definida
 
@@ -10,9 +10,23 @@ Fatia atual: **I/O local, Driver do Relé (com proteção anti-glitch no boot) e
 |---|---|---|---|
 | Relé (IN) | 26 | Gatilho de nível BAIXO — módulo HL-52S (LOW = ligado); R1 10 kΩ pull-up externo | O driver força nível ALTO antes de inicializar para impedir pulso espúrio no boot |
 | Botão | 27 | R2 10 kΩ pull-up externo + C3 100 nF debounce RC | Solto = 1, pressionado = 0 (borda de descida = clique) |
-| LED vermelho | 21 | R3 220 Ω (Cátodo comum) | Aceso = cafeteira desligada |
-| LED verde | 22 | R4 100 Ω (Cátodo comum) | Aceso = cafeteira ligada |
-| LED azul | 23 | R5 100 Ω (Cátodo comum) | Aceso durante o boot |
+| LED vermelho | 21 | R3 220 Ω (Cátodo comum) | Canal R (compõe Amarelo/Âmbar, Branco e Vermelho) |
+| LED verde | 22 | R4 100 Ω (Cátodo comum) | Canal G (compõe Verde fixo/pulsando, Âmbar e Branco) |
+| LED azul | 23 | R5 100 Ω (Cátodo comum) | Canal B (compõe Azul respirando quando ocioso online e Branco) |
+
+## Estados do LED RGB (Spec §5.3)
+
+> **Regra mental:** a **cor** indica o estado da cafeteira; o **piscar** indica problema de rede.
+
+| Cor / Padrão | Significado | Estado Lógico |
+|---|---|---|
+| **Azul respirando (lento)** | Conectado e ocioso | `Idle` + `network_ok = true` |
+| **Verde fixo** | Agendamento armado | `ScheduleArmed` + `network_ok = true` |
+| **Âmbar fixo** | Desconectado, com agendamento armado | `ScheduleArmed` + `network_ok = false` |
+| **Verde pulsando** | Preparando café agora | `Brewing` |
+| **Branco fixo (alguns minutos)** | Café pronto | `Ready` (recém-concluído) |
+| **Amarelo piscando** | Sem Wi-Fi, ocioso (operando offline) | `Idle` + `network_ok = false` |
+| **Vermelho fixo** | Erro ou falha | `Error` |
 
 ## Estrutura do Projeto
 
@@ -27,8 +41,12 @@ firmware/
 │   ├── CMakeLists.txt     # Registro do componente main e fontes C++
 │   ├── main.cpp           # Ponto de entrada app_main (extern "C") e namespace cafey
 │   ├── drivers/
-│   │   ├── relay.hpp      # Header do driver de relé C++ com RAII e anti-glitch
-│   │   └── relay.cpp      # Implementação do driver cafey::drivers::Relay
+│   │   ├── relay.hpp/.cpp # Driver de relé C++ com RAII e anti-glitch
+│   │   └── rgb_led.hpp/.cpp # Driver do LED RGB com cores e padrões de estado (spec §5.3)
+│   ├── app/
+│   │   ├── cafeteira.hpp/.cpp # Active Object central da cafeteira (relé + botão + LED RGB)
+│   │   ├── agendador.hpp/.cpp # Active Object do agendador offline (NTP + relógio interno)
+│   │   └── conectividade.hpp/.cpp # Active Object de Wi-Fi, MQTT e drenagem de eventos
 │   └── core/              # Estruturas e active objects centrais
 │       ├── reconnect_policy.hpp/.cpp    # Backoff exponencial puro (cafey::core::ReconnectPolicy)
 │       ├── wifi_credentials.hpp/.cpp    # Persistência NVS de SSID/senha (cafey::core::WifiCredentialsStore)
@@ -38,6 +56,8 @@ firmware/
     ├── mock_esp_gpio.hpp       # Mock da camada GPIO do ESP-IDF para testes sem hardware
     ├── mock_esp_nvs.hpp        # Mock da camada NVS do ESP-IDF para testes sem hardware
     ├── test_relay.cpp          # Testes unitários do driver do relé (TDD)
+    ├── test_rgb_led.cpp        # Testes unitários do driver do LED RGB (spec §5.3)
+    ├── test_cafeteira.cpp      # Testes unitários do Active Object Cafeteira (TDD)
     ├── test_reconnect_policy.cpp    # Testes unitários do backoff de reconexão (TDD)
     └── test_wifi_credentials.cpp    # Testes unitários da persistência de credenciais (TDD)
 ```
@@ -49,6 +69,12 @@ firmware/
 - **Métodos**: `init()`, `set(bool on)`, `turn_on()`, `turn_off()`, `toggle()`, `is_on()`, `is_initialized()`, `get_pin()`.
 - **Semântica Move**: Proteção contra duplicação de posse do hardware físico via exclusão de cópia e suporte a movimentação (`move`).
 
+## Driver do LED RGB (`cafey::drivers::RgbLed`) — Spec §5.3
+
+- **Controle dos 3 Canais (RGB)**: GPIOs 21, 22 e 23, suportando cátodo comum (padrão) e ânodo comum.
+- **Mapeamento de Padrões**: Solid (fixo), Blink (piscando a 1 Hz), Pulse (pulsando a 2 Hz) e Breathe (respiração lenta a cada 2,4 s).
+- **Integração com o AO Cafeteira**: o método `Cafeteira::on_tick()` aciona `RgbLed::tick()` a cada 10 ms para manter a animação suave e em sincronia com o estado operacional e de rede da cafeteira.
+
 ## Módulo Wi-Fi (`cafey::core::WifiManager`) — UC-04
 
 - **Conexão STA**: inicializa `esp_wifi` em modo estação sobre o event loop padrão do ESP-IDF (`esp_event`).
@@ -58,7 +84,7 @@ firmware/
 
 ## Executar Testes Unitários Nativos (Host)
 
-Os testes unitários (driver do relé, backoff de reconexão e persistência de credenciais Wi-Fi) podem ser compilados e executados em qualquer máquina de desenvolvimento (macOS / Linux) sem necessidade da toolchain física do ESP-IDF instalada:
+Os testes unitários (driver do relé, driver do LED RGB, Cafeteira AO, backoff de reconexão e persistência de credenciais Wi-Fi) podem ser compilados e executados em qualquer máquina de desenvolvimento (macOS / Linux) sem necessidade da toolchain física do ESP-IDF instalada:
 
 ```sh
 cd firmware/test
@@ -71,9 +97,9 @@ ctest --output-on-failure
 ## Simulação no Wokwi (wokwi.com)
 
 1. Abra o Wokwi para ESP32 ESP-IDF (<https://wokwi.com/projects/new/esp-idf-esp32>).
-2. Adicione os fontes de `firmware/` (`main.cpp`, `drivers/relay.hpp`, `drivers/relay.cpp`).
+2. Adicione os fontes de `firmware/` (`main.cpp`, `drivers/relay.hpp`, `drivers/relay.cpp`, `drivers/rgb_led.hpp`, `drivers/rgb_led.cpp`, etc.).
 3. Cole o conteúdo de `diagram.json` e `wokwi.toml`.
-4. Clique em **Run**. O log serial reportará o boot com LED azul e ao clicar no botão `SW1`, o relé e o LED alternam o estado.
+4. Clique em **Run**. O log serial reportará o boot com o LED indicando o estado correspondente e ao clicar no botão `SW1`, o relé e o LED alternam o estado.
 
 ### Simulação headless via `wokwi-cli` (CI local / validação sem hardware)
 
@@ -85,20 +111,6 @@ cd firmware
 wokwi-cli --serial-log-file /tmp/serial.log .            # lê wokwi.toml automaticamente
 ```
 
-**Gotcha crítico:** `diagram.json` precisa conectar explicitamente os pinos TX0/RX0 do ESP32 ao
-part virtual `$serialMonitor`, senão o `wokwi-cli` conecta na API normalmente e a simulação roda
-(inclusive o firmware de verdade), mas **nenhum byte de serial chega ao CLI** — nem o banner de
-boot do ROM, que independe do firmware. É silencioso: sem erro, sem timeout diferenciado, só
-`--serial-log-file` vazio. As duas conexões que resolvem:
-```json
-[ "esp:TX0", "$serialMonitor:RX", "", [] ],
-[ "esp:RX0", "$serialMonitor:TX", "", [] ]
-```
-Diagramas antigos/copiados do editor web às vezes não têm essa conexão (o editor web injeta um
-monitor serial implícito que o `wokwi-cli` headless não replica). Rode `wokwi-cli lint .` para
-pegar problemas de fiação — mas o lint não detecta a ausência do `$serialMonitor` (não é erro de
-fiação, é ausência de conexão opcional do ponto de vista do simulador).
-
 ## Compilação Local com ESP-IDF (≥ 5.x)
 
 ```sh
@@ -107,29 +119,3 @@ idf.py set-target esp32
 idf.py build
 idf.py -p <porta> flash monitor
 ```
-
-### Evitando "idf.py: command not found"
-
-- **`. export.sh` não persiste entre comandos de shell separados.** Cada terminal/execução novos
-  precisa dar `source` de novo — não é algo que se "instala" uma vez. Se for automatizar (script,
-  CI local, agente), o `source` e o `idf.py` têm que estar na **mesma** invocação de shell:
-  ```sh
-  . "$HOME/.espressif/v6.1/esp-idf/export.sh" && idf.py build
-  ```
-- **Instalação incompleta é a causa mais comum.** O toolchain (compiladores, cmake, ninja) pode já
-  estar baixado em `~/.espressif/<versão>/` sem o venv Python ter sido criado — nesse caso
-  `export.sh` falha com `ESP-IDF Python virtual environment ... not found`. Reinstale com:
-  ```sh
-  bash ~/.espressif/<versão>/esp-idf/install.sh esp32
-  ```
-- **A build real (`idf.py build`) é a única que valida o firmware de verdade.** A suíte de host
-  (seção acima) cobre lógica pura via mocks, mas não pega problemas específicos do ESP-IDF (headers
-  ausentes, `REQUIRES` de componente faltando, mudança de struct entre versões) — só o CI (Docker
-  `espressif/idf:v5.3`) ou uma instalação local do ESP-IDF pegam isso. Se o Docker também estiver
-  indisponível localmente (`docker info` falhando), a build real via `idf.py` é o único jeito de
-  validar antes do CI.
-- **Divergência de versão local vs. CI é uma fonte real de falso-negativo/falso-positivo.** O CI
-  fixa `espressif/idf:v5.3`; uma instalação local em outra versão (ex. v6.1) pode expor mudanças de
-  API/struct que não existem no v5.3 (e vice-versa). Ao investigar um erro de build que só aparece
-  local ou só no CI, confira a versão primeiro (`idf.py --version`) antes de assumir que é bug de
-  código.

@@ -36,6 +36,13 @@ public:
     [[nodiscard]] size_t schedule_count() const noexcept { return count_; }
     [[nodiscard]] int fired_count() const noexcept { return fired_count_; }
 
+    [[nodiscard]] bool has_armed_schedules() const noexcept {
+        for (size_t i = 0; i < count_; ++i) {
+            if (schedules_[i].active) return true;
+        }
+        return false;
+    }
+
     /** Substitui a lista completa de agendamentos (idempotente, spec §6.3). */
     void set_schedules(const cafey::storage::Schedule* schedules, size_t count);
 

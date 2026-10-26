@@ -5,7 +5,8 @@
 
 #include "core/active_object.hpp"
 #include "core/clock.hpp"
-#include "drivers/relay.hpp" // tambem traz o header de GPIO (real ou mock)
+#include "drivers/relay.hpp"
+#include "drivers/rgb_led.hpp"
 #include "storage/event.hpp"
 #include "storage/event_id_generator.hpp"
 #include "storage/event_queue_store.hpp"
@@ -14,7 +15,8 @@ namespace cafey::app {
 
 /**
  * @brief Active Object da Cafeteira: maquina de estados do preparo,
- * acionamento do rele, LED RGB, leitura do botao fisico e enfileiramento de eventos (FW-22).
+ * acionamento do rele, LED RGB com cores de estado (spec §5.3),
+ * leitura do botao fisico e enfileiramento de eventos (FW-22).
  */
 class Cafeteira : public cafey::core::ActiveObject {
 public:
@@ -33,9 +35,10 @@ public:
     // Teto de seguranca para `duracaoS`, independente do backend: cobre o
     // fallback BLE (spec §6.4), que pode comandar a base sem passar pelo
     // `@Max(900)` de `ComandoRequest` (BE-27, PR #142). Ver issue #143.
-    // A issue #8 (HW-06) vai medir o tempo real de extracao e os dois tetos
-    // devem ser revistos juntos quando ela fechar.
     static constexpr uint32_t kMaxDurationS = 900;
+
+    // Tempo em que o LED permanece em Branco Fixo apos cafe pronto (spec §5.3: alguns minutos).
+    static constexpr uint32_t kReadyDurationS = 180;
 
     explicit Cafeteira(gpio_num_t relay_pin = GPIO_NUM_26,
                        gpio_num_t button_pin = GPIO_NUM_27,
@@ -49,6 +52,8 @@ public:
     [[nodiscard]] uint32_t brew_seconds_left() const noexcept {
         return (brew_ticks_left_ + kTicksPerSecond - 1) / kTicksPerSecond;
     }
+    [[nodiscard]] drivers::CoffeeVisualState visual_state() const noexcept { return visual_state_; }
+    [[nodiscard]] const drivers::RgbLed& led() const noexcept { return led_; }
 
     /**
      * @brief Anexa a fila persistida e o gerador de ID para enfileirar eventos ao
@@ -77,6 +82,21 @@ public:
     void set_ntp_synced(bool synced) { ntp_synced_ = synced; }
 
     /**
+     * @brief Atualiza a condicao de rede para a cor/padrao do LED (spec §5.3).
+     */
+    void set_network_ok(bool ok);
+
+    /**
+     * @brief Notifica se ha agendamento armado ativo no Agendador (spec §5.3).
+     */
+    void set_schedules_armed(bool armed);
+
+    /**
+     * @brief Sinaliza estado de erro/falha no hardware (LED vermelho fixo).
+     */
+    void set_error(bool error);
+
+    /**
      * @brief Callback chamado a cada aplicacao de estado (rele + LED), inclusive
      * no boot, com true = preparando. Usado para publicar `estado` (FW-21).
      * Definir antes de start().
@@ -87,7 +107,7 @@ public:
 
 protected:
     void on_start() override;
-    void on_tick() override; // polling do botao com debounce
+    void on_tick() override; // polling do botao com debounce e animacao do LED
     void dispatch(const cafey::core::Message& msg) override;
 
 private:
@@ -96,7 +116,6 @@ private:
     static constexpr uint32_t kTicksPerSecond = 100;
 
     void apply_state();
-    void led_set(bool r, bool g, bool b);
     void start_brew(uint32_t duration_s,
                     cafey::storage::EventOrigin origin = cafey::storage::EventOrigin::APP);
     void cancel_brew();
@@ -104,11 +123,16 @@ private:
     void enqueue_brew_event(cafey::storage::EventResult result, uint32_t duration_s);
 
     cafey::drivers::Relay relay_;
+    cafey::drivers::RgbLed led_;
     gpio_num_t button_pin_;
-    gpio_num_t led_r_;
-    gpio_num_t led_g_;
-    gpio_num_t led_b_;
+
     State state_ = State::Off;
+    drivers::CoffeeVisualState visual_state_ = drivers::CoffeeVisualState::Idle;
+    bool network_ok_ = true; // Por default assume conectado em testes locais
+    bool has_armed_schedules_ = false;
+    bool has_error_ = false;
+    uint32_t ready_ticks_left_ = 0;
+
     uint32_t brew_ticks_total_ = 0;
     uint32_t brew_ticks_left_ = 0; // ticks restantes do preparo em curso
     uint32_t brew_start_epoch_ = 0;
