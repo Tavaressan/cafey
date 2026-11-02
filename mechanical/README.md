@@ -188,7 +188,7 @@ freecadcmd mechanical/scripts/export_step_3d.py     # build/peca1_3d.step
 freecadcmd mechanical/scripts/build_peca2_3d.py     # build/peca2_3d.FCStd + peca2_3d.step
 freecadcmd mechanical/scripts/check_peca2_3d.py     # validação Peça 2 + coincidência dos furos com os inserts
 freecadcmd mechanical/scripts/check_montagem_3d.py  # validação de conjunto (sem build_montagem_3d.py: confere as duas Shapes direto)
-freecadcmd mechanical/scripts/build_arranjo_3d.py   # build/arranjo_3d.FCStd + arranjo_3d.step
+freecadcmd mechanical/scripts/build_arranjo_3d.py   # build/arranjo_3d.FCStd + arranjo_3d.step (com Peças 1 e 2)
 freecadcmd mechanical/scripts/check_arranjo_3d.py   # valida faixas, altura livre, separação rede/baixa, sem colisão com os bosses
 freecadcmd mechanical/scripts/export_stl.py         # build/peca1_3d.stl + peca2_3d.stl (Peça 1 e Peça 2)
 ```

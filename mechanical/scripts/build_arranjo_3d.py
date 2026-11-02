@@ -80,11 +80,11 @@ MODELS = {
 }
 
 
-def _ref(doc, name, path, objname):
+def _ref(doc, name, path, objname, label):
     src = App.openDocument(path)
     feat = doc.addObject("Part::Feature", name)
     feat.Shape = src.getObject(objname).Shape.copy()
-    feat.Label = "%s (referencia)" % name
+    feat.Label = label
     App.closeDocument(src.Name)
     return feat
 
@@ -101,8 +101,8 @@ def main():
     App.closeDocument(p1.Name)
 
     doc = App.newDocument("arranjo_3d")
-    _ref(doc, "ref_peca1", _env.FCSTD, "peca1")
-    _ref(doc, "ref_peca2", _env.FCSTD2, "peca2")
+    _ref(doc, "ref_peca1", _env.FCSTD, "peca1", "peca1 (corpo impresso)")
+    _ref(doc, "ref_peca2", _env.FCSTD2, "peca2", "peca2 (fundo removivel)")
 
     comps = _env.load_componentes()
     by_name = {c["nome"]: c for c in comps}
@@ -141,8 +141,8 @@ def main():
 
     doc.recompute()
 
-    objs = [o for o in doc.Objects
-            if o.Name not in ("ref_peca1", "ref_peca2") and o.Name not in hidden]
+    # o STEP leva tambem as pecas impressas, para o arranjo abrir como conjunto
+    objs = [o for o in doc.Objects if o.Name not in hidden]
     if App.GuiUp:
         import ImportGui
         ImportGui.export(objs, _env.ARRANJO_STEP)
@@ -155,7 +155,7 @@ def main():
     print("componentes:", len(comps), "| com modelo visual:", len(hidden))
     print("cores dos modelos:", "sim" if App.GuiUp else "nao (freecadcmd)")
     print("salvo :", _env.ARRANJO_FCSTD)
-    print("step  :", _env.ARRANJO_STEP, "(divisoria + modelos + caixas sem modelo, sem as pecas impressas)")
+    print("step  :", _env.ARRANJO_STEP, "(pecas 1 e 2 + divisoria + modelos + caixas sem modelo)")
 
 
 def _import_model(doc, name, spec):
