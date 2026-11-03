@@ -67,7 +67,27 @@ conector de alavanca. Continuidade cabo→tomada é o item crítico de seguranç
 | M5 | Barra de pinos macho | 1 | `barra de pinos macho 1x40 2,54mm` | Passo 2,54 mm | Passo 2,00 mm |
 | M6 | Fio rígido para montagem | 1 kit | `fio rigido 22AWG kit cores jumper solda` | 22 AWG, rígido, ≥3 cores | Fio flexível fino sem estanhar |
 | M7 | Conectores JST-XH (rabichos do LED e do botão) | 4 vias: 2 conjuntos; 2 vias: 2 conjuntos (1 + reserva cada) | `conector JST XH 4 vias cabo pre crimpado header 180 graus` / `... 2 vias ...` | Passo 2,5 mm; header macho PTH vertical (180°) + cabo pré-crimpado ≥ 10 cm (4 vias) e ≥ 15 cm (2 vias) | JST-PH (passo 2,0 mm); JST-SM; header SMD |
-| M8 | Cabo extensor micro-USB de painel `MEDIR` | 1 | `cabo extensor micro usb painel macho femea com parafuso` | Micro-B macho → micro-B fêmea com flange de fixação por parafuso; 20–30 cm; dados (não só carga) | Só carga; USB-C; sem flange de painel |
+| M8 | Cabo extensor micro-USB de painel `MEDIR` | 1 | `cabo extensor micro usb painel macho femea com parafuso` | Micro-B macho → micro-B fêmea com flange de fixação por parafuso; 20–30 cm; dados (não só carga) — **escolhido:** [Mercado Livre MLB-1781256517, 30 cm, 5 pinos](https://produto.mercadolivre.com.br/MLB-1781256517-cabo-micro-usb-para-montagem-painel-macho-femea-30-cm-_JM) | Só carga; USB-C; sem flange de painel; versão de 50 cm do mesmo vendedor |
+
+**Definição de M8 (02/11/2026):** comprar o cabo genérico do Mercado Livre
+acima, o mais barato que atende a `exigido`: **R$ 28 + frete** (preço do
+anúncio em 02/11/2026). Alternativas avaliadas e descartadas pelo preço: cabo
+zdyCGTime de 30 cm na Amazon BR (R$ 66,05), SparkFun de 15 cm na Amazon BR
+(R$ 79,62; curto demais) e o Adafruit 3258 original (US$ 4,95; o frete
+internacional e o imposto superam o preço de uma unidade).
+
+- **Dados:** o anúncio diz "micro usb 2.0 5pin" nos dois lados, sem dizer
+  "dados". Perguntar ao vendedor antes de comprar. Ao receber, ligar o ESP32
+  pelo cabo e confirmar que ele aparece como porta serial. Se não aparecer, o
+  cabo é só de carga: devolver.
+- **Parafusos:** o anúncio não diz que vêm. Usar 2 × M3 × 8 mm (A3). Com a
+  flange por fora da parede, M3 × 12 mm passa da orelha e fica cerca de 4,6 mm
+  para fora da caixa.
+- **Medidas (`MEDIR`):** o anúncio não traz cotas. A descrição é a dos clones
+  do Adafruit 3258, então a referência provável é corpo de 12 × 9,8 mm, flange
+  de 25 × 9,8 × 5 mm e furos de Ø 3 mm a cerca de 17,3 mm entre centros. Medir
+  a peça recebida antes de imprimir: o `recorte_usb` atual (16 × 9 mm, sem
+  furos de fixação) não aceita esse conector (ver `mechanical/models/FONTES.md`).
 
 ## Verificar em estoque antes de comprar (Alfabra)
 
