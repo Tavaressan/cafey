@@ -27,4 +27,9 @@ class DispositivoColumnLengthTest {
     fun `estado declara o tamanho 50 da coluna`() {
         assertEquals(50, lengthOf("estado"))
     }
+
+    @Test
+    fun `codigoVinculo declara o tamanho 16 da coluna da migration V10`() {
+        assertEquals(16, lengthOf("codigoVinculo"))
+    }
 }

@@ -38,6 +38,14 @@ class Dispositivo(
     @Column(name = "contador_preparos", nullable = false)
     var contadorPreparos: Int = 0,
 
+    /** Código de uso único publicado pela placa na janela de vínculo (FW-24, #275). */
+    @Column(name = "codigo_vinculo", length = 16)
+    var codigoVinculo: String? = null,
+
+    /** Prazo do código, calculado pelo backend no recebimento do MQTT. */
+    @Column(name = "codigo_vinculo_expira_em")
+    var codigoVinculoExpiraEm: Instant? = null,
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     var criadoEm: Instant = Instant.now(),
 

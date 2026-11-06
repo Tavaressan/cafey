@@ -1,5 +1,12 @@
 #include "app/cafeteira.hpp"
 
+#include <cstdio>
+#include <cstdlib>
+
+#if defined(ESP_PLATFORM)
+#include "esp_random.h"
+#endif
+
 namespace cafey::app {
 
 using cafey::core::Message;
@@ -38,7 +45,10 @@ void Cafeteira::apply_state() {
         visual_state_ = drivers::CoffeeVisualState::Brewing;
     } else {
         relay_.turn_off();
-        if (ready_ticks_left_ > 0) {
+        if (bind_ticks_left_ > 0) {
+            // Janela de vinculo aberta: azul piscando (FW-24, #275).
+            visual_state_ = drivers::CoffeeVisualState::Binding;
+        } else if (ready_ticks_left_ > 0) {
             visual_state_ = drivers::CoffeeVisualState::Ready;
         } else if (has_error_) {
             visual_state_ = drivers::CoffeeVisualState::Error;
@@ -50,6 +60,33 @@ void Cafeteira::apply_state() {
     }
     led_.update(visual_state_, network_ok_);
     if (on_state_change_) on_state_change_(state_ == State::On);
+}
+
+std::string Cafeteira::generate_bind_code() {
+#if defined(ESP_PLATFORM)
+    const uint32_t value = esp_random();
+#else
+    const uint32_t value = static_cast<uint32_t>(std::rand());
+#endif
+    char buf[7];
+    std::snprintf(buf, sizeof(buf), "%06u", static_cast<unsigned>(value % 1000000u));
+    return std::string(buf);
+}
+
+void Cafeteira::open_bind_window() {
+    bind_code_ = generate_bind_code();
+    bind_ticks_left_ = kBindWindowS * kTicksPerSecond;
+    ESP_LOGI(TAG, "janela de vinculo aberta (%us)", static_cast<unsigned>(kBindWindowS));
+    apply_state();
+    if (on_bind_window_change_) on_bind_window_change_(true, bind_code_);
+}
+
+void Cafeteira::close_bind_window() {
+    bind_ticks_left_ = 0;
+    bind_code_.clear();
+    ESP_LOGI(TAG, "janela de vinculo encerrada");
+    apply_state();
+    if (on_bind_window_change_) on_bind_window_change_(false, std::string());
 }
 
 void Cafeteira::start_brew(uint32_t duration_s, cafey::storage::EventOrigin origin) {
@@ -147,12 +184,21 @@ void Cafeteira::on_start() {
     btn_reading_ = gpio_get_level(button_pin_);
     btn_stable_ = btn_reading_;
     btn_same_count_ = 0;
+    btn_press_ticks_ = 0;
+    long_press_consumed_ = false;
+    bind_ticks_left_ = 0;
+    bind_code_.clear();
 
     state_ = State::Off;
     apply_state();
 }
 
 void Cafeteira::on_tick() {
+    // Janela de vinculo (FW-24, #275): conta regressiva em ticks e fecha no fim.
+    if (bind_ticks_left_ > 0 && --bind_ticks_left_ == 0) {
+        close_bind_window();
+    }
+
     // Atualiza o padrao visual do LED (respira/pisca/pulsa/fixo)
     led_.tick();
 
@@ -163,23 +209,38 @@ void Cafeteira::on_tick() {
         }
     }
 
-    int level = gpio_get_level(button_pin_);
+    // Temporizador local do preparo: decrementa a cada tick enquanto o botao esta estavel.
+    if (btn_same_count_ >= kDebounceSamples &&
+        state_ == State::On && brew_ticks_left_ > 0 && --brew_ticks_left_ == 0
+    ) {
+        finish_brew();
+    }
+
+    const int level = gpio_get_level(button_pin_);
     if (level != btn_reading_) {
         btn_reading_ = level;
         btn_same_count_ = 0;
         return;
     }
-    if (btn_same_count_ >= kDebounceSamples) {
-        // Temporizador local do preparo: decrementa a cada tick sem botao.
-        if (state_ == State::On && brew_ticks_left_ > 0 && --brew_ticks_left_ == 0) {
-            finish_brew();
-        }
-        return;
-    }
-    if (++btn_same_count_ == kDebounceSamples && level != btn_stable_) {
+    if (btn_same_count_ < kDebounceSamples) ++btn_same_count_;
+    if (btn_same_count_ == kDebounceSamples && level != btn_stable_) {
         btn_stable_ = level;
-        if (btn_stable_ == 0) { // borda de descida (pull-up): clique
+        if (btn_stable_ == 0) { // borda de descida (pull-up): inicio do toque
+            btn_press_ticks_ = 0;
+            long_press_consumed_ = false;
+        } else if (!long_press_consumed_) {
+            // Toque curto: liga (inicia preparo) / desliga (cancela) na soltura,
+            // para que segurar 5 s nao acione o preparo antes de abrir a janela.
             post(Message{MessageType::ButtonPressed, 0});
+        }
+    }
+
+    // Toque longo: abre a janela ainda com o botao pressionado.
+    if (btn_same_count_ >= kDebounceSamples && btn_stable_ == 0) {
+        if (btn_press_ticks_ < kLongPressTicks) ++btn_press_ticks_;
+        if (!long_press_consumed_ && btn_press_ticks_ >= kLongPressTicks) {
+            long_press_consumed_ = true;
+            open_bind_window();
         }
     }
 }

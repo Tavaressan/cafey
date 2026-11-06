@@ -160,6 +160,28 @@ Manter a rota e a interface de cadastro manual de dispositivo como alternativa d
 - [ ] Em plataformas onde o cliente BLE não é suportado (Web e Desktop), o formulário manual é apresentado diretamente.
 - [ ] O fluxo manual preserva os campos de configuração existentes: serial, fuso horário, duração de preparo e limiar de descalcificação.
 
+### RF-07 - Vínculo por Janela do Botão Físico e Código de Uso Único
+
+**Priority:** Must
+
+**Description:**
+O vínculo do dispositivo à conta deve exigir posse física da cafeteira, e não apenas o serial
+(UUID) que o BLE anuncia em claro. O toque longo no botão abre uma janela curta com um código
+aleatório de uso único, publicado pelo firmware na nuvem (MQTT autenticado pelo certificado da
+placa) e exposto para leitura por BLE. O app lê o código e o envia no `POST /dispositivos`.
+
+**Acceptance Criteria:**
+- [ ] Toque curto no botão (GPIO 27) continua alternando o preparo; apenas um toque de ~5 s abre a janela de vínculo.
+- [ ] A janela dura ~2 min e é sinalizada pelo LED azul piscando; ao fechar, o LED volta ao estado anterior e o código é descartado.
+- [ ] Enquanto a janela está aberta, o firmware publica `{"codigo":"NNNNNN"}` em `dispositivos/<thing>/vinculo` com QoS 1 e **sem retain**, escopado ao próprio thing pela política.
+- [ ] O firmware expõe o mesmo código na característica de leitura `6b3d000a-0b0b-4a3a-9c0e-cafe1a000000` como `{"codigo":"NNNNNN"}` ou `{"codigo":null}` com a janela fechada.
+- [ ] O backend assina `dispositivos/+/vinculo` e guarda o código com prazo calculado no recebimento (120 s), sobrescrevendo um código anterior se a janela for reaberta.
+- [ ] O `POST /dispositivos` com `serial` de placa **sem proprietário** exige `codigoVinculo` válido e não expirado; a ausência, o erro ou o vencimento respondem **400** com mensagem acionável.
+- [ ] Um código válido só pode ser usado uma vez: o backend o apaga após concluir o vínculo.
+- [ ] O recadastro da mesma placa pelo mesmo proprietário continua idempotente e não exige código (comportamento do #266).
+- [ ] A placa já vinculada a outra conta responde **409**, sem revelar se o código estava correto.
+- [ ] O app lê o código no momento de concluir o cadastro e, se a janela estiver fechada ou a leitura falhar, mostra a instrução de segurar o botão por 5 s e não chama a API.
+
 ---
 
 ## Non-Functional Requirements
@@ -187,6 +209,7 @@ Garantias de proteção das credenciais em trânsito e segregação das chaves p
 - [ ] A senha da rede Wi-Fi não deve ser registrada em texto plano nos logs de depuração do aplicativo ou console serial.
 - [ ] As credenciais X.509 da AWS IoT permanecem isoladas na partição NVS e não possuem nenhuma interface de leitura ou exportação via BLE conforme Premissa P2.
 - [ ] O tamanho dos campos de SSID e senha é validado no firmware para evitar estouro de memória (SSID com até 32 bytes e senha com até 64 bytes).
+- [ ] O código de vínculo trafega em claro no BLE enquanto o pareamento seguro não for implementado (#276). Risco aceito no protótipo: o código é de uso único, expira em ~2 min e só existe com a janela aberta fisicamente na placa; o vínculo não pode depender do sigilo do canal.
 
 ### RNF-03 - Coexistência Wi-Fi e Bluetooth no Firmware
 

@@ -43,12 +43,14 @@ class DispositivoController(
 
     @Operation(
         summary = "Cria um novo dispositivo para o usuário autenticado",
-        description = "Com `serial` (cadastro por BLE), vincula a placa já registrada em vez de criar outra."
+        description = "Com `serial` (cadastro por BLE), vincula a placa já registrada em vez de criar outra. " +
+            "Se a placa ainda não tem proprietário, `codigoVinculo` (código de 6 dígitos lido por BLE na " +
+            "janela aberta pelo toque longo) é obrigatório e só vale uma vez."
     )
     @ApiResponse(responseCode = "201", description = "Dispositivo criado ou vinculado com sucesso")
     @ApiResponse(
         responseCode = "400",
-        description = "Dados inválidos",
+        description = "Dados inválidos ou código de vínculo ausente, incorreto ou expirado",
         content = [Content(schema = Schema(implementation = ProblemDetail::class))]
     )
     @ApiResponse(
