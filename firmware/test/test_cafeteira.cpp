@@ -54,7 +54,7 @@ int test_cafeteira_button_toggles_relay_and_led() {
     TEST_ASSERT(!caf.relay_on(), "rele inicia aberto");
     TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Idle, "inicia em Idle");
     TEST_ASSERT(caf.led().color() == LedColor::Blue, "LED Azul quando conectado e ocioso");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_23).level == 1, "LED B aceso");
+    TEST_ASSERT(MockLedc::get_duty(LEDC_CHANNEL_0) == 0, "LED B respirando inicia apagado (duty 0)");
     TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_21).level == 0, "LED R apagado");
 
     // Clique no botao -> liga (preparo: Verde pulsando).
@@ -130,7 +130,7 @@ int test_cafeteira_brew_timer_completes_with_concluido() {
     TEST_ASSERT(caf.led().color() == LedColor::White, "LED Branco quando cafe pronto");
     TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_21).level == 1 &&
                 MockGpio::get_pin(GPIO_NUM_22).level == 1 &&
-                MockGpio::get_pin(GPIO_NUM_23).level == 1, "todos os pinos acesos (branco)");
+                MockLedc::get_duty(LEDC_CHANNEL_0) == 255, "todos os canais acesos (branco)");
 
     std::cout << "[PASS] test_cafeteira_brew_timer_completes_with_concluido" << std::endl;
     return 0;
@@ -298,7 +298,7 @@ int test_cafeteira_led_schedule_armed_states() {
     TEST_ASSERT(caf.led().pattern() == LedPattern::Solid, "Fixo");
     TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_22).level == 1 &&
                 MockGpio::get_pin(GPIO_NUM_21).level == 0 &&
-                MockGpio::get_pin(GPIO_NUM_23).level == 0, "Apenas pino G aceso");
+                MockLedc::get_duty(LEDC_CHANNEL_0) == 0, "Apenas pino G aceso");
 
     // 2. Queda de conexao com agendamento armado -> Ambar fixo (spec §5.3)
     caf.post(Message{MessageType::NetworkStatusChanged, 0});
@@ -308,7 +308,7 @@ int test_cafeteira_led_schedule_armed_states() {
     TEST_ASSERT(caf.led().pattern() == LedPattern::Solid, "Ambar deve ser FIXO");
     TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_21).level == 1 &&
                 MockGpio::get_pin(GPIO_NUM_22).level == 1 &&
-                MockGpio::get_pin(GPIO_NUM_23).level == 0, "Pinos R e G acesos (ambar)");
+                MockLedc::get_duty(LEDC_CHANNEL_0) == 0, "Pinos R e G acesos (ambar)");
 
     // 3. Remove agendamento armado mantendo offline -> Amarelo piscando (spec §5.3)
     caf.post(Message{MessageType::ScheduleArmedChanged, 0});
