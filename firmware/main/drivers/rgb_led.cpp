@@ -31,6 +31,10 @@ LedColor RgbLed::color_for(CoffeeVisualState state, bool network_ok) {
     if (state == CoffeeVisualState::Error) {
         return LedColor::Red;
     }
+    if (state == CoffeeVisualState::Binding) {
+        // Azul piscando: distinto do azul respirando (Idle) e do ambar piscando (sem Wi-Fi).
+        return LedColor::Blue;
+    }
     if (state == CoffeeVisualState::Brewing) {
         return LedColor::Green;
     }
@@ -48,6 +52,9 @@ LedColor RgbLed::color_for(CoffeeVisualState state, bool network_ok) {
 LedPattern RgbLed::pattern_for(CoffeeVisualState state, bool network_ok) {
     if (state == CoffeeVisualState::Error) {
         return LedPattern::Solid;
+    }
+    if (state == CoffeeVisualState::Binding) {
+        return LedPattern::Blink; // Azul piscando
     }
     if (state == CoffeeVisualState::Brewing) {
         return LedPattern::Pulse; // Verde pulsando

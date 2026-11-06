@@ -358,6 +358,14 @@ private fun ConfirmRegisterStep(
         }
     }
 
+    Text(
+        "Antes de concluir, segure o botão da cafeteira por 5 segundos até o LED azul piscar. " +
+            "O app lê o código de vínculo nesse momento; a janela fica aberta por cerca de 2 minutos.",
+        style = CafeyTheme.typography.bodySmall,
+        color = CafeyTheme.colors.muted,
+        modifier = Modifier.padding(top = 12.dp),
+    )
+
     DeviceTextField(
         value = state.nome,
         onValueChange = onNomeChange,

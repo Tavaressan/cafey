@@ -23,6 +23,19 @@ using cafey::drivers::CoffeeVisualState;
 using cafey::drivers::LedColor;
 using cafey::drivers::LedPattern;
 
+// Relogio manual para os testes de evento (o clock.hpp so traz o SystemClock).
+namespace cafey::core {
+class ManualClock : public Clock {
+public:
+    explicit ManualClock(std::time_t epoch) : epoch_(epoch) {}
+    std::time_t now() const override { return epoch_; }
+    void advance(std::time_t seconds) { epoch_ += seconds; }
+
+private:
+    std::time_t epoch_;
+};
+} // namespace cafey::core
+
 // Expoe os hooks protegidos para acionar o AO de forma sincrona no teste.
 class TestableCafeteira : public cafey::app::Cafeteira {
 public:
@@ -74,8 +87,12 @@ int test_cafeteira_debounce_polling_posts_event() {
     MockGpio::get_pin(GPIO_NUM_27).level = 1;
     TestableCafeteira caf;
     caf.boot();
-    // Simula pressao: nivel 0 estavel por N amostras.
+    // Simula pressao curta: nivel 0 estavel por N amostras...
     MockGpio::get_pin(GPIO_NUM_27).level = 0;
+    for (int i = 0; i < 5; ++i) caf.tick();
+    TEST_ASSERT(caf.pending_count() == 0, "toque curto so age na soltura");
+    // ...e soltura: um unico ButtonPressed.
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
     for (int i = 0; i < 5; ++i) caf.tick();
     TEST_ASSERT(caf.pending_count() == 1, "debounce deve enfileirar exatamente 1 ButtonPressed");
     caf.process_pending();
@@ -191,6 +208,7 @@ int test_cafeteira_start_brew_boundary_at_max_duration() {
 
 int test_cafeteira_enqueues_event_on_brew_finish() {
     MockGpio::reset();
+    MockNvs::reset();
     cafey::storage::EventQueueStore queue;
     TEST_ASSERT(queue.init() == ESP_OK, "queue.init");
 
@@ -220,8 +238,8 @@ int test_cafeteira_enqueues_event_on_brew_finish() {
     TEST_ASSERT(evt.resultado == cafey::storage::EventResult::CONCLUIDO, "resultado CONCLUIDO");
     TEST_ASSERT(evt.origem == cafey::storage::EventOrigin::APP, "origem APP");
     TEST_ASSERT(evt.duracao_s == 1, "duracao_s 1s");
-    TEST_ASSERT(evt.inicio_epoch == 1000, "inicio_epoch 1000");
-    TEST_ASSERT(evt.fim_epoch == 1001, "fim_epoch 1001");
+    TEST_ASSERT(evt.timestamp_inicio == 1000, "timestamp_inicio 1000");
+    TEST_ASSERT(evt.timestamp_fim == 1001, "timestamp_fim 1001");
     TEST_ASSERT(std::string(evt.evento_id).rfind("12345678:", 0) == 0, "evento_id com bootId");
 
     std::cout << "[PASS] test_cafeteira_enqueues_event_on_brew_finish" << std::endl;
@@ -230,6 +248,7 @@ int test_cafeteira_enqueues_event_on_brew_finish() {
 
 int test_cafeteira_enqueues_event_on_brew_cancel() {
     MockGpio::reset();
+    MockNvs::reset();
     cafey::storage::EventQueueStore queue;
     TEST_ASSERT(queue.init() == ESP_OK, "queue.init");
 
@@ -302,6 +321,114 @@ int test_cafeteira_led_schedule_armed_states() {
     return 0;
 }
 
+static bool six_digits(const std::string& text) {
+    if (text.size() != 6) return false;
+    for (char c : text) {
+        if (c < '0' || c > '9') return false;
+    }
+    return true;
+}
+
+// Simula um toque longo no botao (nivel 0) e devolve o AO com a janela aberta.
+static void long_press(TestableCafeteira& caf) {
+    MockGpio::get_pin(GPIO_NUM_27).level = 0;
+    const uint32_t ticks = cafey::app::Cafeteira::kLongPressMs / 10 + 10;
+    for (uint32_t i = 0; i < ticks; ++i) caf.tick();
+}
+
+int test_cafeteira_long_press_opens_bind_window() {
+    MockGpio::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    TestableCafeteira caf;
+    int aberturas = 0;
+    bool fechada = false;
+    std::string codigo_callback;
+    caf.set_on_bind_window_change([&](bool aberta, const std::string& codigo) {
+        if (aberta) {
+            ++aberturas;
+            codigo_callback = codigo;
+        } else {
+            fechada = true;
+        }
+    });
+    caf.boot();
+
+    long_press(caf);
+
+    TEST_ASSERT(caf.bind_window_open(), "toque longo abre a janela de vinculo");
+    TEST_ASSERT(aberturas == 1, "callback de abertura chamado uma vez");
+    TEST_ASSERT(six_digits(caf.bind_code()), "codigo tem 6 digitos");
+    TEST_ASSERT(codigo_callback == caf.bind_code(), "callback recebe o mesmo codigo do BLE");
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "toque longo nao liga o preparo");
+    TEST_ASSERT(!caf.relay_on(), "rele permanece aberto");
+    TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Binding, "LED indica janela de vinculo");
+    TEST_ASSERT(caf.led().color() == LedColor::Blue, "janela de vinculo -> azul");
+    TEST_ASSERT(caf.bind_seconds_left() > 0 &&
+                    caf.bind_seconds_left() <= cafey::app::Cafeteira::kBindWindowS,
+                "contagem regressiva dentro da janela");
+
+    // Soltar depois do toque longo nao dispara o toque curto.
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    for (int i = 0; i < 5; ++i) caf.tick();
+    TEST_ASSERT(caf.pending_count() == 0, "soltura apos toque longo nao liga o preparo");
+    TEST_ASSERT(!fechada && caf.bind_window_open(), "janela segue aberta apos a soltura");
+
+    std::cout << "[PASS] test_cafeteira_long_press_opens_bind_window" << std::endl;
+    return 0;
+}
+
+int test_cafeteira_bind_window_expires() {
+    MockGpio::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    TestableCafeteira caf;
+    bool fechada = false;
+    caf.set_on_bind_window_change([&](bool aberta, const std::string&) {
+        if (!aberta) fechada = true;
+    });
+    caf.boot();
+
+    long_press(caf);
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    for (int i = 0; i < 5; ++i) caf.tick();
+    TEST_ASSERT(caf.bind_window_open(), "janela abriu");
+
+    // Avanca os 2 min da janela (+ alguns ticks de folga).
+    const uint32_t ticks = cafey::app::Cafeteira::kBindWindowS * 100 + 10;
+    for (uint32_t i = 0; i < ticks; ++i) caf.tick();
+
+    TEST_ASSERT(!caf.bind_window_open(), "janela fecha no prazo");
+    TEST_ASSERT(caf.bind_code().empty(), "codigo e descartado ao fechar");
+    TEST_ASSERT(fechada, "callback de fechamento chamado");
+    TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Idle, "LED volta ao estado ocioso");
+
+    std::cout << "[PASS] test_cafeteira_bind_window_expires" << std::endl;
+    return 0;
+}
+
+int test_cafeteira_short_press_still_toggles_brew_with_window_open() {
+    MockGpio::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    TestableCafeteira caf;
+    caf.boot();
+
+    long_press(caf);
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    for (int i = 0; i < 5; ++i) caf.tick();
+    TEST_ASSERT(caf.bind_window_open(), "janela abriu");
+
+    // Toque curto durante a janela: continua ligando o preparo.
+    MockGpio::get_pin(GPIO_NUM_27).level = 0;
+    for (int i = 0; i < 5; ++i) caf.tick();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    for (int i = 0; i < 5; ++i) caf.tick();
+    caf.process_pending();
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::On, "toque curto liga o preparo");
+    TEST_ASSERT(caf.bind_window_open(), "janela continua aberta durante o preparo");
+
+    std::cout << "[PASS] test_cafeteira_short_press_still_toggles_brew_with_window_open" << std::endl;
+    return 0;
+}
+
 int test_skeleton_active_objects() {
     cafey::app::Conectividade con;
     con.start();
@@ -334,6 +461,9 @@ int main() {
     if (test_cafeteira_enqueues_event_on_brew_finish()) return 1;
     if (test_cafeteira_enqueues_event_on_brew_cancel()) return 1;
     if (test_cafeteira_led_schedule_armed_states()) return 1;
+    if (test_cafeteira_long_press_opens_bind_window()) return 1;
+    if (test_cafeteira_bind_window_expires()) return 1;
+    if (test_cafeteira_short_press_still_toggles_brew_with_window_open()) return 1;
     if (test_skeleton_active_objects()) return 1;
     std::cout << "All Cafeteira AO tests PASSED!" << std::endl;
     return 0;

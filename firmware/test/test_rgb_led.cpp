@@ -73,6 +73,11 @@ int test_color_maps_coffee_state_when_network_ok() {
     TEST_ASSERT(led.color() == LedColor::Red && pins_are(1, 0, 0), "erro -> vermelho");
     TEST_ASSERT(led.pattern() == LedPattern::Solid, "erro -> fixo");
 
+    // 6. Janela de vinculo aberta (FW-24): Azul piscando.
+    led.update(CoffeeVisualState::Binding, true);
+    TEST_ASSERT(led.color() == LedColor::Blue && pins_are(0, 0, 1), "vinculo -> azul");
+    TEST_ASSERT(led.pattern() == LedPattern::Blink, "vinculo -> piscando");
+
     std::cout << "[PASS] test_color_maps_coffee_state_when_network_ok" << std::endl;
     return 0;
 }

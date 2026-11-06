@@ -20,6 +20,7 @@ enum class CoffeeVisualState : uint8_t {
     Brewing,       // preparando cafe agora
     Ready,         // cafe pronto (alguns minutos apos o preparo)
     Error,         // erro ou falha
+    Binding,       // janela de vinculo aberta pelo toque longo (FW-24, #275)
 };
 
 /**
