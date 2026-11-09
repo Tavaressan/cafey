@@ -20,19 +20,25 @@ import io.ktor.http.path
 class CommandApi(private val apiClient: ApiClient) : ComandoRemoto {
 
     override suspend fun ligar(dispositivoId: String): ComandoResponse =
-        enviar(dispositivoId, AcaoComando.LIGAR)
+        enviar(dispositivoId, ComandoRequest(AcaoComando.LIGAR))
 
     override suspend fun desligar(dispositivoId: String): ComandoResponse =
-        enviar(dispositivoId, AcaoComando.DESLIGAR)
+        enviar(dispositivoId, ComandoRequest(AcaoComando.DESLIGAR))
 
     override suspend fun cancelar(dispositivoId: String): ComandoResponse =
-        enviar(dispositivoId, AcaoComando.CANCELAR)
+        enviar(dispositivoId, ComandoRequest(AcaoComando.CANCELAR))
 
-    private suspend fun enviar(dispositivoId: String, acao: AcaoComando): ComandoResponse =
+    suspend fun esquecerRedeWifi(dispositivoId: String, ssid: String): ComandoResponse =
+        enviar(dispositivoId, ComandoRequest(AcaoComando.ESQUECER_REDE, ssid = ssid))
+
+    suspend fun esquecerTodasRedesWifi(dispositivoId: String): ComandoResponse =
+        enviar(dispositivoId, ComandoRequest(AcaoComando.ESQUECER_TODAS_REDES))
+
+    private suspend fun enviar(dispositivoId: String, request: ComandoRequest): ComandoResponse =
         apiClient.http.apiRequest {
             method = HttpMethod.Post
             url { path("dispositivos", dispositivoId, "comando") }
             contentType(ContentType.Application.Json)
-            setBody(ComandoRequest(acao))
+            setBody(request)
         }
 }

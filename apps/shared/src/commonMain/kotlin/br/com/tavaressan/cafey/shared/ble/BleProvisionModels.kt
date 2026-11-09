@@ -15,6 +15,9 @@ object BleUuids {
     const val DEVICE_INFO = "6b3d0007-0b0b-4a3a-9c0e-cafe1a000000"
     const val PENDING_EVENTS = "6b3d0008-0b0b-4a3a-9c0e-cafe1a000000"
     const val CONFIRM_EVENTS = "6b3d0009-0b0b-4a3a-9c0e-cafe1a000000"
+    // FW-30 (#332): redes salvas (leitura, sem senhas) e gerenciamento (escrita).
+    const val WIFI_NETWORKS = "6b3d000a-0b0b-4a3a-9c0e-cafe1a000000"
+    const val WIFI_MANAGE = "6b3d000b-0b0b-4a3a-9c0e-cafe1a000000"
 }
 
 /**
@@ -57,6 +60,24 @@ data class WifiProvisionStatus(
 data class WifiProvisionPayload(
     val ssid: String,
     val password: String,
+)
+
+/**
+ * Redes Wi-Fi salvas na cafeteira, lidas via BLE (FW-30, sem senhas).
+ */
+@Serializable
+data class WifiNetworksInfo(
+    val ssid_atual: String? = null,
+    val redes: List<String> = emptyList(),
+)
+
+/**
+ * Payload de gerenciamento Wi-Fi via BLE (FW-30). Nunca carrega senha.
+ */
+@Serializable
+data class WifiManagePayload(
+    val acao: String,
+    val ssid: String? = null,
 )
 
 /**

@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 
-/** Dublê de [BleClient] para os testes de [BleCommandFallback], [BleEventProxy] e provisionamento Wi-Fi (UC-04 #249). */
+/** Dublê de [BleClient] para os testes de [BleCommandFallback], [BleEventProxy] e provisionamento Wi-Fi (UC-04 #249, FW-30). */
 class FakeBleClient(
     private val eventosPendentes: List<BleEvento> = emptyList(),
     private val falharAoConectar: Boolean = false,
@@ -24,10 +24,16 @@ class FakeBleClient(
     var erroAoProvisionar: Throwable? = null,
     /** Simula a notificação final que nunca chega: o fluxo fica aberto após os status. */
     var manterProvisionamentoAberto: Boolean = false,
+    var redesWifiRetorno: WifiNetworksInfo = WifiNetworksInfo(),
+    var erroAoListarRedes: Throwable? = null,
+    var erroAoEsquecerRede: Throwable? = null,
 ) : BleClient {
     val comandosEnviados = mutableListOf<Pair<String, AcaoComando>>()
     val confirmacoes = mutableListOf<Pair<String, List<String>>>()
     val credenciaisProvisionadas = mutableListOf<Triple<String, String, String>>()
+    val redesEsquecidas = mutableListOf<Pair<String, String>>()
+    var esqueceuTodas = 0
+        private set
 
     override suspend fun enviarComando(dispositivoId: String, acao: AcaoComando) {
         if (falharAoConectar) throw BleError.BaseNaoEncontrada
@@ -62,5 +68,23 @@ class FakeBleClient(
             }
             if (manterProvisionamentoAberto) awaitCancellation()
         }
+    }
+
+    override suspend fun listarRedesWifi(dispositivoId: String): WifiNetworksInfo {
+        if (falharAoConectar) throw BleError.BaseNaoEncontrada
+        erroAoListarRedes?.let { throw it }
+        return redesWifiRetorno
+    }
+
+    override suspend fun esquecerRedeWifi(dispositivoId: String, ssid: String) {
+        if (falharAoConectar) throw BleError.BaseNaoEncontrada
+        erroAoEsquecerRede?.let { throw it }
+        redesEsquecidas += dispositivoId to ssid
+    }
+
+    override suspend fun esquecerTodasRedesWifi(dispositivoId: String) {
+        if (falharAoConectar) throw BleError.BaseNaoEncontrada
+        erroAoEsquecerRede?.let { throw it }
+        esqueceuTodas++
     }
 }

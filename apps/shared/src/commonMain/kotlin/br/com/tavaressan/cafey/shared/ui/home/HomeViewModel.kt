@@ -235,6 +235,9 @@ class HomeViewModel(
                         AcaoComando.LIGAR -> commandApi.ligar(deviceId)
                         AcaoComando.DESLIGAR -> commandApi.desligar(deviceId)
                         AcaoComando.CANCELAR -> commandApi.cancelar(deviceId)
+                        AcaoComando.ESQUECER_REDE,
+                        AcaoComando.ESQUECER_TODAS_REDES ->
+                            error("Ação $acao deve usar o fluxo de gerenciamento de Wi-Fi")
                     }
                     ComandoResultado.ViaNuvem(ComandoResponse("", acao, 0, ""))
                 }
@@ -243,11 +246,13 @@ class HomeViewModel(
                     val estadoEstimado = when (acao) {
                         AcaoComando.LIGAR -> "PREPARANDO"
                         AcaoComando.DESLIGAR, AcaoComando.CANCELAR -> "PRONTO"
+                        AcaoComando.ESQUECER_REDE,
+                        AcaoComando.ESQUECER_TODAS_REDES -> null
                     }
                     _uiState.update {
                         it.copy(
                             commandInFlight = false,
-                            device = it.device?.copy(estado = estadoEstimado),
+                            device = if (estadoEstimado != null) it.device?.copy(estado = estadoEstimado) else it.device,
                             errorMessage = null,
                         )
                     }
