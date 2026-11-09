@@ -26,7 +26,8 @@ class RateLimitConfig {
             listOf(
                 "/auth/signin", "/auth/login",
                 "/auth/signup", "/auth/registrar",
-                "/auth/recuperar-senha"
+                "/auth/recuperar-senha",
+                "/auth/2fa/validar"
             )
         )
         registration.order = Ordered.HIGHEST_PRECEDENCE

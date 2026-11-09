@@ -1,8 +1,12 @@
 package br.com.tavaressan.cafey.auth
 
 import br.com.tavaressan.cafey.exception.BadCredentialsException
+import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
+import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import br.com.tavaressan.cafey.mail.EmailSenderService
 import br.com.tavaressan.cafey.security.JwtTokenService
+import br.com.tavaressan.cafey.security.MfaCryptoService
+import br.com.tavaressan.cafey.security.MfaTotpService
 import br.com.tavaressan.cafey.security.PasswordResetToken
 import br.com.tavaressan.cafey.security.PasswordResetTokenRepository
 import br.com.tavaressan.cafey.security.RefreshToken
@@ -28,7 +32,9 @@ class AuthService(
     private val passwordEncoder: PasswordEncoder,
     private val authenticationManager: AuthenticationManager,
     private val jwtTokenService: JwtTokenService,
-    private val emailSenderService: EmailSenderService
+    private val emailSenderService: EmailSenderService,
+    private val mfaTotpService: MfaTotpService,
+    private val mfaCryptoService: MfaCryptoService
 ) {
 
     private val logger = LoggerFactory.getLogger(AuthService::class.java)
@@ -54,6 +60,10 @@ class AuthService(
      * Credenciais verificadas pelo Spring Security (`AuthenticationManager` -> `DaoAuthenticationProvider`
      * -> [UsuarioDetailsService] + `PasswordEncoder`). Falha de autenticação sai como
      * `AuthenticationException` e é traduzida em 401 pelo `GlobalExceptionHandler`.
+     *
+     * Com 2FA ativo (issue #260), não emite tokens finais: retorna `mfaRequerido=true` e um token de
+     * desafio de curta duração para ser validado em POST /auth/2fa/validar. Sem 2FA, o fluxo permanece
+     * idêntico para os clientes atuais.
      */
     @Transactional
     fun login(request: LoginRequest): AuthResponse {
@@ -61,6 +71,11 @@ class AuthService(
             UsernamePasswordAuthenticationToken.unauthenticated(request.email, request.senha)
         )
         val usuario = (authentication.principal as UsuarioDetails).usuario
+
+        if (usuario.mfaHabilitado) {
+            val desafioToken = jwtTokenService.generateMfaChallengeToken(usuario.id!!)
+            return AuthResponse(mfaRequerido = true, desafioToken = desafioToken, expiresIn = 300)
+        }
 
         return createAuthResponse(usuario, UUID.randomUUID())
     }
@@ -158,5 +173,52 @@ class AuthService(
 
         resetToken.utilizado = true
         passwordResetTokenRepository.save(resetToken)
+    }
+
+    @Transactional
+    fun configurar2fa(usuarioId: UUID): MfaConfigurarResponse {
+        val usuario = usuarioRepository.findById(usuarioId)
+            .orElseThrow { ResourceNotFoundException("Usuário não encontrado") }
+        val segredo = mfaTotpService.generateSecretBase32()
+        usuario.mfaSecret = mfaCryptoService.encrypt(segredo)
+        // Não habilita ainda: a ativação ocorre em /auth/2fa/ativar após validar o primeiro código.
+        usuario.atualizadoEm = Instant.now()
+        usuarioRepository.save(usuario)
+        val otpauthUri = mfaTotpService.buildOtpAuthUri(segredo, usuario.email)
+        return MfaConfigurarResponse(otpauthUri = otpauthUri, segredo = segredo)
+    }
+
+    @Transactional
+    fun ativar2fa(usuarioId: UUID, request: MfaAtivarRequest) {
+        val usuario = usuarioRepository.findById(usuarioId)
+            .orElseThrow { ResourceNotFoundException("Usuário não encontrado") }
+        val segredoCifrado = usuario.mfaSecret
+            ?: throw RequisicaoInvalidaException("2FA não configurado. Chame /auth/2fa/configurar antes de ativar.")
+        val segredo = mfaCryptoService.decrypt(segredoCifrado)
+        if (!mfaTotpService.verifyCode(segredo, request.codigo)) {
+            throw BadCredentialsException("Código TOTP inválido")
+        }
+        usuario.mfaHabilitado = true
+        usuario.atualizadoEm = Instant.now()
+        usuarioRepository.save(usuario)
+    }
+
+    @Transactional
+    fun validar2fa(request: MfaValidarRequest): AuthResponse {
+        val usuarioId = try {
+            jwtTokenService.extrairUsuarioIdDeDesafioMfa(request.desafioToken)
+        } catch (ex: Exception) {
+            throw BadCredentialsException("Token de desafio MFA inválido ou expirado")
+        }
+        val usuario = usuarioRepository.findById(usuarioId)
+            .orElseThrow { BadCredentialsException("Token de desafio MFA inválido ou expirado") }
+        if (!usuario.mfaHabilitado || usuario.mfaSecret == null) {
+            throw BadCredentialsException("2FA não está ativo para este usuário")
+        }
+        val segredo = mfaCryptoService.decrypt(usuario.mfaSecret!!)
+        if (!mfaTotpService.verifyCode(segredo, request.codigo)) {
+            throw BadCredentialsException("Código TOTP inválido")
+        }
+        return createAuthResponse(usuario, UUID.randomUUID())
     }
 }
