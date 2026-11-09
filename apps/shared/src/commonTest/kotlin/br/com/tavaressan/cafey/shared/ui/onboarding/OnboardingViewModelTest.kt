@@ -1,5 +1,6 @@
 package br.com.tavaressan.cafey.shared.ui.onboarding
 
+import br.com.tavaressan.cafey.shared.ui.ble.BlePermissionStatus
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -110,7 +111,7 @@ class OnboardingViewModelTest {
         val vm = OnboardingViewModel(markCompleted = {}, coroutineScope = this)
 
         vm.updateBleStatus(
-            OnboardingBleStatus(
+            BlePermissionStatus(
                 supported = true,
                 permissionsGranted = true,
                 bluetoothEnabled = false,
@@ -128,16 +129,16 @@ class OnboardingViewModelTest {
     fun canProvisionOnlyWhenSupportedPermissionsGrantedAndBluetoothOn() = runTest {
         val vm = OnboardingViewModel(markCompleted = {}, coroutineScope = this)
 
-        vm.updateBleStatus(OnboardingBleStatus(supported = false, permissionsGranted = true, bluetoothEnabled = true))
+        vm.updateBleStatus(BlePermissionStatus(supported = false, permissionsGranted = true, bluetoothEnabled = true))
         assertFalse(vm.canProvisionFromStep3())
 
-        vm.updateBleStatus(OnboardingBleStatus(supported = true, permissionsGranted = false, bluetoothEnabled = true))
+        vm.updateBleStatus(BlePermissionStatus(supported = true, permissionsGranted = false, bluetoothEnabled = true))
         assertFalse(vm.canProvisionFromStep3())
 
-        vm.updateBleStatus(OnboardingBleStatus(supported = true, permissionsGranted = true, bluetoothEnabled = false))
+        vm.updateBleStatus(BlePermissionStatus(supported = true, permissionsGranted = true, bluetoothEnabled = false))
         assertFalse(vm.canProvisionFromStep3())
 
-        vm.updateBleStatus(OnboardingBleStatus(supported = true, permissionsGranted = true, bluetoothEnabled = true))
+        vm.updateBleStatus(BlePermissionStatus(supported = true, permissionsGranted = true, bluetoothEnabled = true))
         assertTrue(vm.canProvisionFromStep3())
     }
 
@@ -145,7 +146,7 @@ class OnboardingViewModelTest {
     fun permanentlyDeniedStateIsRepresented() = runTest {
         val vm = OnboardingViewModel(markCompleted = {}, coroutineScope = this)
         vm.updateBleStatus(
-            OnboardingBleStatus(
+            BlePermissionStatus(
                 supported = true,
                 permissionsGranted = false,
                 permissionsPermanentlyDenied = true,

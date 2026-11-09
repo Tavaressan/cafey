@@ -40,6 +40,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
+import br.com.tavaressan.cafey.shared.ui.ble.BlePermissionController
+import br.com.tavaressan.cafey.shared.ui.ble.BlePermissionStatus
+import br.com.tavaressan.cafey.shared.ui.ble.BlePromptCard
+import br.com.tavaressan.cafey.shared.ui.ble.BleReadinessAction
+import br.com.tavaressan.cafey.shared.ui.ble.readinessAction
+import br.com.tavaressan.cafey.shared.ui.ble.rememberBlePermissionController
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyLogo
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
@@ -66,7 +72,7 @@ fun OnboardingScreen(
         },
     )
     val state by viewModel.uiState.collectAsState()
-    val bleController = rememberOnboardingBleController(onStatusChange = viewModel::updateBleStatus)
+    val bleController = rememberBlePermissionController(onStatusChange = viewModel::updateBleStatus)
     var pendingProvision by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.finished, pendingProvision) {
@@ -93,7 +99,7 @@ fun OnboardingScreen(
 @Composable
 internal fun OnboardingContent(
     state: OnboardingUiState,
-    bleController: OnboardingBleController,
+    bleController: BlePermissionController,
     onBack: () -> Unit,
     onNext: () -> Unit,
     onSkip: () -> Unit,
@@ -141,9 +147,6 @@ internal fun OnboardingContent(
                 OnboardingStep.BLUETOOTH_WIFI -> StepBluetoothWifi(
                     status = state.bleStatus,
                     controller = bleController,
-                    canProvision = state.bleStatus.supported &&
-                        state.bleStatus.permissionsGranted &&
-                        state.bleStatus.bluetoothEnabled == true,
                     onProvisionWifi = onProvisionWifi,
                 )
                 OnboardingStep.PRIMEIRO_CAFE -> StepPrimeiroCafe(onProvisionWifi = onProvisionWifi)
@@ -231,9 +234,8 @@ private fun StepConfigurandoBase() {
 
 @Composable
 private fun StepBluetoothWifi(
-    status: OnboardingBleStatus,
-    controller: OnboardingBleController,
-    canProvision: Boolean,
+    status: BlePermissionStatus,
+    controller: BlePermissionController,
     onProvisionWifi: () -> Unit,
 ) {
     Text("Bluetooth e Wi-Fi", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
@@ -243,55 +245,46 @@ private fun StepBluetoothWifi(
         body = "O provisionamento do Wi-Fi da base é feito pelo aplicativo via Bluetooth (BLE). Para localizar a base próxima, o Android exige permissão de Bluetooth (e, em versões antigas, localização). As permissões só são solicitadas agora, após esta explicação.",
     )
 
-    if (!status.supported) {
-        StatusCard(
+    when (status.readinessAction()) {
+        BleReadinessAction.Unsupported -> BlePromptCard(
             title = "Bluetooth indisponível",
-            body = "Este dispositivo/plataforma não oferece o recurso de Bluetooth LE necessário para o provisionamento. Você pode continuar e configurar manualmente quando houver suporte.",
-            actionLabel = null,
-            onAction = null,
+            body = "Este dispositivo/plataforma não oferece Bluetooth LE para o provisionamento. Você pode continuar e configurar manualmente quando houver suporte.",
+            primaryLabel = null,
+            onPrimary = null,
             secondaryLabel = "Abrir configurações de Bluetooth",
             onSecondary = controller::openBluetoothSettings,
         )
-        return
-    }
-
-    if (!status.permissionsGranted) {
-        val body = if (status.permissionsPermanentlyDenied) {
-            "A permissão de Bluetooth foi negada e o sistema não pode perguntar novamente. Abra as configurações do app para conceder a permissão e concluir a etapa."
-        } else {
-            "Conceda a permissão para que o app localize a base Cafey nas proximidades. Nenhum acesso é feito antes da sua confirmação."
-        }
-        StatusCard(
+        BleReadinessAction.RequestPermissions -> BlePromptCard(
             title = "Permissão necessária",
-            body = body,
-            actionLabel = if (status.permissionsPermanentlyDenied) "Abrir configurações do app" else "Permitir Bluetooth",
-            onAction = if (status.permissionsPermanentlyDenied) controller::openAppSettings else controller::requestPermissions,
-            secondaryLabel = if (status.permissionsPermanentlyDenied) "Abrir configurações de Bluetooth" else null,
-            onSecondary = if (status.permissionsPermanentlyDenied) controller::openBluetoothSettings else null,
+            body = "Conceda a permissão para que o app localize a base Cafey nas proximidades. Nenhum acesso é feito antes da sua confirmação.",
+            primaryLabel = "Permitir Bluetooth",
+            onPrimary = controller::requestPermissions,
         )
-        return
-    }
-
-    if (status.bluetoothEnabled == false) {
-        StatusCard(
+        BleReadinessAction.OpenAppSettings -> BlePromptCard(
+            title = "Permissão necessária",
+            body = "A permissão de Bluetooth foi negada e o sistema não pode perguntar novamente. Abra as configurações do app para conceder a permissão e concluir a etapa.",
+            primaryLabel = "Abrir configurações do app",
+            onPrimary = controller::openAppSettings,
+            secondaryLabel = "Abrir configurações de Bluetooth",
+            onSecondary = controller::openBluetoothSettings,
+        )
+        BleReadinessAction.EnableBluetooth -> BlePromptCard(
             title = "Bluetooth desligado",
             body = "Ligue o Bluetooth para localizar a base. O app pedirá a confirmação do sistema para ligar — o Bluetooth nunca é ligado silenciosamente. Como alternativa, você pode abrir as configurações.",
-            actionLabel = "Ligar Bluetooth",
-            onAction = controller::requestBluetoothEnable,
+            primaryLabel = "Ligar Bluetooth",
+            onPrimary = controller::requestBluetoothEnable,
             secondaryLabel = "Abrir configurações de Bluetooth",
             onSecondary = controller::openBluetoothSettings,
         )
-        return
+        BleReadinessAction.Ready -> BlePromptCard(
+            title = "Pronto para provisionar",
+            body = "Permissões concedidas e Bluetooth ligado. Você pode provisionar o Wi-Fi da base agora (reaproveitando o pareamento BLE) ou avançar e fazer isso depois pela tela Base.",
+            primaryLabel = "Provisionar Wi-Fi agora",
+            onPrimary = onProvisionWifi,
+            secondaryLabel = "Recalcular estado",
+            onSecondary = controller::refresh,
+        )
     }
-
-    StatusCard(
-        title = "Pronto para provisionar",
-        body = "Permissões concedidas e Bluetooth ligado. Você pode provisionar o Wi-Fi da base agora (reaproveitando o pareamento BLE) ou avançar e fazer isso depois pela tela Base.",
-        actionLabel = "Provisionar Wi-Fi agora",
-        onAction = if (canProvision) onProvisionWifi else null,
-        secondaryLabel = "Recalcular estado",
-        onSecondary = controller::refresh,
-    )
 }
 
 @Composable
@@ -328,41 +321,7 @@ private fun InfoCard(title: String, body: String) {
     }
 }
 
-@Composable
-private fun StatusCard(
-    title: String,
-    body: String,
-    actionLabel: String?,
-    onAction: (() -> Unit)?,
-    secondaryLabel: String? = null,
-    onSecondary: (() -> Unit)? = null,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-        colors = CardDefaults.cardColors(containerColor = CafeyTheme.colors.surface),
-        border = androidx.compose.foundation.BorderStroke(1.5.dp, CafeyTheme.colors.brand),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, style = CafeyTheme.typography.cardTitle, color = CafeyTheme.colors.ink)
-            Text(body, style = CafeyTheme.typography.body, color = CafeyTheme.colors.muted, modifier = Modifier.padding(top = 6.dp))
-            if (actionLabel != null && onAction != null) {
-                Button(
-                    onClick = onAction,
-                    colors = ButtonDefaults.buttonColors(containerColor = CafeyTheme.colors.brand),
-                    shape = CafeyTheme.shapes.small,
-                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                ) { Text(actionLabel) }
-            }
-            if (secondaryLabel != null && onSecondary != null) {
-                OutlinedButton(
-                    onClick = onSecondary,
-                    shape = CafeyTheme.shapes.small,
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                ) { Text(secondaryLabel) }
-            }
-        }
-    }
-}
+
 
 @Composable
 private fun LedStateRow(state: String, meaning: String) {

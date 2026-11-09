@@ -1,16 +1,16 @@
-package br.com.tavaressan.cafey.shared.ui.onboarding
+package br.com.tavaressan.cafey.shared.ui.ble
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 
 @Composable
-actual fun rememberOnboardingBleController(
-    onStatusChange: (OnboardingBleStatus) -> Unit,
-): OnboardingBleController {
+actual fun rememberBlePermissionController(
+    onStatusChange: (BlePermissionStatus) -> Unit,
+): BlePermissionController {
     val controller = remember {
-        object : OnboardingBleController {
-            override val status = OnboardingBleStatus(supported = false)
+        object : BlePermissionController {
+            override val status = BlePermissionStatus(supported = false)
             override fun requestPermissions() = Unit
             override fun requestBluetoothEnable() = Unit
             override fun openAppSettings() = Unit

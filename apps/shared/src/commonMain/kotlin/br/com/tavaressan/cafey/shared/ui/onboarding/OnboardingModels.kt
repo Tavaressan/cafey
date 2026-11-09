@@ -1,5 +1,7 @@
 package br.com.tavaressan.cafey.shared.ui.onboarding
 
+import br.com.tavaressan.cafey.shared.ui.ble.BlePermissionStatus
+
 /** Etapas do tutorial de primeira utilização (issue #312). */
 enum class OnboardingStep(val index: Int, val title: String) {
     CONHECENDO(0, "Conhecendo o Cafey"),
@@ -12,21 +14,6 @@ enum class OnboardingStep(val index: Int, val title: String) {
         fun fromIndex(index: Int): OnboardingStep = entries[index.coerceIn(0, entries.lastIndex)]
     }
 }
-
-/**
- * Estado do ambiente BLE/permissões na etapa 3, reportado pela camada de plataforma.
- * Mantido em modelo simples para testes de lógica em `commonTest`.
- */
-data class OnboardingBleStatus(
-    /** BLE/provisionamento suportado nesta plataforma (Android com adaptador). */
-    val supported: Boolean = false,
-    /** Permissões de Bluetooth/localização necessárias já concedidas. */
-    val permissionsGranted: Boolean = false,
-    /** Usuário negou e selecionou "não perguntar novamente" (ou equivalente): só resta abrir Configurações. */
-    val permissionsPermanentlyDenied: Boolean = false,
-    /** Adaptador Bluetooth ligado. `null` quando desconhecido/não suportado. */
-    val bluetoothEnabled: Boolean? = null,
-)
 
 /** Resultado da conclusão do onboarding (persistido para não exibir automaticamente). */
 enum class OnboardingExit {
@@ -42,7 +29,7 @@ data class OnboardingUiState(
     val step: OnboardingStep = OnboardingStep.CONHECENDO,
     /** `true` quando aberto explicitamente ("Ver tutorial"): pular/fechar não é "primeira utilização". */
     val revisit: Boolean = false,
-    val bleStatus: OnboardingBleStatus = OnboardingBleStatus(),
+    val bleStatus: BlePermissionStatus = BlePermissionStatus(),
     val finished: Boolean = false,
     val exit: OnboardingExit? = null,
 ) {

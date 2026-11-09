@@ -1,8 +1,7 @@
-package br.com.tavaressan.cafey.shared.ui.onboarding
+package br.com.tavaressan.cafey.shared.ui.ble
 
 import android.Manifest
 import android.app.Activity
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.ContextWrapper
@@ -21,11 +20,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 
 private fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
@@ -46,8 +45,7 @@ private fun permissionsGranted(context: Context): Boolean =
     }
 
 private fun bluetoothEnabled(context: Context): Boolean? {
-    val hasFeature = context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
-    if (!hasFeature) return null
+    if (!context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) return null
     val manager = context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
     return manager?.adapter?.isEnabled
 }
@@ -59,14 +57,14 @@ private fun bleSupported(context: Context): Boolean {
 }
 
 @Composable
-actual fun rememberOnboardingBleController(
-    onStatusChange: (OnboardingBleStatus) -> Unit,
-): OnboardingBleController {
+actual fun rememberBlePermissionController(
+    onStatusChange: (BlePermissionStatus) -> Unit,
+): BlePermissionController {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
     var permanentlyDenied by remember { mutableStateOf(false) }
 
-    fun computeStatus(): OnboardingBleStatus = OnboardingBleStatus(
+    fun computeStatus(): BlePermissionStatus = BlePermissionStatus(
         supported = bleSupported(context),
         permissionsGranted = permissionsGranted(context),
         permissionsPermanentlyDenied = permanentlyDenied && !permissionsGranted(context),
@@ -75,7 +73,7 @@ actual fun rememberOnboardingBleController(
 
     var status by remember { mutableStateOf(computeStatus()) }
 
-    fun publish(newStatus: OnboardingBleStatus = computeStatus()) {
+    fun publish(newStatus: BlePermissionStatus = computeStatus()) {
         status = newStatus
         onStatusChange(newStatus)
     }
@@ -112,8 +110,8 @@ actual fun rememberOnboardingBleController(
     LaunchedEffect(Unit) { publish() }
 
     return remember {
-        object : OnboardingBleController {
-            override val status: OnboardingBleStatus get() = status
+        object : BlePermissionController {
+            override val status: BlePermissionStatus get() = status
 
             override fun requestPermissions() {
                 permanentlyDenied = false
@@ -122,7 +120,8 @@ actual fun rememberOnboardingBleController(
 
             override fun requestBluetoothEnable() {
                 // ACTION_REQUEST_ENABLE exige confirmação do usuário (nunca ligar silenciosamente).
-                val intent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+                @Suppress("DEPRECATION")
+                val intent = Intent(android.bluetooth.BluetoothAdapter.ACTION_REQUEST_ENABLE)
                 enableBtLauncher.launch(intent)
             }
 

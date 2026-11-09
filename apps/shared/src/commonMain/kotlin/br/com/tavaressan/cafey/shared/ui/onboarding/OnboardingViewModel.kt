@@ -2,6 +2,7 @@ package br.com.tavaressan.cafey.shared.ui.onboarding
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.tavaressan.cafey.shared.ui.ble.BlePermissionStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -61,13 +62,10 @@ class OnboardingViewModel(
     }
 
     /** Atualiza estado BLE/permissões reportado pela plataforma (etapa 3). */
-    fun updateBleStatus(status: OnboardingBleStatus) {
+    fun updateBleStatus(status: BlePermissionStatus) {
         _uiState.update { it.copy(bleStatus = status) }
     }
 
     /** Indica se o usuário pode seguir para provisionar na etapa 3 (permissões OK e BT ligado). */
-    fun canProvisionFromStep3(state: OnboardingUiState = _uiState.value): Boolean {
-        val ble = state.bleStatus
-        return ble.supported && ble.permissionsGranted && ble.bluetoothEnabled == true
-    }
+    fun canProvisionFromStep3(state: OnboardingUiState = _uiState.value): Boolean = state.bleStatus.ready
 }
