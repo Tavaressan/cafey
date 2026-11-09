@@ -52,12 +52,50 @@ class MqttIngestionServiceTest {
         `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
         `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
 
-        val payload = EstadoPayload(estado = "PREPARANDO", desde = Instant.now(), firmware = "1.0.0")
+        val inicio = Instant.parse("2026-09-01T15:00:00Z")
+        val payload = EstadoPayload(estado = "PREPARANDO", desde = inicio, firmware = "1.0.0")
         ingestionService.processarEstado(dispositivoId, payload)
 
         assertEquals("PREPARANDO", disp.estado)
-        assertNotNull(disp.ultimoVisto)
+        assertEquals(inicio, disp.ultimoVisto)
+        assertEquals(inicio, disp.preparoIniciadoEm)
         verify(dispositivoRepository).save(disp)
+    }
+
+    @Test
+    fun `should clear preparoIniciadoEm when estado leaves brewing`() {
+        val inicio = Instant.parse("2026-09-01T15:00:00Z")
+        val disp = Dispositivo(
+            id = dispositivoId,
+            nome = "Cafeteira",
+            estado = "PREPARANDO",
+            preparoIniciadoEm = inicio,
+        )
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarEstado(dispositivoId, EstadoPayload(estado = "PRONTO", desde = null))
+
+        assertEquals("PRONTO", disp.estado)
+        assertNull(disp.preparoIniciadoEm)
+    }
+
+    @Test
+    fun `should keep preparoIniciadoEm when brewing message repeats without desde`() {
+        val inicio = Instant.parse("2026-09-01T15:00:00Z")
+        val disp = Dispositivo(
+            id = dispositivoId,
+            nome = "Cafeteira",
+            estado = "PREPARANDO",
+            preparoIniciadoEm = inicio,
+        )
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarEstado(dispositivoId, EstadoPayload(estado = "PREPARANDO", desde = null))
+
+        assertEquals("PREPARANDO", disp.estado)
+        assertEquals(inicio, disp.preparoIniciadoEm)
     }
 
     @Test

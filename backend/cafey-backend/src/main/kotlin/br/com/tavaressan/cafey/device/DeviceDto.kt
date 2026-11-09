@@ -82,7 +82,8 @@ data class DispositivoResponse(
     val contadorPreparos: Int,
     val papel: PapelDispositivo,
     val criadoEm: Instant,
-    val atualizadoEm: Instant
+    val atualizadoEm: Instant,
+    val preparoIniciadoEm: Instant? = null,
 )
 
 data class CompartilhamentoResponse(

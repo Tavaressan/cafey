@@ -26,6 +26,10 @@ class Dispositivo(
     @Column(name = "ultimo_visto")
     var ultimoVisto: Instant? = null,
 
+    /** Início do preparo em andamento (estado PREPARANDO), vindo do `desde` do payload MQTT. */
+    @Column(name = "preparo_iniciado_em")
+    var preparoIniciadoEm: Instant? = null,
+
     @Column(name = "versao_agendamentos", nullable = false)
     var versaoAgendamentos: Int = 1,
 
