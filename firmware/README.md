@@ -8,7 +8,7 @@ Fatia atual: **I/O local, Driver do Relé (com proteção anti-glitch no boot), 
 
 | Sinal | GPIO | Configuração Elétrica | Observação |
 |---|---|---|---|
-| Relé (IN) | 26 | Gatilho de nível BAIXO — módulo HL-52S (LOW = ligado); R1 10 kΩ pull-up externo | O driver força nível ALTO antes de inicializar para impedir pulso espúrio no boot |
+| SSR (entrada +) | 26 | Gatilho de nível ALTO — Fotek SSR-40DA (HIGH = ligado); R1 10 kΩ **pull-down** externo (HW-27, #305) | O driver força nível BAIXO antes e depois de configurar o GPIO para impedir pulso espúrio no boot. Polaridade em `Cafeteira::kRelayActiveLevel` |
 | Botão | 27 | R2 10 kΩ pull-up externo + C3 100 nF debounce RC | Solto = 1, pressionado = 0 (borda de descida = clique) |
 | LED vermelho | 21 | R3 220 Ω (Cátodo comum) | Canal R (compõe Amarelo/Âmbar, Branco e Vermelho) |
 | LED verde | 22 | R4 100 Ω (Cátodo comum) | Canal G (compõe Verde fixo/pulsando, Âmbar e Branco) |
@@ -65,7 +65,9 @@ firmware/
 ## Driver do Relé (`cafey::drivers::Relay`)
 
 - **Classe Orientada a Objetos**: RAII garantindo desligamento seguro no destrutor.
-- **Proteção Anti-Glitch**: Força o pino em nível lógico `HIGH` (active-low OFF) antes e imediatamente após a configuração de saída do GPIO, atuando em conjunto com o resistor `R1` (10k pull-up) externo.
+- **Polaridade configurável** (HW-27, #305): `Relay::ActiveLevel::High` (padrão, SSR-40DA) ou `Relay::ActiveLevel::Low` (módulo HL-52S legado). O resistor externo `R1` precisa acompanhar a polaridade: **pull-down** para active-high, **pull-up** para active-low.
+- **Proteção Anti-Glitch**: Força o pino no nível de repouso (desligado) antes e imediatamente após a configuração de saída do GPIO, atuando em conjunto com `R1`.
+- **Atenção:** este firmware **não** pode rodar com o HL-52S ligado ao GPIO26. O repouso do active-high é nível BAIXO, que liga o HL-52S, então a cafeteira seria acionada no boot. Para voltar ao HL-52S, trocar `kRelayActiveLevel` para `Low` e R1 para pull-up.
 - **Métodos**: `init()`, `set(bool on)`, `turn_on()`, `turn_off()`, `toggle()`, `is_on()`, `is_initialized()`, `get_pin()`.
 - **Semântica Move**: Proteção contra duplicação de posse do hardware físico via exclusão de cópia e suporte a movimentação (`move`).
 

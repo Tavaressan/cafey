@@ -12,7 +12,7 @@ constexpr const char* TAG = "cafeteira";
 Cafeteira::Cafeteira(gpio_num_t relay_pin, gpio_num_t button_pin,
                      gpio_num_t led_r, gpio_num_t led_g, gpio_num_t led_b)
     : ActiveObject("cafeteira", 16, 4096, 5, /*tick_period_ms=*/10),
-      relay_(relay_pin),
+      relay_(relay_pin, /*auto_init=*/false, kRelayActiveLevel),
       led_(led_r, led_g, led_b),
       button_pin_(button_pin) {}
 

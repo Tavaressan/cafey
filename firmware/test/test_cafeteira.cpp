@@ -23,6 +23,17 @@ using cafey::drivers::CoffeeVisualState;
 using cafey::drivers::LedColor;
 using cafey::drivers::LedPattern;
 
+// Relogio manual para fixar os epochs de inicio/fim do preparo (FW-22).
+class ManualClock : public cafey::core::Clock {
+public:
+    explicit ManualClock(std::time_t start) : now_(start) {}
+    std::time_t now() const override { return now_; }
+    void advance(std::time_t seconds) { now_ += seconds; }
+
+private:
+    std::time_t now_;
+};
+
 // Expoe os hooks protegidos para acionar o AO de forma sincrona no teste.
 class TestableCafeteira : public cafey::app::Cafeteira {
 public:
@@ -49,7 +60,7 @@ int test_cafeteira_button_toggles_relay_and_led() {
     caf.process_pending();
     TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::On, "liga apos clique");
     TEST_ASSERT(caf.relay_on(), "rele fecha");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "GPIO rele LOW (active-low ligado)");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "GPIO SSR HIGH (active-high ligado)");
     TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Brewing, "visual state Brewing");
     TEST_ASSERT(caf.led().color() == LedColor::Green, "LED verde durante preparo");
     TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_22).level == 1, "LED G aceso");
@@ -60,7 +71,7 @@ int test_cafeteira_button_toggles_relay_and_led() {
     caf.process_pending();
     TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "desliga apos 2o clique");
     TEST_ASSERT(!caf.relay_on(), "rele reabre");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "GPIO rele HIGH (active-low desligado)");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "GPIO SSR LOW (active-high desligado)");
     TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Idle, "retorna para Idle");
     TEST_ASSERT(caf.led().color() == LedColor::Blue, "LED volta a ser Azul");
 
@@ -191,13 +202,14 @@ int test_cafeteira_start_brew_boundary_at_max_duration() {
 
 int test_cafeteira_enqueues_event_on_brew_finish() {
     MockGpio::reset();
+    MockNvs::reset(); // fila persistida e global no mock: isola os testes
     cafey::storage::EventQueueStore queue;
     TEST_ASSERT(queue.init() == ESP_OK, "queue.init");
 
     cafey::storage::EventIdGenerator id_gen;
     TEST_ASSERT(id_gen.init(0x12345678) == ESP_OK, "id_gen.init");
 
-    cafey::core::ManualClock manual_clock(1000);
+    ManualClock manual_clock(1000);
 
     TestableCafeteira caf;
     caf.attach_event_queue(&queue, &id_gen, &manual_clock);
@@ -220,8 +232,8 @@ int test_cafeteira_enqueues_event_on_brew_finish() {
     TEST_ASSERT(evt.resultado == cafey::storage::EventResult::CONCLUIDO, "resultado CONCLUIDO");
     TEST_ASSERT(evt.origem == cafey::storage::EventOrigin::APP, "origem APP");
     TEST_ASSERT(evt.duracao_s == 1, "duracao_s 1s");
-    TEST_ASSERT(evt.inicio_epoch == 1000, "inicio_epoch 1000");
-    TEST_ASSERT(evt.fim_epoch == 1001, "fim_epoch 1001");
+    TEST_ASSERT(evt.timestamp_inicio == 1000, "timestamp_inicio 1000");
+    TEST_ASSERT(evt.timestamp_fim == 1001, "timestamp_fim 1001");
     TEST_ASSERT(std::string(evt.evento_id).rfind("12345678:", 0) == 0, "evento_id com bootId");
 
     std::cout << "[PASS] test_cafeteira_enqueues_event_on_brew_finish" << std::endl;
@@ -230,13 +242,14 @@ int test_cafeteira_enqueues_event_on_brew_finish() {
 
 int test_cafeteira_enqueues_event_on_brew_cancel() {
     MockGpio::reset();
+    MockNvs::reset(); // fila persistida e global no mock: isola os testes
     cafey::storage::EventQueueStore queue;
     TEST_ASSERT(queue.init() == ESP_OK, "queue.init");
 
     cafey::storage::EventIdGenerator id_gen;
     TEST_ASSERT(id_gen.init(0xabcdef01) == ESP_OK, "id_gen.init");
 
-    cafey::core::ManualClock manual_clock(2000);
+    ManualClock manual_clock(2000);
 
     TestableCafeteira caf;
     caf.attach_event_queue(&queue, &id_gen, &manual_clock);

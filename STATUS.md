@@ -39,11 +39,15 @@ prototipação embarcada no Wokwi — ver `firmware/`.
 | Alimentação | VIN | 1 | +5V |
 | Terra | GND | 2 | GND |
 | Referência 3,3 V | 3.3v | 16 | +3V3 |
-| Sinal do relé | GPIO26 | 7 | R1 10 kΩ **pull-up para +3V3** (módulo active-low) |
+| Sinal do relé | GPIO26 | 7 | R1 10 kΩ **pull-up para +3V3** (módulo active-low) — **superado:** com o SSR-40DA, R1 vira pull-down para GND (#305) |
 | Botão | GPIO27 | 6 | R2 10 kΩ pull-up, C3 100 nF |
 | LED vermelho | GPIO21 | 26 | R3 220 Ω |
 | LED verde | GPIO22 | 29 | R4 100 Ω |
 | LED azul | GPIO23 | 30 | R5 100 Ω |
+
+> **Atualização 09/11/2026 (#305):** o firmware passou a acionar o SSR-40DA em
+> nível ALTO. R1 deve ser **pull-down** para GND e o HL-52S não pode mais ser
+> ligado ao GPIO26 com este firmware. O esquemático é atualizado em #304.
 
 R1 é pull-up para +3V3 porque o módulo é active-low (LOW = relé ligado):
 com o GPIO em alta impedância no boot, R1 mantém a entrada IN em nível ALTO

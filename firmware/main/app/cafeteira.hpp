@@ -40,6 +40,13 @@ public:
     // Tempo em que o LED permanece em Branco Fixo apos cafe pronto (spec §5.3: alguns minutos).
     static constexpr uint32_t kReadyDurationS = 180;
 
+    // Polaridade do acionamento da carga (HW-27, #305): SSR Fotek SSR-40DA,
+    // nivel ALTO liga, com R1 10k pull-down externo. Voltar para `Low` so com
+    // o modulo HL-52S e R1 como pull-up; polaridade e resistor trocados ligam
+    // a cafeteira no boot.
+    static constexpr drivers::Relay::ActiveLevel kRelayActiveLevel =
+        drivers::Relay::ActiveLevel::High;
+
     explicit Cafeteira(gpio_num_t relay_pin = GPIO_NUM_26,
                        gpio_num_t button_pin = GPIO_NUM_27,
                        gpio_num_t led_r = GPIO_NUM_21,

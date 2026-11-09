@@ -6,7 +6,8 @@
  * Sem memoria compartilhada — comunicacao so por eventos assincronos.
  *
  * Pinagem (conforme STATUS.md e esquematico KiCad):
- * - Rele (GPIO26): gatilho de nivel BAIXO (HL-52S, LOW = liga), R1 pull-up 10k externo
+ * - SSR (GPIO26): Fotek SSR-40DA, gatilho de nivel ALTO (HIGH = liga), R1 pull-down 10k
+ *   externo (HW-27, #305). Polaridade em Cafeteira::kRelayActiveLevel.
  * - Botao (GPIO27): pull-up externo R2 10k + C3 100nF, solto=1, pressionado=0
  * - LED RGB: catodo comum (R=21, G=22, B=23) — cores de estado conforme spec §5.3
  */
