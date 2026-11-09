@@ -93,18 +93,49 @@ class AndroidBleClient(private val context: Context) : BleClient {
         val discovered = ConcurrentHashMap<String, BleDispositivo>()
         val serviceUuid = ParcelUuid(UUID.fromString(BleUuids.SERVICE))
 
+        // Issue #301: periféricos BLE conectados (como a base Cafey) normalmente param de
+        // anunciar enquanto uma conexão GATT estiver ativa. Inclui imediatamente os dispositivos
+        // já conectados via GATT que atendam ao critério unificado da Cafey.
+        try {
+            val profiles = intArrayOf(BluetoothProfile.GATT, BluetoothProfile.GATT_SERVER)
+            val connected = profiles.flatMap { profile ->
+                try {
+                    bluetoothManager?.getConnectedDevices(profile) ?: emptyList()
+                } catch (_: Throwable) {
+                    emptyList()
+                }
+            }.distinctBy { it.address }
+
+            for (dev in connected) {
+                val devName = dev.name
+                val serviceUuids = dev.uuids?.map { it.uuid.toString() } ?: emptyList()
+                if (BleDeviceFilter.isTargetDevice(devName, serviceUuids)) {
+                    discovered[dev.address] = BleDispositivo(
+                        id = dev.address,
+                        nome = BleDeviceFilter.resolveDisplayName(devName),
+                        rssi = 0,
+                    )
+                }
+            }
+        } catch (_: Throwable) {
+            // Se falhar a leitura de conectados, segue normalmente para o scanner
+        }
+
+        if (discovered.isNotEmpty()) {
+            trySend(discovered.values.toList().sortedByDescending { it.rssi })
+        }
+
         val scanCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult?) {
                 val dev = result?.device ?: return
-                val name = dev.name ?: result.scanRecord?.deviceName ?: "Cafey"
-                val serviceUuids = result.scanRecord?.serviceUuids ?: emptyList()
-                val isTarget = serviceUuids.contains(serviceUuid) ||
-                    name.contains("cafey", ignoreCase = true)
+                val rawName = dev.name ?: result.scanRecord?.deviceName
+                val serviceUuids = result.scanRecord?.serviceUuids?.map { it.uuid.toString() } ?: emptyList()
+                val isTarget = BleDeviceFilter.isTargetDevice(rawName, serviceUuids)
 
                 if (isTarget) {
                     discovered[dev.address] = BleDispositivo(
                         id = dev.address,
-                        nome = name,
+                        nome = BleDeviceFilter.resolveDisplayName(rawName),
                         rssi = result.rssi,
                     )
                     trySend(discovered.values.toList().sortedByDescending { it.rssi })
