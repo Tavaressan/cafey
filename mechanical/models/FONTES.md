@@ -17,6 +17,25 @@ caixas de `params/componentes_3d.csv`. São **representação visual**: a valida
 | `led-5mm-rgb.step` | `led_rgb` | Biblioteca 3D do KiCad 10.0, `LED_THT.3dshapes/LED_D5.0mm-4_RGB.step` | Idem KiCad |
 | `adafruit-916-botao-metal-16mm.step` | `botao` | [adafruit/Adafruit_CAD_Parts](https://github.com/adafruit/Adafruit_CAD_Parts) @ `c128bce`, `916 metal button/916 Metal Button.step` | MIT |
 | `adafruit-3258-microusb-painel.step` | `usb_painel` | Idem, `3258 USB Panel Mout Cable/3258 microUSB panel mount.step` | MIT |
+| `ssr-anly-asr-40da.step` | `ssr_dissipador` (carcaça circular, #302) | GrabCAD, `ssr-anly-asr-40da-1.snapshot.4.zip` (`SSR ANLY ASR-40DA.stp`), baixado pelo responsável em 09/11/2026. ANLY ASR-40DA: mesmo formato do Fotek SSR-40DA | Termos do GrabCAD |
+| `apple-a1385.step` | `a1385` (#302) | GrabCAD, `apple-usb-charger-block-a1385-1.snapshot.7.zip` (`Apple USB Charger (A1385) v2.step`), 09/11/2026 | Termos do GrabCAD |
+| `wago-221-415.step` | `borne_rede` (#302) | GrabCAD, `wago-221-3.snapshot.1.zip` (`WAGO 221.step`, 5 vias), 09/11/2026. O `visualizar.py` recorta em 3 vias (221-413) | Termos do GrabCAD |
+| `bornes-metaltex-din.iges` | `terra_j3` (#302) | GrabCAD, `bornes-para-sobre-trilho-din-1.snapshot.3.zip` (`Bornes Metaltex.iges`), 09/11/2026. O `visualizar.py` recorta: borne de terra + batente + ~48 mm de trilho | Termos do GrabCAD |
+| `buzzer-12mm.step` | `buzzer` (#302) | [FreeCAD/FreeCAD-library](https://github.com/FreeCAD/FreeCAD-library), `Electronics Parts/Buzzers/Buzzer.step` @ `a001c4d`; autor original **berserkdesign** (commit `48e6d97`, 2020-06-26) | [CC-BY 3.0](http://creativecommons.org/licenses/by/3.0/) |
+
+**Carcaça circular (#302): modelos gerados por script, sem arquivo.** A chave
+disjuntora ST-001 (simplificada a partir do anúncio: 29 × 14 × 25 mm, 3
+terminais) e o dissipador do SSR (**provisório**, só ocupa o envelope de
+`circular/componentes.csv` até a medida real) são desenhados por
+`circular/visualizar.py`. Os zips do GrabCAD baixados em 09/11/2026 ficaram em
+`mechanical/models/`, fora do git; só os arquivos usados foram copiados com
+nomes limpos.
+
+**Divergências da carcaça circular:** o SSR do modelo (ANLY) tem 57 × 43 × 25,4
+mm; o Fotek medido tem 63 × 45 × 23. O corpo da A1385 do modelo tem 28 mm de
+comprimento; o informado foi 1,5 pol (~38 mm), provavelmente com os pinos. O
+borne DIN real (48 × 62 × 47 mm, com trilho) é bem maior que o volume estimado
+na versão retangular (20 × 18 × 25).
 
 Os nomes de `.zip` acima identificam o download original no GrabCAD; os zips
 foram apagados em 08/10/2026 e só os arquivos usados ficaram aqui. Também

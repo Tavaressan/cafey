@@ -77,6 +77,7 @@ berco_ranhura_p,2,mm,profundidade da ranhura
 fonte_berco_parede,2,mm,
 fonte_berco_h,15,mm,
 fonte_folga,0.6,mm,
+fonte_corpo_x,28,mm,comprimento do corpo da A1385 sem os pinos (modelo apple-a1385.step)
 # --- carga e criterio do tampo ---
 carga_operacao,3.0,kgf,CP30 1.64 kg + agua (mesmo criterio da versao retangular)
 carga_raio_eq,100,mm,carga espalhada num disco de raio equivalente a base da CP30 (conservador)

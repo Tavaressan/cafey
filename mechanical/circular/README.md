@@ -23,7 +23,7 @@ Saídas em `mechanical/build/circular/` (não versionada):
 | `fundo.stl` | **Peça 2, para imprimir:** fundo removível, berço da placa, berço da fonte e ventilação |
 | `carcaca.step` | Conjunto: corpo + fundo + volumes de referência dos componentes (sem a marca) |
 | `carcaca.FCStd` | O mesmo conjunto, para abrir no FreeCAD |
-| `arranjo_circular.FCStd` | **Para visualizar:** conjunto agrupado e colorido, com os **modelos 3D** de `mechanical/models/` no lugar das caixas (ESP32, botão, tomada, prensa-cabo). Componentes sem modelo ficam como caixa: baixa tensão em azul, rede em vermelho, provisório em laranja. Gerado pelo `visualizar.py` (tabela `MODELOS`) |
+| `arranjo_circular.FCStd` | **Para visualizar:** conjunto agrupado e colorido, com os **modelos 3D** de `mechanical/models/` no lugar das caixas (ESP32, botão, tomada, prensa-cabo, A1385, SSR, 2 × WAGO 221-413, borne de terra DIN, buzzer), mais a chave ST-001 simplificada e o dissipador **provisório** (laranja), gerados pelo script. Componentes sem modelo ficam como caixa: baixa tensão em azul, rede em vermelho, provisório em laranja. Gerado pelo `visualizar.py` (tabela `MODELOS`) |
 | `corpo_sem_marca.stl` | Intermediário do `build.py` |
 
 **Toolchain:** FreeCAD 1.x (API `Part`, por script) é a fonte da verdade da geometria. A marca é gravada sobre a malha com `manifold3d`, porque enrolar a composição no cilindro com profundidade constante é direto em malha e trabalhoso em B-rep. Por isso o STEP não traz a marca, e o STL traz.

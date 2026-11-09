@@ -144,7 +144,7 @@ f_adds.append(box(bx0 - fol - 3, by0 - fol - (tw_ - rp), z_f - 0.1, bx0 - fol, b
 # Berco da fonte A1385: duas paredes laterais + rasgos para abracadeira.
 fz = comp["a1385"]
 ax0, ay0, _, ax1, ay1, _ = fz.box
-corpo_x1 = ax0 + 38.1 + p["fonte_folga"]  # corpo sem os pinos
+corpo_x1 = ax0 + p["fonte_corpo_x"] + p["fonte_folga"]  # corpo sem os pinos
 fp, fh, ff = p["fonte_berco_parede"], p["fonte_berco_h"], p["fonte_folga"]
 for ya, yb in ((ay0 - ff - fp, ay0 - ff), (ay1 + ff, ay1 + ff + fp)):
     f_adds.append(box(ax0, ya, z_f - 0.1, corpo_x1, yb, z_f + fh))
