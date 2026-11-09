@@ -112,15 +112,6 @@ class DispositivoService(
         if (proprietario == null) {
             request?.let {
                 dispositivo.nome = it.nome.trim()
-                if (it.timezone != null) {
-                    dispositivo.timezone = it.timezone.trim()
-                }
-                if (it.duracaoPreparoS != null) {
-                    dispositivo.duracaoPreparoS = it.duracaoPreparoS
-                }
-                if (it.limiarDescalcificacao != null) {
-                    dispositivo.limiarDescalcificacao = it.limiarDescalcificacao
-                }
                 dispositivo.atualizadoEm = java.time.Instant.now()
                 dispositivoRepository.save(dispositivo)
             }

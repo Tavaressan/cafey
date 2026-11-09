@@ -97,11 +97,20 @@ class DispositivoServiceTest {
         `when`(usuarioDispositivoRepository.save(any(UsuarioDispositivo::class.java))).thenAnswer { it.getArgument(0) }
         `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
 
+        val timezoneAnterior = device.timezone
+        val duracaoAnterior = device.duracaoPreparoS
+        val limiarAnterior = device.limiarDescalcificacao
+        val versaoAnterior = device.versaoAgendamentos
+
         val res = service.criar(CriarDispositivoRequest(nome = "Minha Cafeteira", serial = deviceId.toString()), ownerId)
 
         assertEquals(deviceId, res.id)
         assertEquals(PapelDispositivo.PROPRIETARIO, res.papel)
         assertEquals("Minha Cafeteira", res.nome)
+        assertEquals(timezoneAnterior, device.timezone)
+        assertEquals(duracaoAnterior, device.duracaoPreparoS)
+        assertEquals(limiarAnterior, device.limiarDescalcificacao)
+        assertEquals(versaoAnterior, device.versaoAgendamentos)
         val captor = ArgumentCaptor.forClass(UsuarioDispositivo::class.java)
         verify(usuarioDispositivoRepository).save(captor.capture())
         assertEquals(ownerId, captor.value.usuario.id)
