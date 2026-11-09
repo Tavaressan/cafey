@@ -7,6 +7,7 @@
 
 #include "core/active_object.hpp"
 #include "core/clock.hpp"
+#include "core/mutex_lock.hpp"
 #include "storage/schedule.hpp"
 
 namespace cafey::app {
@@ -33,17 +34,13 @@ public:
                        FireHandler on_fire = nullptr);
 
     [[nodiscard]] State state() const noexcept { return state_; }
-    [[nodiscard]] size_t schedule_count() const noexcept { return count_; }
+    [[nodiscard]] size_t schedule_count() const noexcept;
     [[nodiscard]] int fired_count() const noexcept { return fired_count_; }
 
-    [[nodiscard]] bool has_armed_schedules() const noexcept {
-        for (size_t i = 0; i < count_; ++i) {
-            if (schedules_[i].active) return true;
-        }
-        return false;
-    }
+    [[nodiscard]] bool has_armed_schedules() const noexcept;
 
-    /** Substitui a lista completa de agendamentos (idempotente, spec §6.3). */
+    /** Substitui a lista completa de agendamentos (idempotente, spec §6.3).
+     *  Thread-safe: pode ser chamado de outra task (MQTT/BLE). */
     void set_schedules(const cafey::storage::Schedule* schedules, size_t count);
 
     /** Define o callback de disparo apos a construcao (AO com storage estatico). */
@@ -52,8 +49,9 @@ public:
     /**
      * Deslocamento do fuso dos agendamentos em relacao a UTC, em segundos
      * (FW-23). `hora` e `diasSemana` sao avaliados nesse horario local.
+     * Thread-safe: pode ser chamado de outra task.
      */
-    void set_utc_offset(int32_t offset_s) { utc_offset_s_ = offset_s; }
+    void set_utc_offset(int32_t offset_s);
 
     static cafey::core::Clock& default_clock();
 
@@ -70,6 +68,7 @@ private:
     State state_ = State::Unsynced;
     std::time_t last_checked_minute_ = -1;
     int fired_count_ = 0;
+    mutable cafey::core::Mutex mutex_;
 };
 
 } // namespace cafey::app

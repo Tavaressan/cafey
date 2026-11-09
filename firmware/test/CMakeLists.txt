@@ -48,6 +48,20 @@ add_executable(test_cafeteira
 )
 add_test(NAME CafeteiraActiveObjectTest COMMAND test_cafeteira)
 
+add_executable(test_boot_schedules_issue334
+    test_boot_schedules_issue334.cpp
+    ../main/core/active_object.cpp
+    ../main/app/cafeteira.cpp
+    ../main/drivers/relay.cpp
+    ../main/drivers/rgb_led.cpp
+    ../main/storage/schedule_store.cpp
+    ../main/storage/event_queue_store.cpp
+    ../main/storage/event_id_generator.cpp
+    ../main/storage/nvs_store.cpp
+    ../main/core/mutex_lock.cpp
+)
+add_test(NAME BootSchedulesIssue334Test COMMAND test_boot_schedules_issue334)
+
 add_executable(test_conectividade
     test_conectividade.cpp
     ../main/core/active_object.cpp
@@ -62,6 +76,7 @@ add_executable(test_agendador
     test_agendador.cpp
     ../main/core/active_object.cpp
     ../main/app/agendador.cpp
+    ../main/core/mutex_lock.cpp
 )
 add_test(NAME AgendadorTest COMMAND test_agendador)
 
