@@ -164,15 +164,26 @@ for nome, shp in (("corpo", corpo), ("fundo", fundo)):
         raise SystemExit("%s: esperado 1 solido" % nome)
 
 doc = App.newDocument("carcaca")
+g_imp = doc.addObject("App::DocumentObjectGroup", "Impressao")
+g_imp.Label = "Pecas impressas"
+g_cmp = doc.addObject("App::DocumentObjectGroup", "Componentes")
+g_cmp.Label = "Componentes internos (volumes de referencia)"
+g_par = doc.addObject("App::DocumentObjectGroup", "Parede")
+g_par.Label = "Componentes de parede (volumes de referencia)"
 o1 = doc.addObject("Part::Feature", "Corpo")
 o1.Shape = corpo
+o1.Label = "Peca 1 - corpo (sem marca)"
 o2 = doc.addObject("Part::Feature", "Fundo")
 o2.Shape = fundo
+o2.Label = "Peca 2 - fundo"
+g_imp.addObjects([o1, o2])
 refs = []
 for c in L.comps:
     x0, y0, z0, x1, y1, z1 = c.box
     o = doc.addObject("Part::Feature", "ref_" + c.nome)
     o.Shape = box(x0, y0, z0, x1, y1, z1)
+    o.Label = c.nome + (" (PROVISORIO)" if "PROVISORIO" in c.fonte else "")
+    g_cmp.addObject(o)
     refs.append(o)
 for a in L.aberturas:
     if a.cp <= 0:
@@ -181,6 +192,8 @@ for a in L.aberturas:
     b = box(L.Ri - a.cp, -a.cw / 2, z0, L.Ri, a.cw / 2, z1)
     o = doc.addObject("Part::Feature", "ref_" + a.nome)
     o.Shape = rot_z(b, a.ang)
+    o.Label = a.nome + (" (PROVISORIO)" if "PROVISORIO" in a.fonte else "")
+    g_par.addObject(o)
     refs.append(o)
 doc.recompute()
 doc.saveAs(os.path.join(OUT, "carcaca.FCStd"))
