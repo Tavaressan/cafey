@@ -66,9 +66,9 @@ flowchart TB
 | Ref | Função | Modelo / especificação | Situação |
 |---|---|---|---|
 | **U1** | Microcontrolador | ESP32 DevKit V1 (30 pinos), removível (#309) | Em uso |
-| **PS1** | Fonte 5 V | Apple A1385, 100–240 V AC → 5 V / 1 A, saída USB-A. Rede ligada direto nos pinos (decisão do responsável) | Em uso; verificações em #306 |
+| **PS1** | Fonte 5 V | Apple A1385, 100–240 V AC → 5 V / 1 A, saída USB-A. Corpo ~38 × 25 × 25 mm (1,5 × 1 × 1 pol., informado em 09/11/2026), sem contar os pinos. Rede ligada direto nos pinos (decisão do responsável) | Em uso; verificações em #306 |
 | **SSR1** | Acionamento da carga | Fotek SSR-40DA: entrada 3–32 V DC (3 = +, 4 = −), saída 24–380 V AC (1, 2), com dissipador aletado. Corpo **63 × 45 × 23 mm** (medido em 09/11/2026) | Em uso; dissipador, capacidade, fuga e ensaio térmico em #305 |
-| **CB1** | Proteção contra sobrecorrente | Disjuntor 10 A, alavanca acessível no tampo | Modelo e curva a registrar (#307) |
+| **CB1** | Proteção contra sobrecorrente e liga/desliga geral | **Chave disjuntora ST-001**, 10 A, 125/250 V AC, reset/off, com LED vermelho, **3 terminais**, 29 × 14 × 25 mm (C × L × A), 9 g. Acesso pelo tampo | Pino 3 (lâmpada) ligado ao N no esquemático: **confirmar a marcação dos terminais na peça**. Recorte de painel e espessura máxima de painel a medir (#302). Capacidade de interrupção não informada (#307) |
 | **SW1** | Interface física | Botão anti-vandalismo de aço inox, IP65, rosca 16 mm, frente 18 mm, 35 mm de comprimento, com chicote. **Contato 1NA** (fios amarelo e branco) → unidade A, GPIO27. **Anel RGB de cátodo comum** (preto = negativo comum; vermelho, verde e azul = anodos) → unidade B, GPIO21/22/23. **LED especificado para 12–24 V DC** | Acionamento do anel a definir (seção 3.1, #308) |
 | **J5** | Rabicho do buzzer | Conector destacável 2 vias (JST-XH): 1 = BUZZER (GPIO25), 2 = GND | O kit LAFVIN traz um buzzer ativo e um passivo (sem especificação elétrica no manual). Escolha e estágio de acionamento em #311 |
 | **P1** | Entrada de energia | Cabo macho NBR 14136, 3G1,0 mm² (10 A) | Em uso |
@@ -157,7 +157,7 @@ Netlist conferida nó a nó (`kicad-cli sch export netlist`):
 | `L_REDE` | P1.L, CB1.1 |
 | `L_FONTE` | CB1.2, PS1.AC/L, SSR1.1 (T1) |
 | `L_SAIDA` | SSR1.2 (T2), J1.L |
-| `N` | P1.N, PS1.AC/N, J1.N |
+| `N` | P1.N, PS1.AC/N, J1.N, CB1.3 (lâmpada) |
 | `Earth_Protective` | P1.PE, J1.PE, J3 |
 | `RELE_IN` | U1.GPIO26, SSR1.3 (+), R1 |
 | `GND` | U1.GND (2, 17), PS1.GND, SSR1.4 (−), R1, SW1.2, SW1.K, C1, C2, C3, J5.2 |
@@ -189,8 +189,8 @@ O esboço manuscrito do responsável (08/11/2026) foi o ponto de partida, **não
 | Dissipação térmica e dissipador (estimativa ~8–10 W durante o preparo) | Pendente — ensaio térmico de 10/11/2026 | #305 |
 | Corrente de fuga do SSR desligado e modo de falha (curto) | Pendente. Desligar pelo app **não** secciona a rede | #305 |
 | Acionamento direto pelo GPIO (3,3 V contra mínimo de 3 V) | Pendente — medir na bancada | #305 |
-| Dimensionamento do disjuntor e dos condutores | Pendente — dados da unidade | #307 |
-| Proteção contra sobrecorrente (breaker protege a fiação num curto do SSR) | Pendente | #307, #19 |
+| Dimensionamento do disjuntor e dos condutores | ST-001 10 A para a carga de ~6,3 A: margem adequada em regime. Condutores de 1,0 mm² (cabo) e 1,5 mm² (interno) compatíveis com 10 A. Falta a curva de disparo | #307 |
+| Proteção contra sobrecorrente (breaker protege a fiação num curto do SSR) | **Pendente, com ressalva.** O ST-001 é uma chave disjuntora compacta, provavelmente térmica (bimetal), e o anúncio não informa a capacidade de interrupção. Ela protege contra sobrecarga; contra curto-circuito, a proteção principal passa a ser o disjuntor da instalação. Levar ao profissional (#19) | #307, #19 |
 | Isolamento entre baixa tensão e rede | Pendente — separação física na carcaça | #302 |
 | Distâncias de isolamento e de escoamento | Pendente | #302, #19 |
 | Aterramento (PE passa-através) e carcaça plástica | Projetado (J3); verificar na montagem | #19 |

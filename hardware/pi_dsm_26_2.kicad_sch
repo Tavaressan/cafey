@@ -3610,6 +3610,7 @@
 			)
 			(pin_names
 				(offset 0)
+				(hide yes)
 			)
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -3658,7 +3659,7 @@
 					)
 				)
 			)
-			(property "Description" "Disjuntor (circuit breaker) unipolar na fase, antes do SSR e da derivacao da fonte"
+			(property "Description" "Chave disjuntora unipolar na fase, antes do SSR e da derivacao da fonte; pino 3 = lampada (ao N)"
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -3724,6 +3725,24 @@
 						)
 					)
 					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -3.81 0 0)
+					(length 3.048)
+					(name "LAMP"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -7311,15 +7330,15 @@
 				(justify left)
 			)
 		)
-		(property "Value" "Disjuntor 10 A (#307)"
-			(at 80.01 71.12 90)
+		(property "Value" "Chave disjuntora ST-001 10 A (#307)"
+			(at 85.09 74.93 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
 		(property "Footprint" ""
@@ -7360,6 +7379,9 @@
 		)
 		(pin "2"
 			(uuid "83fba9f5-0f38-40aa-84f7-baa83ac8a6ec")
+		)
+		(pin "3"
+			(uuid "1f6dc938-22bd-4898-abf9-1036abe322e9")
 		)
 		(instances
 			(project "pi_dsm_26_2"
@@ -7841,6 +7863,26 @@
 			(justify left)
 		)
 		(uuid "34c23880-5ebd-4cf0-bfd3-49ea1f677349")
+	)
+	(wire
+		(pts
+			(xy 80.01 69.85) (xy 80.01 72.39)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6eba1460-5293-4ad9-8dfe-d81aefd08b67")
+	)
+	(label "N"
+		(at 80.01 72.39 270)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "22f2519b-5628-4df2-90f0-b9b95f314c61")
 	)
 	(sheet_instances
 		(path "/"
