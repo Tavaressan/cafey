@@ -92,3 +92,25 @@ data class CompartilhamentoResponse(
     val papel: PapelDispositivo,
     val compartilhadoEm: Instant
 )
+
+data class ErroRecenteDiagnosticoResponse(
+    val eventoId: String,
+    val timestamp: Instant,
+    val origem: String,
+    val detalheErro: String?
+)
+
+data class DiagnosticoDispositivoResponse(
+    val dispositivoId: UUID,
+    val online: Boolean,
+    val ultimoVisto: Instant?,
+    val estado: String,
+    val rssi: Int?,
+    val firmware: String?,
+    val uptimeS: Long?,
+    val versaoAgendamentos: Int,
+    /** Estado do relé publicado pelo firmware; `null` quando indisponível (issue #321). */
+    val estadoRele: String?,
+    val errosRecentes: List<ErroRecenteDiagnosticoResponse>,
+    val atualizadoEm: Instant
+)

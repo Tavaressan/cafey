@@ -38,6 +38,15 @@ class Dispositivo(
     @Column(name = "contador_preparos", nullable = false)
     var contadorPreparos: Int = 0,
 
+    @Column(name = "rssi")
+    var rssi: Int? = null,
+
+    @Column(name = "uptime_s")
+    var uptimeS: Long? = null,
+
+    @Column(name = "firmware", length = 100)
+    var firmware: String? = null,
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     var criadoEm: Instant = Instant.now(),
 

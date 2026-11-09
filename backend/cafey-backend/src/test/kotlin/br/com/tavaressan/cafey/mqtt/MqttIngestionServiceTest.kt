@@ -57,6 +57,7 @@ class MqttIngestionServiceTest {
 
         assertEquals("PREPARANDO", disp.estado)
         assertNotNull(disp.ultimoVisto)
+        assertEquals("1.0.0", disp.firmware)
         verify(dispositivoRepository).save(disp)
     }
 
@@ -70,6 +71,8 @@ class MqttIngestionServiceTest {
         ingestionService.processarSaude(dispositivoId, payload)
 
         assertTrue(disp.online)
+        assertEquals(-65, disp.rssi)
+        assertEquals(3600L, disp.uptimeS)
         val captor = ArgumentCaptor.forClass(DispositivoOnlineEvent::class.java)
         verify(eventPublisher).publishEvent(captor.capture())
         assertEquals(dispositivoId, captor.value.dispositivoId)

@@ -1,6 +1,7 @@
 package br.com.tavaressan.cafey.device
 
 import br.com.tavaressan.cafey.config.AwsIotProperties
+import br.com.tavaressan.cafey.event.EventoPreparoRepository
 import br.com.tavaressan.cafey.exception.BadCredentialsException
 import br.com.tavaressan.cafey.exception.ConflitoException
 import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
@@ -13,6 +14,7 @@ import br.com.tavaressan.cafey.schedule.AgendamentosAlteradosEvent
 import br.com.tavaressan.cafey.user.Usuario
 import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -24,7 +26,8 @@ class DispositivoService(
     private val usuarioRepository: UsuarioRepository,
     private val mqttClientService: MqttClientService,
     private val eventPublisher: ApplicationEventPublisher,
-    private val dispositivoMapper: DispositivoMapper
+    private val dispositivoMapper: DispositivoMapper,
+    private val eventoPreparoRepository: EventoPreparoRepository
 ) {
 
     @Transactional(readOnly = true)
@@ -157,5 +160,45 @@ class DispositivoService(
         }
 
         dispositivoRepository.delete(vinculo.dispositivo)
+    }
+
+    @Transactional(readOnly = true)
+    fun obterDiagnostico(dispositivoId: UUID, usuarioId: UUID): DiagnosticoDispositivoResponse {
+        val vinculo = usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)
+            ?: throw ResourceNotFoundException("Dispositivo não encontrado ou você não tem acesso")
+
+        if (vinculo.papel != PapelDispositivo.PROPRIETARIO) {
+            throw BadCredentialsException("Apenas o proprietário pode acessar o diagnóstico do dispositivo")
+        }
+
+        val dispositivo = vinculo.dispositivo
+        val erros = eventoPreparoRepository.findEventosComFiltro(
+            dispositivoId,
+            "ERRO",
+            null,
+            null,
+            PageRequest.of(0, 5)
+        ).content.map {
+            ErroRecenteDiagnosticoResponse(
+                eventoId = it.eventoId,
+                timestamp = it.timestamp,
+                origem = it.origem,
+                detalheErro = it.detalheErro
+            )
+        }
+
+        return DiagnosticoDispositivoResponse(
+            dispositivoId = dispositivo.id!!,
+            online = dispositivo.online,
+            ultimoVisto = dispositivo.ultimoVisto,
+            estado = dispositivo.estado,
+            rssi = dispositivo.rssi,
+            firmware = dispositivo.firmware,
+            uptimeS = dispositivo.uptimeS,
+            versaoAgendamentos = dispositivo.versaoAgendamentos,
+            estadoRele = null,
+            errosRecentes = erros,
+            atualizadoEm = dispositivo.atualizadoEm
+        )
     }
 }
