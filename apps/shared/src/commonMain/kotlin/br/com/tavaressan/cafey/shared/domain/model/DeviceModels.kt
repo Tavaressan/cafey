@@ -45,6 +45,7 @@ data class DispositivoResponse(
     val estado: String,
     val online: Boolean,
     val ultimoVisto: String? = null,
+    val preparoIniciadoEm: String? = null,
     val versaoAgendamentos: Int,
     val duracaoPreparoS: Int,
     val limiarDescalcificacao: Int,
@@ -73,6 +74,7 @@ data class CompartilhamentoResponse(
 sealed interface DeviceState {
     data object Idle : DeviceState
     data object Brewing : DeviceState
+    data object Ready : DeviceState
     data object Error : DeviceState
     data class Unknown(val raw: String) : DeviceState
 
@@ -80,6 +82,7 @@ sealed interface DeviceState {
         fun from(estado: String): DeviceState = when (estado.trim().uppercase()) {
             "OCIOSO", "DESLIGADO", "IDLE" -> Idle
             "PREPARANDO", "LIGADO", "BREWING" -> Brewing
+            "PRONTO", "READY", "CAFE_PRONTO" -> Ready
             "ERRO", "ERROR" -> Error
             else -> Unknown(estado)
         }
