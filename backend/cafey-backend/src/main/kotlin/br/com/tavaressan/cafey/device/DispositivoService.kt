@@ -83,7 +83,7 @@ class DispositivoService(
         val usuario = usuarioRepository.findById(usuarioId).orElseThrow {
             ResourceNotFoundException("Usuário não encontrado")
         }
-        request.serial?.let { return vincularPorSerial(UUID.fromString(it), usuario) }
+        request.serial?.let { return vincularPorSerial(UUID.fromString(it), usuario, request) }
 
         val salvo = dispositivoRepository.save(dispositivoMapper.toEntity(request))
 
@@ -102,7 +102,7 @@ class DispositivoService(
      * só vincula um dispositivo que já existe. Criar com id vindo do app deixaria qualquer conta
      * inventar ids.
      */
-    private fun vincularPorSerial(dispositivoId: UUID, usuario: Usuario): DispositivoResponse {
+    private fun vincularPorSerial(dispositivoId: UUID, usuario: Usuario, request: CriarDispositivoRequest? = null): DispositivoResponse {
         val dispositivo = dispositivoRepository.findById(dispositivoId).orElseThrow {
             ResourceNotFoundException("Cafeteira não reconhecida pelo servidor. Confira se ela foi registrada antes do cadastro.")
         }
@@ -110,6 +110,20 @@ class DispositivoService(
             .find { it.papel == PapelDispositivo.PROPRIETARIO }
 
         if (proprietario == null) {
+            request?.let {
+                dispositivo.nome = it.nome.trim()
+                if (it.timezone != null) {
+                    dispositivo.timezone = it.timezone.trim()
+                }
+                if (it.duracaoPreparoS != null) {
+                    dispositivo.duracaoPreparoS = it.duracaoPreparoS
+                }
+                if (it.limiarDescalcificacao != null) {
+                    dispositivo.limiarDescalcificacao = it.limiarDescalcificacao
+                }
+                dispositivo.atualizadoEm = java.time.Instant.now()
+                dispositivoRepository.save(dispositivo)
+            }
             usuarioDispositivoRepository.save(
                 UsuarioDispositivo(usuario = usuario, dispositivo = dispositivo, papel = PapelDispositivo.PROPRIETARIO)
             )

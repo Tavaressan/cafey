@@ -95,16 +95,18 @@ class DispositivoServiceTest {
         `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
         `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(emptyList())
         `when`(usuarioDispositivoRepository.save(any(UsuarioDispositivo::class.java))).thenAnswer { it.getArgument(0) }
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
 
         val res = service.criar(CriarDispositivoRequest(nome = "Minha Cafeteira", serial = deviceId.toString()), ownerId)
 
         assertEquals(deviceId, res.id)
         assertEquals(PapelDispositivo.PROPRIETARIO, res.papel)
+        assertEquals("Minha Cafeteira", res.nome)
         val captor = ArgumentCaptor.forClass(UsuarioDispositivo::class.java)
         verify(usuarioDispositivoRepository).save(captor.capture())
         assertEquals(ownerId, captor.value.usuario.id)
         assertEquals(PapelDispositivo.PROPRIETARIO, captor.value.papel)
-        verify(dispositivoRepository, never()).save(any(Dispositivo::class.java))
+        verify(dispositivoRepository).save(any(Dispositivo::class.java))
     }
 
     @Test
