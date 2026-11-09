@@ -4,7 +4,6 @@ nome,zona,forma,angulo,z_centro,largura,altura,corpo_largura,corpo_altura,corpo_
 # forma: circ (furo), ret (retangulo), furos (grade de furinhos de som), marca (gravacao, sem furo).
 marca,baixa,marca,-105,-36,85.8,22.4,0,0,0,composicao [simbolo] Caféy gravada (#303); largura = 3.9 x altura do simbolo
 botao,baixa,circ,-66,-36,16.2,16.2,22,22,40,botao RGB inox: rosca 16 (furo 16.2), frente 18, comprimento 35 (~32 por dentro) + curva do chicote (#308)
-buzzer,baixa,furos,-45,-25,10,10,14,14,14,buzzer do kit (~12 x 9.5); 7 furos de 2.5 mm para o som (#311)
 tomada_j1,rede,ret,90,-36,23,45.5,25,47,41,tomada 2P+T NBR 14136 10 A de painel (E2) na vertical
 disjuntor,rede,ret,60,-36,13,28,16,31,33,chave disjuntora ST-001 29x14x25 + terminais; recorte PROVISORIO ate medir (#307)
 prensa_cabo,rede,circ,120,-45,15.5,15.5,22,22,22,prensa-cabo PG9 (E10) + porca

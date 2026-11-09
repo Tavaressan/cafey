@@ -46,6 +46,12 @@ else:
     doc.getObject("Corpo").ViewObject.ShapeColor = CORPO
     doc.getObject("Corpo").ViewObject.Transparency = 55
 
+# Tudo visivel (objetos criados pelo freecadcmd chegam ocultos), menos o corpo
+# sem marca quando a malha com a marca existe.
+for o in doc.Objects:
+    o.ViewObject.Visibility = True
+if os.path.exists(stl):
+    doc.getObject("Corpo").ViewObject.Visibility = False
 doc.getObject("Fundo").ViewObject.ShapeColor = FUNDO
 for o in doc.Objects:
     if not o.Name.startswith("ref_"):
@@ -63,3 +69,5 @@ view.viewIsometric()
 Gui.SendMsgToActiveView("ViewFit")
 doc.saveAs(os.path.join(OUT, "arranjo_circular.FCStd"))
 App.Console.PrintMessage("Salvo %s\n" % os.path.join(OUT, "arranjo_circular.FCStd"))
+if os.environ.get("CAFEY_FECHAR"):  # uso em script: o arquivo ja foi salvo, sai do FreeCAD
+    os._exit(0)

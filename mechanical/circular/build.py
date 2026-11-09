@@ -195,6 +195,9 @@ for a in L.aberturas:
     o.Label = a.nome + (" (PROVISORIO)" if "PROVISORIO" in a.fonte else "")
     g_par.addObject(o)
     refs.append(o)
+# Sem interface, o FreeCAD grava os objetos como ocultos: ligar a visibilidade.
+for o in doc.Objects:
+    o.Visibility = True
 doc.recompute()
 doc.saveAs(os.path.join(OUT, "carcaca.FCStd"))
 Part.export([o1, o2] + refs, os.path.join(OUT, "carcaca.step"))

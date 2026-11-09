@@ -101,7 +101,7 @@ obst.append(("divisoria", "estrutura",
              [(-xr, L.div_y0), (xr, L.div_y0), (xr, L.div_y1), (-xr, L.div_y1)], L.z_floor, L.z_teto))
 
 PARES_PERMITIDOS = {frozenset(s) for s in (("esp32", "placa_base"), ("esp32", "esp32_usb"),
-                                           ("esp32_usb", "placa_base"))}
+                                           ("esp32_usb", "placa_base"), ("buzzer", "placa_base"))}
 
 print("Carcaca circular: D = %.0f mm, altura = %.0f mm (corpo %.0f + fundo %.0f)"
       % (p["diametro_externo"], L.H, L.H_corpo, p["fundo"]))

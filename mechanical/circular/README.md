@@ -12,6 +12,7 @@ freecadcmd mechanical/circular/build.py        # corpo e fundo: STL, STEP do con
 uv run mechanical/circular/marca.py            # grava a marca na parede -> corpo.stl
 uv run mechanical/circular/planta.py           # atualiza planta.svg
 freecad mechanical/circular/visualizar.py      # abre no FreeCAD com cores -> arranjo_circular.FCStd
+# sem abrir janela: CAFEY_FECHAR=1 QT_QPA_PLATFORM=offscreen freecad mechanical/circular/visualizar.py
 ```
 
 Saídas em `mechanical/build/circular/` (não versionada):
@@ -43,7 +44,7 @@ Coordenadas: origem no centro da face superior do tampo, corpo em z < 0. **Frent
 
 | Região | O que tem |
 |---|---|
-| **Frente (baixa tensão)** | Marca gravada a −105°, botão RGB a −66°, furos do buzzer a −45°. Placa base com o ESP32 nos soquetes, num berço de trilhos sobre o fundo |
+| **Frente (baixa tensão)** | Marca gravada a −105° e botão RGB a −66°. Placa base com o ESP32 nos soquetes, num berço de trilhos sobre o fundo. **Buzzer interno**, soldado na placa base, sem abertura na parede (decisão de 09/11) |
 | **Divisória** | Corda em y = −36,5, impressa junto com o corpo, do tampo até 0,3 mm do fundo. Passagem de fios de 20 × 12 mm na base (cabo USB da fonte e os 2 fios da entrada do SSR) |
 | **Traseira (rede)** | Tomada J1 a 90°, chave disjuntora a 60° (na parede, decisão de 09/11), prensa-cabo a 120°. SSR com dissipador perto da parede esquerda-traseira, com rasgos de ventilação na parede (135° a 170°, fileira baixa e alta) e no fundo. A1385 num berço com abraçadeira. Bornes e borne de terra |
 
