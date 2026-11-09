@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -28,11 +29,12 @@ enum class WifiState {
 
 /**
  * @brief Gerencia a conexao Wi-Fi (modo STA) com reconexao automatica em backoff
- * exponencial e provisionamento de credenciais persistido em NVS.
+ * exponencial, historico de redes provisionadas em NVS e fallback entre redes
+ * conhecidas.
  *
- * Integra-se ao ESP-IDF via esp_wifi/esp_event; a logica de backoff
- * (ReconnectPolicy) e a persistencia de credenciais (WifiCredentialsStore) sao
- * delegadas a componentes puros e testados isoladamente em host.
+ * Uma rede nova provisionada so entra no historico persistido apos conexao bem-
+ * sucedida (handle_got_ip), evitando que uma senha errada apague credenciais
+ * validas. No boot e ao perder conexao, tenta as redes conhecidas em ordem MRU.
  *
  * So compilado para o alvo ESP32 real (ESP_PLATFORM); a logica pura das
  * dependencias e coberta por testes de host em firmware/test/.
@@ -49,13 +51,14 @@ public:
     esp_err_t init();
 
     /**
-     * @brief Grava novas credenciais (provisionamento) e tenta conectar
-     * imediatamente com elas, iniciando o temporizador de timeout de 20s.
+     * @brief Recebe novas credenciais (provisionamento) e tenta conectar com
+     * elas, iniciando o temporizador de timeout de 20s. A rede so e persistida
+     * no historico apos conexao bem-sucedida.
      */
     esp_err_t provision(const std::string& ssid, const std::string& password);
 
     /**
-     * @brief Inicia a conexao usando as credenciais ja gravadas em NVS.
+     * @brief Inicia a conexao usando as redes conhecidas gravadas em NVS.
      * @return ESP_ERR_NOT_FOUND se nao ha credenciais provisionadas.
      */
     esp_err_t connect_with_stored_credentials();
@@ -68,6 +71,9 @@ public:
 
     /** @brief Disparado quando o timeout de 20s de provisionamento expira. */
     void handle_provision_timeout();
+
+    /** @brief Executa a proxima tentativa de conexao agendada pelo backoff. */
+    void try_reconnect();
 
     /**
      * @brief Callbacks de conectividade (FW-21 / UC-04): chamados na task do event loop
@@ -91,13 +97,23 @@ public:
 
 private:
     esp_err_t apply_sta_config(const std::string& ssid, const std::string& password);
+    esp_err_t apply_and_connect(const std::string& ssid, const std::string& password);
+    esp_err_t try_connect_known(size_t start_index);
     void schedule_reconnect();
+    void stop_provision_timer();
+    static bool is_auth_reason(uint8_t reason);
 
     ReconnectPolicy policy_;
     WifiCredentialsStore credentials_;
     WifiState state_ = WifiState::NOT_PROVISIONED;
     std::string ip_;
     bool initialized_ = false;
+    bool has_pending_ = false;
+    std::string pending_ssid_;
+    std::string pending_password_;
+    std::string connect_ssid_;
+    std::string connect_password_;
+    size_t connect_index_ = 0;
     std::function<void()> on_connected_;
     std::function<void(const std::string& ip)> on_connected_ip_;
     std::function<void()> on_disconnected_;
