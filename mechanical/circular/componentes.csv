@@ -5,7 +5,6 @@ nome,zona,apoio,dx,dy,dz,x,y,z,fonte
 # --- baixa tensao (frente, y < divisoria) ---
 placa_base,baixa,fundo,70,50,1.6,-65,-95,5,placa ilhada 5x7 cm (M3) correndo nas ranhuras do berco; soquetes femea (M4) para o DevKit
 esp32,baixa,placa,52,29,24,-60,-85,6.6,DevKit V1 ~52x29x13 + soquetes femea ~8.5 + folga; antena em x min (longe do SSR); micro-USB em x max
-buzzer,baixa,placa,12,12,10,-6,-94,6.6,buzzer do kit (~12 x 9.5) soldado na placa base; INTERNO, sem abertura na parede (decisao do responsavel, 09/11/2026; #311)
 esp32_usb,baixa,livre,25,14,12,-8,-78,10,plugue micro-USB + curva do cabo que vem da A1385 pela travessia
 # --- rede (tras, y > divisoria + folga) ---
 ssr_dissipador,rede,fundo,80,65,50,-85,10,4,PROVISORIO: SSR 63x45x23 (medido 09/11) + dissipador NAO medido; envelope chutado (#305)

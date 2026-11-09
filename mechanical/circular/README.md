@@ -23,7 +23,7 @@ Saídas em `mechanical/build/circular/` (não versionada):
 | `fundo.stl` | **Peça 2, para imprimir:** fundo removível, berço da placa, berço da fonte e ventilação |
 | `carcaca.step` | Conjunto: corpo + fundo + volumes de referência dos componentes (sem a marca) |
 | `carcaca.FCStd` | O mesmo conjunto, para abrir no FreeCAD |
-| `arranjo_circular.FCStd` | **Para visualizar:** conjunto agrupado e colorido (corpo translúcido com a marca, fundo cinza, baixa tensão em azul, rede em vermelho, provisório em laranja). Gerado pelo `visualizar.py` |
+| `arranjo_circular.FCStd` | **Para visualizar:** conjunto agrupado e colorido, com os **modelos 3D** de `mechanical/models/` no lugar das caixas (ESP32, botão, tomada, prensa-cabo). Componentes sem modelo ficam como caixa: baixa tensão em azul, rede em vermelho, provisório em laranja. Gerado pelo `visualizar.py` (tabela `MODELOS`) |
 | `corpo_sem_marca.stl` | Intermediário do `build.py` |
 
 **Toolchain:** FreeCAD 1.x (API `Part`, por script) é a fonte da verdade da geometria. A marca é gravada sobre a malha com `manifold3d`, porque enrolar a composição no cilindro com profundidade constante é direto em malha e trabalhoso em B-rep. Por isso o STEP não traz a marca, e o STL traz.
@@ -44,7 +44,7 @@ Coordenadas: origem no centro da face superior do tampo, corpo em z < 0. **Frent
 
 | Região | O que tem |
 |---|---|
-| **Frente (baixa tensão)** | Marca gravada a −105° e botão RGB a −66°. Placa base com o ESP32 nos soquetes, num berço de trilhos sobre o fundo. **Buzzer interno**, soldado na placa base, sem abertura na parede (decisão de 09/11) |
+| **Frente (baixa tensão)** | Marca gravada a −105°, botão RGB a −66° e buzzer a −45°, encostado na parede atrás de 7 furos de 2,5 mm para o som sair. Placa base com o ESP32 nos soquetes, num berço de trilhos sobre o fundo |
 | **Divisória** | Corda em y = −36,5, impressa junto com o corpo, do tampo até 0,3 mm do fundo. Passagem de fios de 20 × 12 mm na base (cabo USB da fonte e os 2 fios da entrada do SSR) |
 | **Traseira (rede)** | Tomada J1 a 90°, chave disjuntora a 60° (na parede, decisão de 09/11), prensa-cabo a 120°. SSR com dissipador perto da parede esquerda-traseira, com rasgos de ventilação na parede (135° a 170°, fileira baixa e alta) e no fundo. A1385 num berço com abraçadeira. Bornes e borne de terra |
 
