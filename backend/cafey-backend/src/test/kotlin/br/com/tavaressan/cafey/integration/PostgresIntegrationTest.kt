@@ -51,13 +51,13 @@ class PostgresIntegrationTest {
     private lateinit var eventoPreparoRepository: EventoPreparoRepository
 
     @Test
-    fun `flyway aplica as migracoes V1 a V9 no schema_version`() {
+    fun `flyway aplica as migracoes V1 a V9 e V13 no schema_version`() {
         val versions = jdbcTemplate.queryForList(
             "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank",
             String::class.java,
         )
 
-        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9"), versions)
+        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "13"), versions)
     }
 
     @Test
