@@ -38,11 +38,15 @@ data class AgendamentosPayload(
 )
 
 /**
- * Código de uso único da janela de vínculo aberta pelo toque longo na placa (FW-24, #275).
- * O firmware publica sem retain e só enquanto a janela está aberta.
+ * Janela de vínculo aberta/fechada pelo toque longo na placa (FW-24, #275; FW-29 fecha).
+ *
+ * Abertura (retrocompatível com o firmware do PR #299): `{"codigo":"123456"}` (sem retain).
+ * Fechamento/invalidação (manual ou por tempo): `{"aberta":false,"codigo":null}` — sinaliza ao
+ * backend que descarte o código para que ele não seja aceito depois da janela encerrar.
  */
 data class VinculoPayload(
-    val codigo: String? = null
+    val codigo: String? = null,
+    val aberta: Boolean? = null
 )
 
 data class EventoPayload(

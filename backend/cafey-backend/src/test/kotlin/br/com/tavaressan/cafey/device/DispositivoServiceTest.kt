@@ -183,6 +183,24 @@ class DispositivoServiceTest {
     }
 
     @Test
+    fun `should reject vinculo with old code after manual close invalidation`() {
+        // Simula o estado apos a invalidacao recebida por MQTT (janela fechada manualmente/por tempo).
+        device.codigoVinculo = null
+        device.codigoVinculoExpiraEm = null
+        `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
+        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
+        `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(emptyList())
+
+        assertThrows<RequisicaoInvalidaException> {
+            service.criar(
+                CriarDispositivoRequest(nome = "Minha", serial = deviceId.toString(), codigoVinculo = "123456"),
+                ownerId
+            )
+        }
+        verify(usuarioDispositivoRepository, never()).save(any(UsuarioDispositivo::class.java))
+    }
+
+    @Test
     fun `should keep relink idempotent for the same owner without vinculo code`() {
         `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
         `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
