@@ -196,14 +196,22 @@ def render_svg(path, fill_fraction=None, size=BASE):
 
 
 def render_monochrome_svg(path, fill_fraction=SAFE_FILL_FRACTION, size=BASE):
-    # Silhueta: contorno do grão preenchido + estrela preenchida (uma cor).
+    # Monocromático: mesmo desenho da logo (contorno, curvas em S, estrela),
+    # em uma única cor opaca. O sistema aplica o tingimento do tema ao alfa.
     scale = fill_fraction * size / ART[3]
     shift = size / 2.0 - CX * scale
-    open_g = '<g transform="translate(%.3f %.3f) scale(%.5f)" fill="#000000">' % (shift, shift, scale)
+    open_g = '<g transform="translate(%.3f %.3f) scale(%.5f)">' % (shift, shift, scale)
     body = (
-        '  <path d="{outline}"/>\n'
-        '  <path d="{star}"/>\n'
-    ).format(outline=OUTLINE, star=star_path())
+        '  <g fill="none" stroke="#000000" stroke-linecap="round" stroke-linejoin="round">\n'
+        '    <path d="{outline}" stroke-width="{sw_out}"/>\n'
+        '    <path d="{left}" stroke-width="{sw_in}"/>\n'
+        '    <path d="{right}" stroke-width="{sw_in}"/>\n'
+        '  </g>\n'
+        '  <path d="{star}" fill="#000000"/>\n'
+    ).format(
+        outline=OUTLINE, left=s_curve(-1), right=s_curve(+1),
+        sw_out=STROKE_OUTLINE, sw_in=STROKE_INNER, star=star_path(),
+    )
     svg = (
         '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {s:.0f} {s:.0f}" '
         'width="{s:.0f}" height="{s:.0f}">\n{o}\n{b}</g>\n</svg>\n'
@@ -259,10 +267,15 @@ def vector_drawable_foreground():
 def vector_drawable_monochrome():
     shift, scale = safe_transform()
     outline_d = transform_path_d(OUTLINE, shift, scale)
+    left_d = transform_path_d(s_curve(-1), shift, scale)
+    right_d = transform_path_d(s_curve(+1), shift, scale)
     star_d = transform_path_d(star_path(), shift, scale)
+    sw_out = "%.3f" % transform_stroke(STROKE_OUTLINE, shift, scale)
+    sw_in = "%.3f" % transform_stroke(STROKE_INNER, shift, scale)
     return f"""<?xml version="1.0" encoding="utf-8"?>
 <!-- Gerado por docs/docs_interface/logo/generate_android_icons.py — não editar manualmente.
-     Silhueta do grão e da estrela para ícones temáticos (Android 13+). -->
+     Desenho monocromático da logo (contorno, curvas em S, estrela) para ícones temáticos (Android 13+).
+     O sistema aplica o tingimento do tema ao alfa desta camada. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
@@ -270,7 +283,25 @@ def vector_drawable_monochrome():
     android:viewportHeight="108">
     <path
         android:pathData="{outline_d}"
-        android:fillColor="#000000"/>
+        android:strokeColor="#000000"
+        android:strokeWidth="{sw_out}"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <path
+        android:pathData="{left_d}"
+        android:strokeColor="#000000"
+        android:strokeWidth="{sw_in}"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <path
+        android:pathData="{right_d}"
+        android:strokeColor="#000000"
+        android:strokeWidth="{sw_in}"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
     <path
         android:pathData="{star_d}"
         android:fillColor="#000000"/>
@@ -358,17 +389,31 @@ def generate_previews(preview_dir, foreground_svg, monochrome_svg):
         base.unlink(missing_ok=True)
         mask.unlink(missing_ok=True)
 
-    # Monocromática sobre fundo claro e escuro (como o sistema tematiza).
-    for bg, label in [(BG_COLOR, "light"), ("#2B2B2B", "dark")]:
+    # Monocromática com tingimento simulado: desenho claro sobre fundo escuro e vice-versa.
+    mask_mono = preview_dir / "_mask_mono.png"
+    mask_circle(mask_mono)
+    for bg, tint, label in [
+        (BG_COLOR, "#3A3A3A", "light"),   # tema claro: desenho escuro
+        ("#2B2B2B", "#F2EDE6", "dark"),    # tema escuro: desenho claro
+    ]:
+        tinted = preview_dir / f"_mono_tinted_{label}.png"
+        # Tingimento: preenche com a cor do tema usando o alfa do monocromático.
+        run([
+            "magick", str(mono),
+            "(", "+clone", "-alpha", "extract", ")",
+            "-alpha", "off", "-compose", "CopyOpacity", "-composite",
+            "(", "+clone", "-fill", tint, "-colorize", "100", ")",
+            "+swap", "-compose", "CopyOpacity", "-composite",
+            str(tinted),
+        ])
         base = preview_dir / f"_mono_base_{label}.png"
-        run(["magick", "-size", f"{size}x{size}", f"xc:{bg}", str(mono), "-composite", str(base)])
-        mask = preview_dir / "_mask_mono.png"
-        mask_circle(mask)
+        run(["magick", "-size", f"{size}x{size}", f"xc:{bg}", str(tinted), "-composite", str(base)])
         out = preview_dir / f"ic_launcher_monochrome_preview_{label}.png"
-        run(["magick", str(base), str(mask), "-alpha", "off", "-compose", "CopyOpacity", "-composite", str(out)])
+        run(["magick", str(base), str(mask_mono), "-alpha", "off", "-compose", "CopyOpacity", "-composite", str(out)])
         print(f"  preview {out}")
         base.unlink(missing_ok=True)
-        mask.unlink(missing_ok=True)
+        tinted.unlink(missing_ok=True)
+    mask_mono.unlink(missing_ok=True)
 
     fg.unlink(missing_ok=True)
     mono.unlink(missing_ok=True)
