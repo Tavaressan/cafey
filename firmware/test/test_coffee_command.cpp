@@ -34,10 +34,22 @@ static void test_unknown_or_missing_action_is_unknown() {
     std::cout << "OK: test_unknown_or_missing_action_is_unknown\n";
 }
 
+static void test_parses_wifi_actions_fw30() {
+    const CoffeeCommand forget = parse_coffee_command(
+        R"({"acao":"ESQUECER_REDE","ssid":"MinhaRede"})");
+    assert(forget.action == CoffeeAction::EsquecerRede);
+    assert(forget.ssid == "MinhaRede");
+
+    const CoffeeCommand forget_all = parse_coffee_command(R"({"acao":"ESQUECER_TODAS_REDES"})");
+    assert(forget_all.action == CoffeeAction::EsquecerTodasRedes);
+    std::cout << "OK: test_parses_wifi_actions_fw30\n";
+}
+
 int main() {
     test_parses_each_action();
     test_parses_optional_duration();
     test_unknown_or_missing_action_is_unknown();
+    test_parses_wifi_actions_fw30();
     std::cout << "Todos os testes de parse_coffee_command passaram.\n";
     return 0;
 }

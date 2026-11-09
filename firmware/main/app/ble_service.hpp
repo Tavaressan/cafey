@@ -4,6 +4,7 @@
 #include <functional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "app/coffee_command.hpp"
 #include "app/schedule_payload.hpp"
@@ -42,6 +43,9 @@ public:
     static constexpr const char* kWifiProvisionUuid = "6b3d0005-0b0b-4a3a-9c0e-cafe1a000000";
     static constexpr const char* kWifiStatusUuid = "6b3d0006-0b0b-4a3a-9c0e-cafe1a000000";
     static constexpr const char* kDeviceInfoUuid = "6b3d0007-0b0b-4a3a-9c0e-cafe1a000000";
+    // FW-30 (#332): gerenciamento de redes Wi-Fi (listagem e exclusao). 0008/0009 = eventos.
+    static constexpr const char* kWifiNetworksUuid = "6b3d000a-0b0b-4a3a-9c0e-cafe1a000000";
+    static constexpr const char* kWifiManageUuid = "6b3d000b-0b0b-4a3a-9c0e-cafe1a000000";
 
     // Limite alinhado a Agendador::kMaxSchedules / ScheduleStore::kMaxSchedules.
     static constexpr size_t kMaxSchedules = 16;
@@ -52,6 +56,13 @@ public:
         std::function<void(const cafey::storage::Schedule*, size_t, const SchedulePayloadMeta&)>;
     using WifiProvisionHandler =
         std::function<void(const std::string& ssid, const std::string& password)>;
+    using WifiForgetHandler = std::function<void(const std::string& ssid)>;
+    using WifiForgetAllHandler = std::function<void()>;
+    // Retorna JSON com rede atual e redes salvas (sem senhas).
+    using WifiNetworksProvider = std::function<std::string()>;
+    // FW-24/#275: comandos BLE destrutivos exigem janela de vinculo aberta. Sem
+    // FW-24 no branch, o padrao conserva a seguranca e nega a operacao.
+    using DestructiveBleGuard = std::function<bool()>;
 
     BleService(cafey::core::IBleServer& server, CommandHandler on_command,
                ScheduleHandler on_schedules,
@@ -61,10 +72,23 @@ public:
           on_command_(std::move(on_command)),
           on_schedules_(std::move(on_schedules)),
           on_wifi_provision_(std::move(on_wifi_provision)),
-          device_info_(std::move(device_info)) {}
+          device_info_(std::move(device_info)),
+          destructive_ble_guard_([] { return false; }) {}
 
     void set_on_wifi_provision(WifiProvisionHandler handler) {
         on_wifi_provision_ = std::move(handler);
+    }
+
+    void set_wifi_management(WifiForgetHandler on_forget, WifiForgetAllHandler on_forget_all,
+                             WifiNetworksProvider networks_provider) {
+        on_wifi_forget_ = std::move(on_forget);
+        on_wifi_forget_all_ = std::move(on_forget_all);
+        wifi_networks_provider_ = std::move(networks_provider);
+    }
+
+    /** @brief Define a prova de posse para comandos BLE destrutivos (FW-24). */
+    void set_destructive_ble_guard(DestructiveBleGuard guard) {
+        destructive_ble_guard_ = std::move(guard);
     }
 
     void set_device_info(const DeviceInfo& info) {
@@ -88,6 +112,12 @@ public:
             kWifiStatusUuid, cafey::core::kBleRead | cafey::core::kBleNotify, nullptr);
         server_.add_characteristic(
             kDeviceInfoUuid, cafey::core::kBleRead, nullptr);
+        // FW-30: redes salvas (leitura, sem senhas) e gerenciamento (escrita).
+        server_.add_characteristic(
+            kWifiNetworksUuid, cafey::core::kBleRead | cafey::core::kBleNotify, nullptr);
+        server_.add_characteristic(
+            kWifiManageUuid, cafey::core::kBleWrite,
+            [this](const std::string& value) { handle_wifi_manage_write(value); });
 
         bool ok = server_.start(device_name);
         if (ok) {
@@ -97,6 +127,7 @@ public:
                                     "\",\"model\":\"" + device_info_.model + "\"}";
             server_.update_value(kDeviceInfoUuid, info_json);
             publish_wifi_status("DISCONNECTED");
+            publish_wifi_networks();
         }
         return ok;
     }
@@ -130,7 +161,48 @@ public:
         return server_.update_value(kWifiStatusUuid, json);
     }
 
+    /** @brief Publica a lista de redes salvas e a rede atual (sem senhas). */
+    bool publish_wifi_networks() {
+        if (wifi_networks_provider_) {
+            return server_.update_value(kWifiNetworksUuid, wifi_networks_provider_());
+        }
+        return server_.update_value(kWifiNetworksUuid, R"({"ssid_atual":null,"redes":[]})");
+    }
+
 private:
+    void handle_wifi_manage_write(const std::string& value) {
+        std::string acao;
+        if (!cafey::core::mini_json::get_string(value, "acao", acao)) {
+            publish_wifi_status("INVALID_PAYLOAD", "", "acao ausente");
+            return;
+        }
+
+        if (acao == "ESQUECER_REDE" || acao == "ESQUECER_TODAS_REDES") {
+            // Ponto de verificacao isolado (FW-24/#275): destrutivo por BLE exige
+            // janela de vinculo aberta. Sem FW-24 no branch, o guard padrao nega.
+            if (!destructive_ble_guard_ || !destructive_ble_guard_()) {
+                publish_wifi_status("INVALID_PAYLOAD", "",
+                                    "janela de vinculo fechada (toque longo 5s)");
+                return;
+            }
+        }
+
+        if (acao == "ESQUECER_REDE") {
+            std::string ssid;
+            if (!cafey::core::mini_json::get_string(value, "ssid", ssid) || ssid.empty()) {
+                publish_wifi_status("INVALID_PAYLOAD", "", "ssid ausente");
+                return;
+            }
+            if (on_wifi_forget_) on_wifi_forget_(ssid);
+            publish_wifi_networks();
+        } else if (acao == "ESQUECER_TODAS_REDES") {
+            if (on_wifi_forget_all_) on_wifi_forget_all_();
+            publish_wifi_networks();
+        } else {
+            publish_wifi_status("INVALID_PAYLOAD", "", "acao desconhecida");
+        }
+    }
+
     void handle_command_write(const std::string& value) {
         const CoffeeCommand cmd = parse_coffee_command(value);
         if (cmd.action != CoffeeAction::Unknown && on_command_) {
@@ -173,6 +245,10 @@ private:
     ScheduleHandler on_schedules_;
     WifiProvisionHandler on_wifi_provision_;
     DeviceInfo device_info_;
+    WifiForgetHandler on_wifi_forget_;
+    WifiForgetAllHandler on_wifi_forget_all_;
+    WifiNetworksProvider wifi_networks_provider_;
+    DestructiveBleGuard destructive_ble_guard_;
 };
 
 } // namespace cafey::app

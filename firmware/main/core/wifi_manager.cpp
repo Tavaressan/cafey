@@ -278,6 +278,67 @@ void WifiManager::stop_provision_timer() {
     }
 }
 
+esp_err_t WifiManager::forget_network(const std::string& ssid) {
+    const bool is_current =
+        (state_ == WifiState::CONNECTED || state_ == WifiState::CONNECTING ||
+         state_ == WifiState::RECONNECTING) &&
+        ssid == connect_ssid_;
+
+    esp_err_t err = credentials_.forget(ssid);
+    if (err != ESP_OK) return err;
+
+    if (has_pending_ && pending_ssid_ == ssid) {
+        has_pending_ = false;
+        pending_ssid_.clear();
+        pending_password_.clear();
+        stop_provision_timer();
+    }
+
+    if (!is_current) {
+        return ESP_OK;
+    }
+
+    if (credentials_.count() == 0) {
+        // Sem redes salvas: desconecta e fica aguardando provisionamento por BLE.
+        state_ = WifiState::NOT_PROVISIONED;
+        connect_ssid_.clear();
+        connect_password_.clear();
+        ip_.clear();
+        policy_.reset();
+        if (reconnect_timer_ != nullptr) {
+            esp_timer_stop(reconnect_timer_);
+        }
+        esp_wifi_disconnect();
+        return ESP_OK;
+    }
+
+    // Tenta a proxima rede salva. Desconecta para forcar nova tentativa com a
+    // lista atualizada; handle_disconnected agenda o reconnect.
+    connect_index_ = 0;
+    policy_.reset();
+    esp_wifi_disconnect();
+    return ESP_OK;
+}
+
+esp_err_t WifiManager::forget_all_networks() {
+    has_pending_ = false;
+    pending_ssid_.clear();
+    pending_password_.clear();
+    connect_ssid_.clear();
+    connect_password_.clear();
+    ip_.clear();
+    policy_.reset();
+    stop_provision_timer();
+    if (reconnect_timer_ != nullptr) {
+        esp_timer_stop(reconnect_timer_);
+    }
+
+    esp_err_t err = credentials_.clear();
+    state_ = WifiState::NOT_PROVISIONED;
+    esp_wifi_disconnect();
+    return err;
+}
+
 void WifiManager::try_reconnect() {
     if (state_ == WifiState::NOT_PROVISIONED && !has_pending_) {
         return;

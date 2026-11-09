@@ -93,7 +93,26 @@ public:
 
     [[nodiscard]] WifiState state() const noexcept { return state_; }
     [[nodiscard]] const std::string& ip() const noexcept { return ip_; }
+    [[nodiscard]] const std::string& current_ssid() const noexcept { return connect_ssid_; }
     [[nodiscard]] uint32_t reconnect_attempts() const noexcept { return policy_.attempts(); }
+
+    /** @brief Lista SSIDs salvos em ordem MRU, sem expor senhas. */
+    [[nodiscard]] std::vector<WifiNetworkInfo> list_networks() const {
+        return credentials_.list();
+    }
+
+    /**
+     * @brief Esquece uma rede salva. Se for a rede atual/conectada, desconecta e
+     * tenta a proxima rede salva; se nao houver outra, fica em NOT_PROVISIONED
+     * aguardando provisionamento por BLE.
+     */
+    esp_err_t forget_network(const std::string& ssid);
+
+    /**
+     * @brief Esquece todas as redes salvas, desconecta e permanece apenas em BLE
+     * (NOT_PROVISIONED), pronto para novo provisionamento.
+     */
+    esp_err_t forget_all_networks();
 
 private:
     esp_err_t apply_sta_config(const std::string& ssid, const std::string& password);
