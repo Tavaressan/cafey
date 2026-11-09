@@ -8,7 +8,9 @@ import java.time.Instant
 enum class AcaoComando {
     LIGAR,
     DESLIGAR,
-    CANCELAR
+    CANCELAR,
+    ESQUECER_REDE,
+    ESQUECER_TODAS_REDES
 }
 
 data class ComandoRequest(
@@ -20,7 +22,10 @@ data class ComandoRequest(
     // ser apertado quando a HW-06 (#8) medir o tempo real de extração.
     @field:Min(value = 30, message = "Duração de preparo deve ter no mínimo 30s")
     @field:Max(value = 900, message = "Duração de preparo deve ter no máximo 900s")
-    val duracaoS: Int? = null
+    val duracaoS: Int? = null,
+
+    // Identifica a rede a esquecer (ESQUECER_REDE). Nunca carrega senha.
+    val ssid: String? = null
 )
 
 data class ComandoResponse(

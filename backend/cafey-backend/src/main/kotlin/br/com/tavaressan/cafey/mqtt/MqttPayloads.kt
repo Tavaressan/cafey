@@ -18,7 +18,8 @@ data class ComandoPayload(
     val comandoId: String,
     val acao: String,
     val duracaoS: Int,
-    val emitidoEm: Instant = Instant.now()
+    val emitidoEm: Instant = Instant.now(),
+    val ssid: String? = null
 )
 
 data class AgendamentoItemPayload(

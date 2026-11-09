@@ -63,10 +63,20 @@ class DispositivoService(
                 "Ação inválida: '${request.acao}'. Valores aceitos: ${AcaoComando.entries.joinToString()}"
             )
 
+        val wifiDestrutivo = acao == AcaoComando.ESQUECER_REDE || acao == AcaoComando.ESQUECER_TODAS_REDES
+        if (wifiDestrutivo && vinculo.papel != PapelDispositivo.PROPRIETARIO) {
+            throw BadCredentialsException("Apenas o proprietário pode gerenciar as redes Wi-Fi do dispositivo")
+        }
+        val ssid = if (acao == AcaoComando.ESQUECER_REDE) {
+            val valor = request.ssid?.trim().orEmpty()
+            if (valor.isEmpty()) throw RequisicaoInvalidaException("ssid é obrigatório para ESQUECER_REDE")
+            valor
+        } else null
+
         // Duração só faz sentido para ligar o preparo; nos demais casos o firmware ignora o campo.
         val duracaoS = if (acao == AcaoComando.LIGAR) request.duracaoS ?: dispositivo.duracaoPreparoS else 0
         val comandoId = UUID.randomUUID().toString()
-        val payload = ComandoPayload(comandoId = comandoId, acao = acao.name, duracaoS = duracaoS)
+        val payload = ComandoPayload(comandoId = comandoId, acao = acao.name, duracaoS = duracaoS, ssid = ssid)
 
         // retain = false: comando retido reexecutaria assim que o dispositivo religasse (spec §6.2).
         val topic = AwsIotProperties.topicComando(dispositivoId.toString())
