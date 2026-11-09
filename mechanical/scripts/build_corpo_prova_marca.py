@@ -3,7 +3,7 @@
 # dependencies = ["shapely>=2.1", "fonttools>=4.40", "uharfbuzz>=0.39", "numpy"]
 # ///
 """Corpo de prova da marca em relevo (#303): placa com a composicao
-[simbolo] Cafey em tres escalas, nas versoes gravada e em alto-relevo.
+[simbolo] Caféy em tres escalas, nas versoes gravada e em alto-relevo.
 
 Serve para medir na impressora real qual altura de simbolo fica legivel e
 quais detalhes fecham, antes de fixar os parametros no CAD da carcaca (#302).
@@ -40,7 +40,7 @@ OUT = os.path.join(ROOT, "mechanical", "build")
 
 def lockup_mm(h_simbolo):
     """Composicao em mm, y para cima, canto inferior esquerdo da arte em (0, 0)."""
-    b = gen_lockup.build("Cafey")
+    b = gen_lockup.build("Caféy")  # grafia decidida em 09/11/2026
     geom = unary_union([b["symbol"], b["text"]])
     s = h_simbolo / b["art_h"]
     geom = affinity.scale(geom, xfact=s, yfact=-s, origin=(0, 0))  # SVG y para baixo -> CAD y para cima

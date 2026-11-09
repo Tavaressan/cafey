@@ -4,7 +4,7 @@
 # ///
 """Gera a composicao horizontal monocromatica da marca para a peca fisica (#303).
 
-    [SIMBOLO]  Cafey
+    [SIMBOLO]  Caféy
 
 - O simbolo vem da mesma geometria de gen_logo.py (importada, nao redesenhada).
   Os tracos (stroke) viram contornos preenchidos com pontas e juncoes
@@ -263,10 +263,12 @@ def report(b):
 
 
 if __name__ == "__main__":
-    for text, name in (("Cafey", "cafey-lockup-mono.svg"), ("Caféy", "cafey-lockup-mono-acento.svg")):
+    # Grafia decidida pelo responsavel em 09/11/2026: "Caféy" (igual aos apps).
+    # A versao sem acento fica como alternativa.
+    for text, name in (("Caféy", "cafey-lockup-mono.svg"), ("Cafey", "cafey-lockup-mono-sem-acento.svg")):
         b = build(text)
         write_svg(os.path.join(HERE, name), b["lockup"], b["w"], b["h"], "%s — composição monocromática" % text)
-        if text == "Cafey":
+        if text == "Caféy":
             report(b)
             sym = b["symbol"]
             x0, y0, x1, y1 = sym.bounds

@@ -70,7 +70,7 @@ abertura, espelhado no `notas_furos` de cada FCStd.
 uv run mechanical/scripts/build_corpo_prova_marca.py   # build/corpo_prova_marca_{gravado,relevo}.stl
 ```
 
-Placa com a composição [símbolo] Cafey em três escalas (símbolo de 25, 20 e 15 mm), gravada ou em relevo de 0,8 mm. Usa os SVGs de `docs/docs_interface/logo/`. Detalhes e o que medir: [`MARCA-NA-PECA.md`](../docs/docs_interface/logo/MARCA-NA-PECA.md).
+Placa com a composição [símbolo] Caféy em três escalas (símbolo de 25, 20 e 15 mm), gravada ou em relevo de 0,8 mm. Usa os SVGs de `docs/docs_interface/logo/`. Detalhes e o que medir: [`MARCA-NA-PECA.md`](../docs/docs_interface/logo/MARCA-NA-PECA.md).
 
 ## Entregáveis (`build/`, fora do versionamento)
 

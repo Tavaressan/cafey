@@ -3,15 +3,17 @@
 Composição horizontal monocromática para a carcaça impressa em FDM:
 
 ```
-[SÍMBOLO]  Cafey
+[SÍMBOLO]  Caféy
 ```
+
+**Grafia decidida pelo responsável em 09/11/2026: "Caféy"**, a mesma do wordmark dos apps.
 
 ## Arquivos
 
 | Arquivo | O que é |
 |---|---|
-| `cafey-lockup-mono.svg` | Composição com **"Cafey"** (grafia do adendo da sprint) |
-| `cafey-lockup-mono-acento.svg` | Composição com **"Caféy"** (wordmark dos apps), para a decisão de grafia |
+| `cafey-lockup-mono.svg` | Composição com **"Caféy"** (grafia decidida) |
+| `cafey-lockup-mono-sem-acento.svg` | Alternativa com "Cafey", sem acento, se o acento não imprimir bem |
 | `cafey-symbol-mono.svg` | Só o símbolo, em áreas preenchidas |
 | `gen_lockup.py` | Gerador dos três SVGs e das métricas abaixo |
 | `../../../mechanical/scripts/build_corpo_prova_marca.py` | Gera o corpo de prova em STL (seção 6) |
@@ -51,8 +53,9 @@ Valores em unidades do desenho (o símbolo tem 356 de altura) e em mm para algum
 | Traço das curvas internas | 13,0 | 0,0365 | 0,55 | 0,73 | 0,91 | 1,10 |
 | Folga contorno × pontas das curvas | 3,5 | 0,0098 | 0,15 | 0,20 | 0,25 | 0,29 |
 | Folga estrela × curvas | 8,2 | 0,0230 | 0,35 | 0,46 | 0,58 | 0,69 |
-| Texto: trecho mais fino | 25,7 | 0,0721 | 1,08 | 1,44 | 1,80 | 2,16 |
-| Texto: abertura mais estreita | 12,8 | 0,0359 | 0,54 | 0,72 | 0,90 | 1,08 |
+| Texto: trecho mais fino ("Caféy") | 23,3 | 0,0654 | 0,98 | 1,31 | 1,64 | 1,96 |
+| Texto: abertura mais estreita ("Caféy") | 12,9 | 0,0362 | 0,54 | 0,72 | 0,91 | 1,09 |
+| Acento: folga até o "e" | 14,0 | 0,0395 | 0,59 | 0,79 | 0,99 | 1,19 |
 
 A composição tem **largura ≈ 3,9 × a altura do símbolo**: com 20 mm, 78 mm de largura; com 25 mm, 98 mm.
 
@@ -62,14 +65,14 @@ A composição tem **largura ≈ 3,9 × a altura do símbolo**: com 20 mm, 78 mm
 |---|---|
 | Curvas internas ≥ 0,8 mm | 0,8 / 0,0365 ≈ **22 mm** |
 | Folga estrela × curvas ≥ 0,5 mm | 0,5 / 0,0230 ≈ **22 mm** |
-| Aberturas do texto ≥ 0,5 mm | 0,5 / 0,0359 ≈ 14 mm |
+| Aberturas do texto e folga do acento ≥ 0,5 mm | 0,5 / 0,0362 ≈ 14 mm |
 | Folga nas pontas das curvas ≥ 0,5 mm | 0,5 / 0,0098 ≈ 51 mm (inviável) |
 
 **Proposta:** símbolo com **22 a 25 mm** de altura, ou seja, composição com 86 a 98 mm de largura.
 
 **Risco conhecido.** As pontas das curvas em S quase encostam no contorno (y ≈ 98 e 414 do desenho). Em qualquer escala viável, essa folga fecha na impressão e as curvas parecem nascer do contorno. A diferença é local e não se resolve sem redesenhar o símbolo, o que a issue não permite.
 
-**Grafia "Caféy".** Com o símbolo de 20 mm, o acento mede 4,05 × 2,78 mm e fica a 0,79 mm do "e". Imprime, mas é o detalhe mais frágil. Esse é um argumento a favor de "Cafey" na peça.
+**Acento.** Com o símbolo de 20 mm, o acento mede 4,05 × 2,78 mm e fica a 0,79 mm do "e". Imprime, mas é a ilha mais frágil da composição: no gravado ela vira um bolsão pequeno; no relevo, uma peça pequena que pode descolar. Conferir no corpo de prova. Se falhar, a alternativa sem acento já está gerada.
 
 ## 4. Tipo de marcação
 
@@ -109,7 +112,7 @@ Nomes propostos, para entrar no arquivo de parâmetros que #302 escolher:
 | `marca_profundidade` | 0,8 mm | Profundidade do gravado ou altura do relevo |
 | `marca_angulo` | a definir | Posição no cilindro, ao lado do botão RGB (face frontal, esboço de 08/11) |
 | `marca_z` | a definir | Altura do centro da composição na parede |
-| `marca_arquivo` | `cafey-lockup-mono.svg` | Ou `-acento`, conforme a decisão de grafia |
+| `marca_arquivo` | `cafey-lockup-mono.svg` | "Caféy" (decidido em 09/11/2026) |
 
 ## 6. Corpo de prova
 
@@ -134,7 +137,7 @@ Se faltar tempo, o risco fica registrado na issue.
 
 ## 7. Pendências
 
-- [ ] Grafia na peça: "Cafey" ou "Caféy" (responsável).
+- [x] Grafia na peça: **"Caféy"** (responsável, 09/11/2026).
 - [ ] Um filamento ou duas cores (responsável).
 - [ ] Raio e posição na carcaça, e integração ao CAD (#302).
 - [ ] Corpo de prova impresso e fotografado.
