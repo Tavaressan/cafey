@@ -1,0 +1,13 @@
+nome,zona,apoio,dx,dy,dz,x,y,z,fonte
+# Volumes de referencia (caixas). (x, y) = canto minimo em planta; z = base RELATIVA ao piso
+# (topo do fundo), para que mudar altura_externa nao desloque os componentes do piso.
+# Componentes de parede (botao, tomada, disjuntor, prensa-cabo, buzzer) ficam em aberturas.csv.
+# --- baixa tensao (frente, y < divisoria) ---
+placa_base,baixa,fundo,70,50,1.6,-65,-95,5,placa ilhada 5x7 cm (M3) correndo nas ranhuras do berco; soquetes femea (M4) para o DevKit
+esp32,baixa,placa,52,29,24,-60,-85,6.6,DevKit V1 ~52x29x13 + soquetes femea ~8.5 + folga; antena em x min (longe do SSR); micro-USB em x max
+esp32_usb,baixa,livre,25,14,12,-8,-78,10,plugue micro-USB + curva do cabo que vem da A1385 pela travessia
+# --- rede (tras, y > divisoria + folga) ---
+ssr_dissipador,rede,fundo,80,65,50,-85,10,4,PROVISORIO: SSR 63x45x23 (medido 09/11) + dissipador NAO medido; envelope chutado (#305)
+a1385,rede,fundo,54,25,25,5,-25,0,A1385 ~38x25x25 (09/11) + pinos com a ligacao direta ~16 em x max; USB-A em x min (lado da travessia)
+borne_rede,rede,fundo,45,25,30,30,10,3,bornes ou WAGO de L e N com tampa (contagem no #327)
+terra_j3,rede,fundo,20,18,25,62,45,3,borne de terra DIN (E14) + trilho curto (E15)
