@@ -50,6 +50,7 @@ fun LoginScreen(
     onLoggedIn: () -> Unit,
     onGoToRegister: () -> Unit,
     onForgotPassword: () -> Unit = {},
+    onMfaChallenge: (desafioToken: String) -> Unit = {},
 ) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<LoginViewModel>(
@@ -60,6 +61,13 @@ fun LoginScreen(
     // Navegar é efeito colateral: chamar no corpo do composable dispararia a cada recomposição.
     LaunchedEffect(state.success) {
         if (state.success) onLoggedIn()
+    }
+    LaunchedEffect(state.mfaChallengeToken) {
+        val token = state.mfaChallengeToken
+        if (token != null) {
+            viewModel.consumeMfaChallenge()
+            onMfaChallenge(token)
+        }
     }
 
     Column(

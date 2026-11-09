@@ -237,4 +237,11 @@ class AuthService(
         }
         return createAuthResponse(usuario, UUID.randomUUID())
     }
+
+    @Transactional(readOnly = true)
+    fun status2fa(usuarioId: UUID): MfaStatusResponse {
+        val usuario = usuarioRepository.findById(usuarioId)
+            .orElseThrow { ResourceNotFoundException("Usuário não encontrado") }
+        return MfaStatusResponse(mfaHabilitado = usuario.mfaHabilitado)
+    }
 }

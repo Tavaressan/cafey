@@ -13,6 +13,7 @@ import org.springframework.http.ProblemDetail
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
+import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -166,5 +167,19 @@ class AuthController(
     fun validar2fa(@Valid @RequestBody request: MfaValidarRequest): ResponseEntity<AuthResponse> {
         val response = authService.validar2fa(request)
         return ResponseEntity.ok(response)
+    }
+
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Retorna o status do 2FA do usuário autenticado")
+    @ApiResponse(responseCode = "200", description = "Status do 2FA")
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token JWT ausente ou inválido",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
+    @GetMapping("/2fa/status")
+    fun status2fa(@AuthenticationPrincipal jwt: Jwt): ResponseEntity<MfaStatusResponse> {
+        val usuarioId = UUID.fromString(jwt.subject)
+        return ResponseEntity.ok(authService.status2fa(usuarioId))
     }
 }

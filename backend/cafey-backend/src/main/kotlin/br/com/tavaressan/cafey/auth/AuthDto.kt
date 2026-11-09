@@ -86,3 +86,7 @@ data class MfaValidarRequest(
     @field:Pattern(regexp = "^\\d{6}$", message = "Código TOTP deve ter 6 dígitos")
     val codigo: String
 )
+
+data class MfaStatusResponse(
+    val mfaHabilitado: Boolean
+)

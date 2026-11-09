@@ -45,8 +45,11 @@ import androidx.navigation.compose.rememberNavController
 import br.com.tavaressan.cafey.shared.ui.account.AccountScreen
 import br.com.tavaressan.cafey.shared.ui.auth.ForgotPasswordScreen
 import br.com.tavaressan.cafey.shared.ui.auth.LoginScreen
+import br.com.tavaressan.cafey.shared.ui.auth.MfaChallengeScreen
 import br.com.tavaressan.cafey.shared.ui.auth.RegisterScreen
 import br.com.tavaressan.cafey.shared.ui.auth.ResetPasswordScreen
+import io.ktor.http.decodeURLPart
+import io.ktor.http.encodeURLParameter
 import br.com.tavaressan.cafey.shared.ui.base.BaseScreen
 import br.com.tavaressan.cafey.shared.ui.care.CareScreen
 import br.com.tavaressan.cafey.shared.ui.device.DeviceFormScreen
@@ -59,6 +62,7 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyWordmark
 
 private const val ROUTE_LOGIN = "login"
+private const val ROUTE_MFA_CHALLENGE = "mfa_challenge"
 private const val ROUTE_FORGOT_PASSWORD = "forgot_password"
 private const val ROUTE_RESET_PASSWORD = "reset_password"
 private const val ROUTE_REGISTER = "register"
@@ -145,6 +149,20 @@ fun CafeyNavHost() {
                             onLoggedIn = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
                             onGoToRegister = { navController.navigate(ROUTE_REGISTER) },
                             onForgotPassword = { navController.navigate(ROUTE_FORGOT_PASSWORD) },
+                            onMfaChallenge = { token ->
+                                navController.navigate("$ROUTE_MFA_CHALLENGE/${token.encodeURLParameter()}")
+                            },
+                        )
+                    }
+                    composable("$ROUTE_MFA_CHALLENGE/{token}") { entry ->
+                        val token = (entry.savedStateHandle.get<String>("token") ?: "").decodeURLPart()
+                        MfaChallengeScreen(
+                            desafioToken = token,
+                            onVerified = {
+                                navController.navigate(ROUTE_HOME) {
+                                    popUpTo(ROUTE_LOGIN) { inclusive = true }
+                                }
+                            },
                         )
                     }
                     composable(ROUTE_FORGOT_PASSWORD) {
