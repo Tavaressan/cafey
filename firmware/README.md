@@ -2,17 +2,26 @@
 
 Firmware do módulo IoT da cafeteira Cafey desenvolvido em **C++17** sobre o framework oficial **ESP-IDF** (com FreeRTOS).
 
-Fatia atual: **I/O local, Driver do Relé (com proteção anti-glitch no boot), Driver do LED RGB com cores de estado (spec §5.3) e módulo Wi-Fi/BLE (conexão, reconexão automática e provisionamento de credenciais — UC-04)**. Botão alterna o relé; LED RGB indica o estado do sistema.
+Fatia atual: **I/O local, Driver do Relé (com proteção anti-glitch no boot), Driver do LED RGB com cores de estado (spec §5.3) e módulo Wi-Fi/BLE (conexão, reconexão automática e provisionamento de credenciais — UC-04)**. O botão comanda o preparo e o pareamento; o LED RGB indica o estado do sistema.
 
 ## Pinagem Definida
 
 | Sinal | GPIO | Configuração Elétrica | Observação |
 |---|---|---|---|
 | Relé (IN) | 26 | Gatilho de nível BAIXO — módulo HL-52S (LOW = ligado); R1 10 kΩ pull-up externo | O driver força nível ALTO antes de inicializar para impedir pulso espúrio no boot |
-| Botão | 27 | R2 10 kΩ pull-up externo + C3 100 nF debounce RC | Solto = 1, pressionado = 0 (borda de descida = clique) |
+| Botão | 27 | R2 10 kΩ pull-up externo + C3 100 nF debounce RC | Solto = 1, pressionado = 0; gestos descritos abaixo |
 | LED vermelho | 21 | R3 220 Ω (Cátodo comum) | Canal R (compõe Amarelo/Âmbar, Branco e Vermelho) |
 | LED verde | 22 | R4 100 Ω (Cátodo comum) | Canal G (compõe Verde fixo/pulsando, Âmbar e Branco) |
 | LED azul | 23 | R5 100 Ω (Cátodo comum) | Canal B (compõe Azul respirando quando ocioso online e Branco) |
+
+## Gestos do botão (GPIO 27)
+
+| Gesto | Ação |
+|---|---|
+| **Toque curto** (soltar antes de 5 s) | Inicia o preparo quando ociosa; cancela o preparo quando preparando. Nunca dispara após um toque longo. |
+| **Toque longo** (~5 s, decidido com o botão ainda pressionado) | Alterna a janela de pareamento/vínculo BLE: se fechada, abre; se aberta, fecha na hora. Uma única alternância por toque (segurar além de 5 s não abre e fecha em sequência). |
+
+Com a janela de pareamento aberta, o LED fica azul piscando e a cafeteira publica um código de uso único de 6 dígitos por BLE e MQTT. A janela fecha ao terminar o tempo (120 s) ou por outro toque longo.
 
 ## Estados do LED RGB (Spec §5.3)
 

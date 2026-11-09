@@ -41,8 +41,9 @@ public:
     // Tempo em que o LED permanece em Branco Fixo apos cafe pronto (spec §5.3: alguns minutos).
     static constexpr uint32_t kReadyDurationS = 180;
 
-    // Vinculo por janela do botao fisico (FW-24, #275): toque longo abre uma
-    // janela curta em que a placa publica um codigo de uso unico.
+    // Vinculo por janela do botao fisico (FW-24, #275; FW-29 alterna): toque
+    // longo abre uma janela curta em que a placa publica um codigo de uso unico;
+    // com a janela aberta, outro toque longo a fecha na hora.
     static constexpr uint32_t kLongPressMs = 5000;
     static constexpr uint32_t kBindWindowS = 120;
 
