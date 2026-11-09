@@ -35,13 +35,14 @@ registro da revisão A.
 
 | ID | Item | Modelo | Situação | Issue |
 |---|---|---|---|---|
-| B1 | Relé de estado sólido (SSR1) | Fotek **SSR-40DA**: entrada 3–32 V DC, saída 24–380 V AC | Adquirido; autenticidade confirmada pelo responsável. Etiqueta, curva de redução e fuga **a registrar** | #305 |
+| B1 | Relé de estado sólido (SSR1) | Fotek **SSR-40DA**: entrada 3–32 V DC, saída 24–380 V AC. Corpo **63 × 45 × 23 mm** (medido em 09/11/2026) | Adquirido; autenticidade confirmada pelo responsável. Furação, etiqueta, curva de redução e fuga **a registrar** | #305 |
 | B2 | Dissipador aletado de alumínio + pasta térmica | — | Dimensões e furação **a medir**. Se não houver em mãos, o CAD usa envelope provisório | #305 |
 | B3 | Fonte 5 V (PS1) | Apple **A1385**, 100–240 V AC → 5 V / 1 A, saída USB-A | Adquirida; modelo confirmado; testada pelo responsável (220 V → 5 V). Foto da etiqueta **a registrar** | #306 |
 | B4 | Cabo USB-A → micro-USB | — | Comprimento, percurso e alívio de tração **a definir**. Precisa sair do DevKit sem forçar o conector da placa | #306, #309 |
 | B5 | Disjuntor 10 A (CB1) | — | Adquirido. Fabricante, curva, polos, capacidade de interrupção e fixação (DIN ou painel) **a registrar** | #307 |
-| B6 | Botão momentâneo com anel de LED RGB (SW1) | — | Adquirido. Nome comercial, polaridade do LED, resistor interno e furo de painel **a registrar** | #308 |
-| B7 | Buzzer | — | Ativo ou passivo, tensão e corrente **a registrar** | #311 |
+| B6 | Botão momentâneo com anel de LED RGB (SW1) | Anti-vandalismo, aço inox, IP65, rosca 16 mm, frente 18 mm, comprimento 35 mm, 11 g, com chicote. Contato 1NA, até 250 V / 5 A (fios amarelo e branco). Anel RGB de **cátodo comum** (preto = negativo; vermelho, verde, azul = anodos), **LED de 12–24 V DC** | Adquirido. **O anel não é compatível com 3,3 V direto do GPIO:** acionamento a definir por teste de bancada (`hardware/README.md`, seção 3.1). Nome comercial **a registrar** | #308 |
+| B7 | Buzzer | Do kit LAFVIN: 1 ativo + 1 passivo por kit (2 kits). O manual não traz tensão nem corrente | Em estoque. Escolher o tipo e medir a corrente para definir se o GPIO aciona direto ou por transistor | #311 |
+| B8 | Componentes do acionamento do anel RGB | Chaves high-side por cor; talvez um conversor 5 → 12 V | **Condicional:** só se o teste de bancada do anel mostrar que 3,3 V não basta. Ver `hardware/README.md`, seção 3.1 | #308 |
 
 ### Itens fora de uso na revisão B
 
@@ -59,8 +60,9 @@ registro da revisão A.
 Itens que continuam, com ressalvas:
 
 - **E15 (trilho DIN):** rever o comprimento se o disjuntor for de fixação DIN (#307).
-- **M7 (JST-XH):** recontar as vias depois de registrar o botão RGB (#308) e o
-  buzzer (#311). Os rabichos destacáveis (botão, anel, buzzer, entrada do SSR)
+- **M7 (JST-XH):** o botão RGB tem chicote de 6 fios: 4 vias para o anel
+  (R, G, B, comum) e 2 vias para o contato. Somando buzzer (2) e entrada do SSR
+  (2): 1 × 4 vias e 3 × 2 vias, mais reservas. Conferir contra o estoque de M7. Os rabichos destacáveis (botão, anel, buzzer, entrada do SSR)
   mantêm o ESP32 removível sem solda (#309).
 - **E3/E4 (WAGO):** a contagem de emendas da revisão B está abaixo, em
   "Contagem de conectores".
@@ -243,8 +245,8 @@ O restante pode ir em compra única.
 - [ ] B2 dissipador: dimensões externas, aletas e furação (#305 → #302)
 - [ ] B3 A1385: etiqueta (#306)
 - [ ] B5 disjuntor: fabricante, modelo, curva, capacidade de interrupção, fixação (#307)
-- [ ] B6 botão RGB: nome comercial, polaridade do LED, resistor interno, furo (#308)
-- [ ] B7 buzzer: ativo ou passivo, tensão e corrente (#311)
+- [ ] B6 botão RGB: nome comercial e **teste do anel a 3,3 V e a 5 V** (brilho e corrente por cor), sem rede (#308)
+- [ ] B7 buzzer: qual dos dois do kit (ativo ou passivo) e corrente medida (#311)
 
 ## Pendências para o profissional habilitado (marco de 02/10)
 
