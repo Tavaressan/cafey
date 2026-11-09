@@ -108,6 +108,26 @@ percurso é de ~45 mm para a esquerda, ~8 mm para trás e ~23 mm para baixo
 (~76 mm). Continua em aberto, para o profissional habilitado, ligar ou não o
 corpo metálico do botão ao PE.
 
+**Revisão B (09/11/2026, #309): sem USB de painel.** A carcaça não tem abertura
+USB externa e o cabo M8 foi descartado. O ESP32 continua alimentado pela própria
+porta micro-USB, agora a partir da fonte Apple A1385 (#306), e a gravação é
+manual, com a placa fora da carcaça. Requisitos para a carcaça circular (#302):
+
+- o ESP32 fica num berço ou trilho com trava, **removível sem ferramenta
+  especial e sem mexer na fiação de rede**;
+- botão, anel RGB, buzzer e entrada do SSR chegam por rabichos destacáveis
+  (JST-XH, M7), sem solda na placa;
+- folga para o plugue micro-USB conectado por dentro e alívio de tração do
+  cabo, sem forçar o conector da placa.
+
+**Gravação manual:** (1) tirar o módulo da tomada; (2) desconectar o cabo da
+fonte do micro-USB do ESP32; (3) retirar a placa; (4) só então ligar o USB ao
+computador e gravar; (5) recolocar a placa e reconectar o cabo da fonte. Nunca
+ligar o computador com o módulo na rede: VIN e USB não podem alimentar a placa
+ao mesmo tempo, e o lado de rede fica exposto com a carcaça aberta.
+
+O texto abaixo é o registro da revisão A.
+
 **USB de painel (decidido em 08/10/2026).** O cabo extensor de painel (M8) já é
 desconectável: o plugue micro-B sai do micro-USB do ESP32 com o fundo aberto,
 então não leva conector extra. O conector de painel fica na lateral esquerda
@@ -135,7 +155,7 @@ canto).
 | Traseira | Prensa-cabo PG9, Ø 15 mm | x = 70 mm |
 | Traseira | Tomada J1, 45,5 × 23 mm | x = 185 mm |
 | Lateral esquerda | 4 rasgos de 25 × 3 mm | 15 mm da borda inferior |
-| Lateral esquerda | Recorte do USB de painel | y = 165 mm da traseira |
+| Lateral esquerda | ~~Recorte do USB de painel~~ (descartado, #309) | y = 165 mm da traseira |
 | Lateral direita | 5 rasgos de 25 × 3 mm | 15 mm da borda inferior |
 
 Centros das aberturas frontais e traseiras a 22 mm do tampo.
