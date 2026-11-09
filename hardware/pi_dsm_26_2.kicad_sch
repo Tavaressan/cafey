@@ -3946,7 +3946,7 @@
 		)
 		(uuid "9aac4599-64f4-4679-bcb9-98debcd61de9")
 	)
-	(text "SW1 (botão RGB): A = contato (GPIO27), B = LED. Cátodo comum e R3–R5 a confirmar (#308)."
+	(text "SW1: inox 16 mm, 1NA + anel RGB cátodo comum. LED de 12–24 V: driver a definir (#308)."
 		(exclude_from_sim no)
 		(at 178.054 167.894 0)
 		(effects
@@ -5751,7 +5751,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "Botão RGB (#308)"
+		(property "Value" "Botão RGB inox 16 mm (#308)"
 			(at 132.08 158.496 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7392,7 +7392,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "Botão RGB (#308)"
+		(property "Value" "Botão RGB inox 16 mm (#308)"
 			(at 201.168 137.16 0)
 			(show_name no)
 			(do_not_autoplace no)

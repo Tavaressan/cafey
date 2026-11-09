@@ -67,16 +67,16 @@ flowchart TB
 |---|---|---|---|
 | **U1** | Microcontrolador | ESP32 DevKit V1 (30 pinos), removível (#309) | Em uso |
 | **PS1** | Fonte 5 V | Apple A1385, 100–240 V AC → 5 V / 1 A, saída USB-A. Rede ligada direto nos pinos (decisão do responsável) | Em uso; verificações em #306 |
-| **SSR1** | Acionamento da carga | Fotek SSR-40DA: entrada 3–32 V DC (3 = +, 4 = −), saída 24–380 V AC (1, 2), com dissipador aletado | Em uso; capacidade, fuga e ensaio térmico em #305 |
+| **SSR1** | Acionamento da carga | Fotek SSR-40DA: entrada 3–32 V DC (3 = +, 4 = −), saída 24–380 V AC (1, 2), com dissipador aletado. Corpo **63 × 45 × 23 mm** (medido em 09/11/2026) | Em uso; dissipador, capacidade, fuga e ensaio térmico em #305 |
 | **CB1** | Proteção contra sobrecorrente | Disjuntor 10 A, alavanca acessível no tampo | Modelo e curva a registrar (#307) |
-| **SW1** | Interface física | Botão momentâneo NA com anel de LED RGB. Unidade A = contato (GPIO27); unidade B = LED (GPIO21/22/23) | Modelo, polaridade do LED e resistor interno a registrar (#308) |
-| **J5** | Rabicho do buzzer | Conector destacável 2 vias (JST-XH): 1 = BUZZER (GPIO25), 2 = GND | Buzzer e estágio de acionamento a definir (#311) |
+| **SW1** | Interface física | Botão anti-vandalismo de aço inox, IP65, rosca 16 mm, frente 18 mm, 35 mm de comprimento, com chicote. **Contato 1NA** (fios amarelo e branco) → unidade A, GPIO27. **Anel RGB de cátodo comum** (preto = negativo comum; vermelho, verde e azul = anodos) → unidade B, GPIO21/22/23. **LED especificado para 12–24 V DC** | Acionamento do anel a definir (seção 3.1, #308) |
+| **J5** | Rabicho do buzzer | Conector destacável 2 vias (JST-XH): 1 = BUZZER (GPIO25), 2 = GND | O kit LAFVIN traz um buzzer ativo e um passivo (sem especificação elétrica no manual). Escolha e estágio de acionamento em #311 |
 | **P1** | Entrada de energia | Cabo macho NBR 14136, 3G1,0 mm² (10 A) | Em uso |
 | **J1** | Saída para a cafeteira | Tomada fêmea NBR 14136 de painel (10 A) | Em uso |
 | **J3** | Junção do PE | Borne de aterramento DIN verde-amarelo / WAGO 221-412 | Em uso |
 | **R1** | Pull-down da entrada do SSR | 10 kΩ, 1/4 W, de `RELE_IN` para GND: GPIO em alta impedância = SSR desligado | Em uso (era pull-up na rev. A) |
 | **R2** | Pull-up do botão | 10 kΩ, 1/4 W | Em uso |
-| **R3 / R4 / R5** | Limitadores do anel RGB (R/G/B) | 220 Ω / 100 Ω / 100 Ω, 1/4 W | Valores da rev. A; confirmar ou dispensar conforme o botão (#308) |
+| **R3 / R4 / R5** | Limitadores do anel RGB (R/G/B) | 220 Ω / 100 Ω / 100 Ω, 1/4 W | Valores da rev. A. Um LED de 12–24 V costuma ter resistor interno; com ele, R3–R5 provavelmente saem. Depende da seção 3.1 (#308) |
 | **C1** | Reserva do barramento 5 V | Eletrolítico 470 µF / 16 V | Mantido da rev. A |
 | **C2** | Desacoplamento do barramento 5 V | Cerâmico 100 nF | Mantido da rev. A |
 | **C3** | Debounce do botão | Cerâmico 100 nF | Em uso |
@@ -101,6 +101,35 @@ Esta tabela é a referência para o esquemático, o firmware e a documentação.
 | `+5V` (barramento 5V/VIN) | VIN | 1 | Alimentação | Vem do USB (PS1). Nada externo neste pino | — |
 | `+3V3` | 3V3 | 16 | Alimentação (`power_out`) | Regulador da placa; alimenta R2 | — |
 | `GND` | GND | 2, 17 | — | Comum DC, SSR1 −, J5.2 | — |
+
+### 3.1 Anel RGB do botão: tensão do LED (pendente, #308)
+
+O anel do botão é especificado para **12–24 V DC**. Um LED vendido para essa
+faixa normalmente traz um resistor interno dimensionado para 12 V. Com o GPIO
+entregando 3,3 V, a corrente prevista é muito baixa:
+
+- o vermelho (queda de ~2 V) deve acender fraco;
+- o verde e o azul (queda de ~3 V) devem ficar praticamente apagados. O azul é
+  a cor de "ocioso conectado" (spec §5.3).
+
+É uma **previsão**, não uma medida: o valor do resistor interno não é conhecido.
+Antes de fixar o circuito, medir na bancada, **sem rede**, com o preto no GND:
+
+| Teste | Como | O que registrar |
+|---|---|---|
+| 1. A 3,3 V | Cada cor no pino 3V3 do DevKit | Brilho a ~1 m, com luz ambiente |
+| 2. A 5 V | Cada cor no pino VIN/5V do DevKit, com multímetro em série | Corrente e brilho |
+
+Saídas possíveis, da mais simples para a mais complexa:
+
+| Resultado | Circuito | Mudança no firmware |
+|---|---|---|
+| 3,3 V basta para as três cores | GPIO direto no anodo, sem R3–R5 | Nenhuma |
+| Só 5 V basta | Chave do lado positivo (high-side) por cor, a partir do +5V (cátodo comum exige comutar o anodo) | Polaridade do PWM, se a chave inverter |
+| Nem 5 V basta | Conversor 5 → 12 V e chave high-side por cor, por exemplo um driver high-side de 8 canais como o TBD62783 (entrada compatível com 3,3 V) | Idem |
+
+Os componentes da segunda e da terceira linha **não estão na lista de
+compras**. Se o teste apontar para elas, é compra antes da montagem.
 
 **Por que GPIO25 para o buzzer:** não é pino de strapping (0, 2, 5, 12, 15), não é somente entrada (34–39), não é a UART0 de gravação (1, 3) e não emite sinal no boot (como o GPIO14). Fica no mesmo lado do DevKit que GPIO26 e GPIO27, o que agrupa a fiação.
 
