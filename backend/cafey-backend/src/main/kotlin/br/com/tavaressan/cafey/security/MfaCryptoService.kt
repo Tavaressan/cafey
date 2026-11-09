@@ -1,6 +1,7 @@
 package br.com.tavaressan.cafey.security
 
 import br.com.tavaressan.cafey.config.MfaProperties
+import br.com.tavaressan.cafey.exception.ServicoIndisponivelException
 import org.slf4j.LoggerFactory
 import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.core.env.Environment
@@ -16,6 +17,10 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * Cifra/decifra o segredo TOTP com AES-256-GCM. O valor persistido é Base64 de `IV (12 bytes) +
  * ciphertext+tag`, nunca texto claro. A chave é separada da chave RSA de JWT (ver [MfaProperties]).
+ *
+ * Sem chave configurada em `prod`, o serviço fica indisponível (não derruba o boot): operações de
+ * 2FA respondem 503 e login de usuário com 2FA ativo falha fechado (issue #260, correção pós-merge).
+ * Fora de `prod`, ausente = chave efêmera (dev/testes).
  */
 @Service
 @EnableConfigurationProperties(MfaProperties::class)
@@ -25,17 +30,21 @@ class MfaCryptoService(
 ) {
     private val logger = LoggerFactory.getLogger(MfaCryptoService::class.java)
     private val secureRandom = SecureRandom()
-    private val secretKey: SecretKey = resolveKey(properties, environment)
+    private val secretKey: SecretKey? = resolveKey(properties, environment)
 
-    private fun resolveKey(properties: MfaProperties, environment: Environment): SecretKey {
+    fun isAvailable(): Boolean = secretKey != null
+
+    private fun resolveKey(properties: MfaProperties, environment: Environment): SecretKey? {
         val raw = properties.encryptionKey?.takeIf { it.isNotBlank() }
         if (raw == null) {
             if (environment.activeProfiles.contains("prod")) {
-                throw IllegalStateException(
-                    "Nenhuma chave de cifra MFA configurada em perfil 'prod'. Defina a variável de " +
-                        "ambiente CAFEY_MFA_ENCRYPTION_KEY (Base64 de 32 bytes) antes de subir em produção; " +
-                        "o fallback de chave efêmera só é permitido fora de produção."
+                logger.error(
+                    "CAFEY_MFA_ENCRYPTION_KEY ausente em perfil 'prod': o 2FA está INDISPONÍVEL. " +
+                        "Defina CAFEY_MFA_ENCRYPTION_KEY (Base64 de 32 bytes; gere com 'openssl rand -base64 32') " +
+                        "no ambiente da instância. O app sobe, mas /auth/2fa/* responde 503 e login de usuário " +
+                        "com 2FA ativo falha fechado até a chave ser configurada."
                 )
+                return null
             }
             logger.warn(
                 "Nenhuma chave de cifra MFA configurada (cafey.mfa.encryption-key). " +
@@ -60,10 +69,13 @@ class MfaCryptoService(
     }
 
     fun encrypt(plaintext: String): String {
+        val key = secretKey ?: throw ServicoIndisponivelException(
+            "2FA indisponível no servidor: chave de cifra MFA não configurada"
+        )
         val iv = ByteArray(12)
         secureRandom.nextBytes(iv)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey, GCMParameterSpec(128, iv))
+        cipher.init(Cipher.ENCRYPT_MODE, key, GCMParameterSpec(128, iv))
         val cipherText = cipher.doFinal(plaintext.toByteArray(Charsets.UTF_8))
         val packed = ByteArray(iv.size + cipherText.size)
         System.arraycopy(iv, 0, packed, 0, iv.size)
@@ -72,6 +84,9 @@ class MfaCryptoService(
     }
 
     fun decrypt(encoded: String): String {
+        val key = secretKey ?: throw ServicoIndisponivelException(
+            "2FA indisponível no servidor: chave de cifra MFA não configurada"
+        )
         val packed = try {
             Base64.getDecoder().decode(encoded)
         } catch (ex: Exception) {
@@ -81,7 +96,7 @@ class MfaCryptoService(
         val iv = packed.copyOfRange(0, 12)
         val cipherText = packed.copyOfRange(12, packed.size)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(128, iv))
+        cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(128, iv))
         val plain = cipher.doFinal(cipherText)
         return String(plain, Charsets.UTF_8)
     }

@@ -3,6 +3,7 @@ package br.com.tavaressan.cafey.auth
 import br.com.tavaressan.cafey.exception.BadCredentialsException
 import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
 import br.com.tavaressan.cafey.exception.ResourceNotFoundException
+import br.com.tavaressan.cafey.exception.ServicoIndisponivelException
 import br.com.tavaressan.cafey.mail.EmailSenderService
 import br.com.tavaressan.cafey.security.JwtTokenService
 import br.com.tavaressan.cafey.security.MfaCryptoService
@@ -73,6 +74,11 @@ class AuthService(
         val usuario = (authentication.principal as UsuarioDetails).usuario
 
         if (usuario.mfaHabilitado) {
+            if (!mfaCryptoService.isAvailable()) {
+                throw ServicoIndisponivelException(
+                    "2FA indisponível no servidor: não é possível concluir o login com segundo fator no momento"
+                )
+            }
             val desafioToken = jwtTokenService.generateMfaChallengeToken(usuario.id!!)
             return AuthResponse(mfaRequerido = true, desafioToken = desafioToken, expiresIn = 300)
         }
@@ -177,6 +183,11 @@ class AuthService(
 
     @Transactional
     fun configurar2fa(usuarioId: UUID): MfaConfigurarResponse {
+        if (!mfaCryptoService.isAvailable()) {
+            throw ServicoIndisponivelException(
+                "2FA indisponível no servidor: chave de cifra MFA não configurada"
+            )
+        }
         val usuario = usuarioRepository.findById(usuarioId)
             .orElseThrow { ResourceNotFoundException("Usuário não encontrado") }
         val segredo = mfaTotpService.generateSecretBase32()
@@ -190,6 +201,11 @@ class AuthService(
 
     @Transactional
     fun ativar2fa(usuarioId: UUID, request: MfaAtivarRequest) {
+        if (!mfaCryptoService.isAvailable()) {
+            throw ServicoIndisponivelException(
+                "2FA indisponível no servidor: chave de cifra MFA não configurada"
+            )
+        }
         val usuario = usuarioRepository.findById(usuarioId)
             .orElseThrow { ResourceNotFoundException("Usuário não encontrado") }
         val segredoCifrado = usuario.mfaSecret

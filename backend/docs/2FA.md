@@ -25,7 +25,12 @@ Erros relevantes: código TOTP inválido ou desafio inválido/expirado → **401
 
 ## Configuração
 
-- `CAFEY_MFA_ENCRYPTION_KEY` / `cafey.mfa.encryption-key`: Base64 de 32 bytes (AES-256). Obrigatória em `prod`; fora de `prod`, ausência gera chave efêmera (segredos não sobrevivem a restart).
+- `CAFEY_MFA_ENCRYPTION_KEY` / `cafey.mfa.encryption-key`: Base64 de 32 bytes (AES-256) usada para cifrar `usuarios.mfa_secret`. **Separada** das chaves JWT.
+  - **Gerar:** `openssl rand -base64 32`
+  - **Onde colocar (produção):** no `.env` da instância (o mesmo usado pelo `backend/compose.prod.yaml`), como `CAFEY_MFA_ENCRYPTION_KEY=<valor>`. O compose repassa a variável ao container do `app`.
+  - **Trocar a chave invalida os segredos TOTP já cadastrados** (não é possível decifrá-los). Usuários com 2FA ativo precisarão reconfigurar o 2FA.
+  - **Ausente em `prod`:** o app **sobe normalmente** (não derruba o boot) e registra `ERROR` avisando. Nesse estado degradado: `POST /auth/2fa/configurar` e `POST /auth/2fa/ativar` respondem **503** com mensagem clara; login de usuário **sem** 2FA segue idêntico; login de usuário **com** 2FA ativo **falha fechado** (não emite JWT sem o segundo fator) com erro claro (503).
+  - **Ausente fora de `prod`:** chave efêmera com `WARN` (segredos não sobrevivem a restart); apenas dev/testes.
 - Rate limit: `/auth/2fa/validar` limitado por IP (padrão 10 req/60s), junto aos demais endpoints sensíveis de auth.
 
 ## Documentação OpenAPI
