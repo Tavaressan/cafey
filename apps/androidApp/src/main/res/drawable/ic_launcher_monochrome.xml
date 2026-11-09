@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Gerado por docs/docs_interface/logo/generate_android_icons.py — não editar manualmente.
+     Silhueta do grão e da estrela para ícones temáticos (Android 13+). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M 54 25.348 C 65.124 25.348 73.551 38.157 73.551 53.326 C 73.551 69.506 64.787 82.652 54 82.652 C 43.213 82.652 34.449 69.506 34.449 53.326 C 34.449 38.157 42.876 25.348 54 25.348 Z"
+        android:fillColor="#000000"/>
+    <path
+        android:pathData="M 54 48.944 Q 55.18 52.82 59.056 54 Q 55.18 55.18 54 59.056 Q 52.82 55.18 48.944 54 Q 52.82 52.82 54 48.944 Z"
+        android:fillColor="#000000"/>
+</vector>
