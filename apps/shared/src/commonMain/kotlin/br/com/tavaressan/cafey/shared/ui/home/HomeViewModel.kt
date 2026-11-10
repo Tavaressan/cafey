@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -95,7 +97,8 @@ class HomeViewModel(
     private val scope = coroutineScope ?: viewModelScope
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
-    private var lastStatsFetchMs = 0L
+    private val refreshMutex = Mutex()
+    private val statsCache = mutableMapOf<String, Pair<Long, Int>>()
     private var selectedDeviceId: String? = null
 
     private val fallback: BleCommandFallback? =
@@ -111,7 +114,6 @@ class HomeViewModel(
                 activeDeviceId.collect { newId ->
                     if (newId != null && _uiState.value.device?.id != newId) {
                         selectedDeviceId = newId
-                        lastStatsFetchMs = 0L
                         refresh()
                     }
                 }
@@ -127,39 +129,53 @@ class HomeViewModel(
 
     internal suspend fun refresh() {
         try {
-            val devices = deviceApi.listar()
-            val targetId = activeDeviceId?.value ?: selectedDeviceId
-            val device = devices.firstOrNull { it.id == targetId } ?: devices.firstOrNull()
-            if (device != null) {
-                selectedDeviceId = device.id
-                if (activeDeviceId != null && activeDeviceId.value != device.id) {
-                    activeDeviceId.value = device.id
+            refreshMutex.withLock {
+                val targetIdAtStart = activeDeviceId?.value ?: selectedDeviceId
+                val devices = deviceApi.listar()
+                val device = devices.firstOrNull { it.id == targetIdAtStart } ?: devices.firstOrNull()
+                if (device != null) {
+                    // Só adota o dispositivo se a seleção não mudou durante o listar(); senão um
+                    // refresh obsoleto reverteria a troca feita pelo usuário (com ou sem activeDeviceId).
+                    if (selectedDeviceId == targetIdAtStart || selectedDeviceId == null) {
+                        selectedDeviceId = device.id
+                    }
+                    activeDeviceId?.compareAndSet(targetIdAtStart, device.id)
                 }
-            }
-            val proximoPreparo = device?.let { buscarProximoPreparo(it.id) }
-            val nowMs = nowProvider()
-            val isOffline = isDispositivoOffline(device, nowMs)
-            val sequenciaManhasDias = if (device != null) {
-                if (nowMs - lastStatsFetchMs >= STATS_POLL_INTERVAL_MS || _uiState.value.sequenciaManhasDias == 0) {
-                    lastStatsFetchMs = nowMs
-                    buscarSequenciaManhas(device.id)
+                val nowMs = nowProvider()
+                val isOffline = isDispositivoOffline(device, nowMs)
+                val proximoPreparo = device?.let { buscarProximoPreparo(it.id) }
+                val sequenciaManhasDias = if (device != null) {
+                    val cached = statsCache[device.id]
+                    val needsFetch = cached == null ||
+                        (nowMs - cached.first >= STATS_POLL_INTERVAL_MS) ||
+                        cached.second == 0
+                    if (needsFetch) {
+                        val fetched = buscarSequenciaManhas(device.id)
+                        statsCache[device.id] = nowMs to fetched
+                        fetched
+                    } else {
+                        cached.second
+                    }
                 } else {
-                    _uiState.value.sequenciaManhasDias
+                    0
                 }
-            } else {
-                0
-            }
-            _uiState.update { current ->
-                val errorParaManter = if (current.device == null) null else current.errorMessage
-                current.copy(
-                    loading = false,
-                    device = device,
-                    devices = devices,
-                    errorMessage = errorParaManter,
-                    proximoPreparo = proximoPreparo,
-                    sequenciaManhasDias = sequenciaManhasDias,
-                    isOffline = isOffline,
-                )
+                val currentTarget = activeDeviceId?.value ?: selectedDeviceId
+                val obsolete = currentTarget != targetIdAtStart && (device == null || currentTarget != device.id)
+                if (obsolete) {
+                    return@withLock
+                }
+                _uiState.update { current ->
+                    val errorParaManter = if (current.device == null) null else current.errorMessage
+                    current.copy(
+                        loading = false,
+                        device = device,
+                        devices = devices,
+                        errorMessage = errorParaManter,
+                        proximoPreparo = proximoPreparo,
+                        sequenciaManhasDias = sequenciaManhasDias,
+                        isOffline = isOffline,
+                    )
+                }
             }
         } catch (e: ApiError) {
             _uiState.update { it.copy(loading = false, errorMessage = e.message) }
@@ -169,11 +185,11 @@ class HomeViewModel(
     fun selectDevice(id: String) {
         if (selectedDeviceId == id && _uiState.value.device?.id == id) return
         selectedDeviceId = id
-        activeDeviceId?.value = id
-        lastStatsFetchMs = 0L
-        scope.launch {
-            _uiState.update { it.copy(loading = true) }
-            refresh()
+        _uiState.update { it.copy(loading = true) }
+        if (activeDeviceId != null) {
+            activeDeviceId.value = id
+        } else {
+            scope.launch { refresh() }
         }
     }
 
@@ -236,7 +252,7 @@ class HomeViewModel(
                         )
                     }
                 } else {
-                    lastStatsFetchMs = 0L
+                    selectedDeviceId?.let { statsCache.remove(it) }
                     refresh()
                     _uiState.update { it.copy(commandInFlight = false) }
                 }
