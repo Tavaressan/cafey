@@ -22,7 +22,9 @@ class AwsIotPropertiesTest {
         assertEquals("dispositivos/+/estado", AwsIotProperties.TOPIC_ESTADO)
         assertEquals("dispositivos/+/eventos", AwsIotProperties.TOPIC_EVENTOS)
         assertEquals("dispositivos/+/saude", AwsIotProperties.TOPIC_SAUDE)
+        assertEquals("dispositivos/+/vinculo", AwsIotProperties.TOPIC_VINCULO)
         assertEquals("dispositivos/dev-123/comando", AwsIotProperties.topicComando("dev-123"))
         assertEquals("dispositivos/dev-123/agendamentos", AwsIotProperties.topicAgendamentos("dev-123"))
+        assertEquals("dispositivos/dev-123/vinculo", AwsIotProperties.topicVinculo("dev-123"))
     }
 }

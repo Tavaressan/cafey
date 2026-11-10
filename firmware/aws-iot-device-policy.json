@@ -13,7 +13,8 @@
       ],
       "Resource": [
         "arn:aws:iot:*:*:topic/dispositivos/${iot:Connection.Thing.ThingName}/eventos",
-        "arn:aws:iot:*:*:topic/dispositivos/${iot:Connection.Thing.ThingName}/saude"
+        "arn:aws:iot:*:*:topic/dispositivos/${iot:Connection.Thing.ThingName}/saude",
+        "arn:aws:iot:*:*:topic/dispositivos/${iot:Connection.Thing.ThingName}/vinculo"
       ]
     },
     {

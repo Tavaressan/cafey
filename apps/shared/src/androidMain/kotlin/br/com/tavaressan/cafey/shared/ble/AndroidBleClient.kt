@@ -313,6 +313,25 @@ class AndroidBleClient(private val context: Context) : BleClient {
         }
     }
 
+    override suspend fun lerCodigoVinculo(dispositivoId: String): String? {
+        return withGattSession(dispositivoId) { session ->
+            val jsonStr = try {
+                session.readCharacteristic(UUID.fromString(BleUuids.VINCULO))
+            } catch (_: Throwable) {
+                null
+            }
+            if (jsonStr.isNullOrBlank()) {
+                null
+            } else {
+                try {
+                    json.decodeFromString<CodigoVinculoPayload>(jsonStr).codigo?.takeIf { it.isNotBlank() }
+                } catch (_: Exception) {
+                    null
+                }
+            }
+        }
+    }
+
     override suspend fun provisionarWifi(
         dispositivoId: String,
         ssid: String,
