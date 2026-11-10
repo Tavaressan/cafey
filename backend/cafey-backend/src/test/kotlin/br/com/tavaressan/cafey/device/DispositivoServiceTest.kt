@@ -1,5 +1,7 @@
 package br.com.tavaressan.cafey.device
 
+import br.com.tavaressan.cafey.event.EventoPreparo
+import br.com.tavaressan.cafey.event.EventoPreparoRepository
 import br.com.tavaressan.cafey.exception.BadCredentialsException
 import br.com.tavaressan.cafey.exception.ConflitoException
 import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
@@ -12,6 +14,8 @@ import br.com.tavaressan.cafey.schedule.AgendamentosAlteradosEvent
 import br.com.tavaressan.cafey.user.Usuario
 import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -22,10 +26,13 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyBoolean
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.ArgumentMatchers.eq
+import org.mockito.ArgumentMatchers.isNull
+import org.mockito.ArgumentMatchers.nullable
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
 import software.amazon.awssdk.crt.mqtt.QualityOfService
+import java.time.Instant
 import java.util.Optional
 import java.util.UUID
 
@@ -47,6 +54,9 @@ class DispositivoServiceTest {
     @Mock
     private lateinit var eventPublisher: ApplicationEventPublisher
 
+    @Mock
+    private lateinit var eventoPreparoRepository: EventoPreparoRepository
+
     private lateinit var service: DispositivoService
 
     private val ownerId = UUID.randomUUID()
@@ -61,7 +71,7 @@ class DispositivoServiceTest {
 
     @BeforeEach
     fun setUp() {
-        service = DispositivoService(dispositivoRepository, usuarioDispositivoRepository, usuarioRepository, mqttClientService, eventPublisher, DispositivoMapper())
+        service = DispositivoService(dispositivoRepository, usuarioDispositivoRepository, usuarioRepository, mqttClientService, eventPublisher, DispositivoMapper(), eventoPreparoRepository)
 
         ownerUser = Usuario(id = ownerId, nome = "Owner", email = "owner@cafey.com", senhaHash = "hash")
         guestUser = Usuario(id = guestId, nome = "Guest", email = "guest@cafey.com", senhaHash = "hash")
@@ -90,7 +100,9 @@ class DispositivoServiceTest {
     }
 
     @Test
-    fun `should link device by serial when it has no owner`() {
+    fun `should link device by serial when it has no owner and code is valid`() {
+        device.codigoVinculo = "123456"
+        device.codigoVinculoExpiraEm = Instant.now().plusSeconds(60)
         `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
         `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
         `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(emptyList())
@@ -102,7 +114,10 @@ class DispositivoServiceTest {
         val limiarAnterior = device.limiarDescalcificacao
         val versaoAnterior = device.versaoAgendamentos
 
-        val res = service.criar(CriarDispositivoRequest(nome = "Minha Cafeteira", serial = deviceId.toString()), ownerId)
+        val res = service.criar(
+            CriarDispositivoRequest(nome = "Minha Cafeteira", serial = deviceId.toString(), codigoVinculo = "123456"),
+            ownerId
+        )
 
         assertEquals(deviceId, res.id)
         assertEquals(PapelDispositivo.PROPRIETARIO, res.papel)
@@ -115,11 +130,79 @@ class DispositivoServiceTest {
         verify(usuarioDispositivoRepository).save(captor.capture())
         assertEquals(ownerId, captor.value.usuario.id)
         assertEquals(PapelDispositivo.PROPRIETARIO, captor.value.papel)
-        verify(dispositivoRepository).save(any(Dispositivo::class.java))
+        // Código de uso único: apagado após o vínculo.
+        assertNull(device.codigoVinculo)
+        assertNull(device.codigoVinculoExpiraEm)
+        verify(dispositivoRepository).save(device)
     }
 
     @Test
-    fun `should return the same device without new link when serial already belongs to the user`() {
+    fun `should reject link without code when device has no owner`() {
+        device.codigoVinculo = "123456"
+        device.codigoVinculoExpiraEm = Instant.now().plusSeconds(60)
+        `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
+        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
+        `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(emptyList())
+
+        assertThrows<RequisicaoInvalidaException> {
+            service.criar(CriarDispositivoRequest(nome = "Minha", serial = deviceId.toString()), ownerId)
+        }
+        verify(usuarioDispositivoRepository, never()).save(any(UsuarioDispositivo::class.java))
+        assertEquals("123456", device.codigoVinculo)
+    }
+
+    @Test
+    fun `should reject link with wrong code when device has no owner`() {
+        device.codigoVinculo = "123456"
+        device.codigoVinculoExpiraEm = Instant.now().plusSeconds(60)
+        `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
+        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
+        `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(emptyList())
+
+        assertThrows<RequisicaoInvalidaException> {
+            service.criar(
+                CriarDispositivoRequest(nome = "Minha", serial = deviceId.toString(), codigoVinculo = "654321"),
+                ownerId
+            )
+        }
+        verify(usuarioDispositivoRepository, never()).save(any(UsuarioDispositivo::class.java))
+        assertEquals("123456", device.codigoVinculo)
+    }
+
+    @Test
+    fun `should reject link when vinculo code expired`() {
+        device.codigoVinculo = "123456"
+        device.codigoVinculoExpiraEm = Instant.now().minusSeconds(1)
+        `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
+        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
+        `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(emptyList())
+
+        assertThrows<RequisicaoInvalidaException> {
+            service.criar(
+                CriarDispositivoRequest(nome = "Minha", serial = deviceId.toString(), codigoVinculo = "123456"),
+                ownerId
+            )
+        }
+        verify(usuarioDispositivoRepository, never()).save(any(UsuarioDispositivo::class.java))
+    }
+
+    @Test
+    fun `should reject link when device never opened a vinculo window`() {
+        `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
+        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
+        `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(emptyList())
+
+        assertThrows<RequisicaoInvalidaException> {
+            service.criar(
+                CriarDispositivoRequest(nome = "Minha", serial = deviceId.toString(), codigoVinculo = "123456"),
+                ownerId
+            )
+        }
+        verify(usuarioDispositivoRepository, never()).save(any(UsuarioDispositivo::class.java))
+    }
+
+    @Test
+    fun `should keep relink idempotent for the same owner without vinculo code`() {
         `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
         `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
         `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(listOf(ownerLink, guestLink))
@@ -357,6 +440,66 @@ class DispositivoServiceTest {
 
         assertThrows<ServicoIndisponivelException> {
             service.comandar(deviceId, ComandoRequest(acao = "CANCELAR"), ownerId)
+        }
+    }
+
+    @Test
+    fun `diagnostico retorna dados persistidos para o proprietario`() {
+        device.online = true
+        device.rssi = -62
+        device.uptimeS = 3600
+        device.firmware = "1.2.3"
+        device.ultimoVisto = Instant.parse("2026-11-09T10:00:00Z")
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
+        val erro = EventoPreparo(
+            id = UUID.randomUUID(),
+            eventoId = "evt-err-1",
+            dispositivo = device,
+            tipo = "PREPARO",
+            resultado = "ERRO",
+            origem = "APP",
+            duracaoS = 0,
+            timestamp = Instant.parse("2026-11-09T09:59:00Z"),
+            detalheErro = "boiler timeout"
+        )
+        `when`(
+            eventoPreparoRepository.findEventosComFiltro(
+                eq(deviceId) ?: deviceId,
+                eq("ERRO") ?: "ERRO",
+                nullable(Instant::class.java),
+                nullable(Instant::class.java),
+                any(PageRequest::class.java) ?: PageRequest.of(0, 5)
+            )
+        ).thenReturn(PageImpl(listOf(erro)))
+
+        val res = service.obterDiagnostico(deviceId, ownerId)
+
+        assertEquals(deviceId, res.dispositivoId)
+        assertTrue(res.online)
+        assertEquals(-62, res.rssi)
+        assertEquals(3600L, res.uptimeS)
+        assertEquals("1.2.3", res.firmware)
+        assertEquals("DESLIGADO", res.estado)
+        assertNull(res.estadoRele)
+        assertEquals(1, res.errosRecentes.size)
+        assertEquals("boiler timeout", res.errosRecentes[0].detalheErro)
+    }
+
+    @Test
+    fun `diagnostico rejeita convidado`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(guestId, deviceId)).thenReturn(guestLink)
+
+        assertThrows<BadCredentialsException> {
+            service.obterDiagnostico(deviceId, guestId)
+        }
+    }
+
+    @Test
+    fun `diagnostico rejeita usuario sem vinculo`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(null)
+
+        assertThrows<ResourceNotFoundException> {
+            service.obterDiagnostico(deviceId, ownerId)
         }
     }
 }

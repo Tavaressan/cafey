@@ -126,12 +126,14 @@ class RateLimitingFilter(
         "/auth/signin", "/auth/login" -> ROUTE_SIGNIN
         "/auth/signup", "/auth/registrar" -> ROUTE_SIGNUP
         "/auth/recuperar-senha" -> ROUTE_RECUPERAR_SENHA
+        "/auth/2fa/validar" -> ROUTE_VALIDAR_2FA
         else -> null
     }
 
     private fun routeLimitFor(route: String): Pair<Long, Long> = when (route) {
         ROUTE_SIGNIN -> properties.loginCapacity to properties.loginPeriodSeconds
         ROUTE_SIGNUP -> properties.registrarCapacity to properties.registrarPeriodSeconds
+        ROUTE_VALIDAR_2FA -> properties.validar2faCapacity to properties.validar2faPeriodSeconds
         else -> properties.recuperarSenhaCapacity to properties.recuperarSenhaPeriodSeconds
     }
 
@@ -139,6 +141,7 @@ class RateLimitingFilter(
         const val ROUTE_SIGNIN = "/auth/signin"
         const val ROUTE_SIGNUP = "/auth/signup"
         const val ROUTE_RECUPERAR_SENHA = "/auth/recuperar-senha"
+        const val ROUTE_VALIDAR_2FA = "/auth/2fa/validar"
     }
 
     private fun newBucket(routeLimit: Pair<Long, Long>): Bucket {
@@ -155,7 +158,8 @@ class RateLimitingFilter(
         maxOf(
             properties.loginPeriodSeconds,
             properties.registrarPeriodSeconds,
-            properties.recuperarSenhaPeriodSeconds
+            properties.recuperarSenhaPeriodSeconds,
+            properties.validar2faPeriodSeconds
         )
     ).toMillis()
 

@@ -1,6 +1,7 @@
 package br.com.tavaressan.cafey.device
 
 import br.com.tavaressan.cafey.config.AwsIotProperties
+import br.com.tavaressan.cafey.event.EventoPreparoRepository
 import br.com.tavaressan.cafey.exception.BadCredentialsException
 import br.com.tavaressan.cafey.exception.ConflitoException
 import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
@@ -13,8 +14,12 @@ import br.com.tavaressan.cafey.schedule.AgendamentosAlteradosEvent
 import br.com.tavaressan.cafey.user.Usuario
 import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import java.time.Instant
 import java.util.UUID
 
 @Service
@@ -24,7 +29,8 @@ class DispositivoService(
     private val usuarioRepository: UsuarioRepository,
     private val mqttClientService: MqttClientService,
     private val eventPublisher: ApplicationEventPublisher,
-    private val dispositivoMapper: DispositivoMapper
+    private val dispositivoMapper: DispositivoMapper,
+    private val eventoPreparoRepository: EventoPreparoRepository
 ) {
 
     @Transactional(readOnly = true)
@@ -101,8 +107,13 @@ class DispositivoService(
      * Cadastro por BLE: o serial é o id que o backend deu à placa (nome da thing no AWS IoT), então
      * só vincula um dispositivo que já existe. Criar com id vindo do app deixaria qualquer conta
      * inventar ids.
+     *
+     * Quando a placa ainda não tem proprietário, exige o código de uso único da janela de vínculo
+     * (FW-24, #275). O código só é aceito dentro do prazo calculado no recebimento do MQTT e é
+     * apagado após o primeiro uso. Recadastro pelo mesmo dono continua idempotente e sem código,
+     * preservando o comportamento do #266.
      */
-    private fun vincularPorSerial(dispositivoId: UUID, usuario: Usuario, request: CriarDispositivoRequest? = null): DispositivoResponse {
+    private fun vincularPorSerial(dispositivoId: UUID, usuario: Usuario, request: CriarDispositivoRequest): DispositivoResponse {
         val dispositivo = dispositivoRepository.findById(dispositivoId).orElseThrow {
             ResourceNotFoundException("Cafeteira não reconhecida pelo servidor. Confira se ela foi registrada antes do cadastro.")
         }
@@ -110,19 +121,42 @@ class DispositivoService(
             .find { it.papel == PapelDispositivo.PROPRIETARIO }
 
         if (proprietario == null) {
-            request?.let {
-                dispositivo.nome = it.nome.trim()
-                dispositivo.atualizadoEm = java.time.Instant.now()
-                dispositivoRepository.save(dispositivo)
-            }
+            validarCodigoVinculo(dispositivo, request.codigoVinculo)
+            dispositivo.nome = request.nome.trim()
+            dispositivo.atualizadoEm = Instant.now()
             usuarioDispositivoRepository.save(
                 UsuarioDispositivo(usuario = usuario, dispositivo = dispositivo, papel = PapelDispositivo.PROPRIETARIO)
             )
+            // Código de uso único: some assim que o vínculo é concluído.
+            dispositivo.codigoVinculo = null
+            dispositivo.codigoVinculoExpiraEm = null
+            dispositivoRepository.save(dispositivo)
         } else if (proprietario.usuario.id != usuario.id) {
             throw ConflitoException("Esta cafeteira já pertence a outra conta.")
         }
         // Mesmo dono: recadastro idempotente; timezone e duração mudam só pelo `atualizar`, que versiona.
         return dispositivoMapper.toResponse(dispositivo, PapelDispositivo.PROPRIETARIO)
+    }
+
+    /** Valida o código da janela de vínculo sem vazar, pelo tempo de resposta, qual passo falhou. */
+    private fun validarCodigoVinculo(dispositivo: Dispositivo, codigoInformado: String?) {
+        val codigoArmazenado = dispositivo.codigoVinculo
+        val expiraEm = dispositivo.codigoVinculoExpiraEm
+
+        // Comparação em tempo constante: o código tem 6 dígitos e é curto, mas não custa.
+        val confere = codigoArmazenado != null && expiraEm != null && expiraEm.isAfter(Instant.now()) &&
+            codigoInformado != null &&
+            MessageDigest.isEqual(
+                codigoArmazenado.toByteArray(StandardCharsets.UTF_8),
+                codigoInformado.toByteArray(StandardCharsets.UTF_8)
+            )
+
+        if (!confere) {
+            throw RequisicaoInvalidaException(
+                "Código de vínculo inválido ou expirado. Abra a janela de vínculo na cafeteira " +
+                    "(toque longo no botão) e leia o código pelo app antes de cadastrar."
+            )
+        }
     }
 
     @Transactional
@@ -162,5 +196,45 @@ class DispositivoService(
         }
 
         dispositivoRepository.delete(vinculo.dispositivo)
+    }
+
+    @Transactional(readOnly = true)
+    fun obterDiagnostico(dispositivoId: UUID, usuarioId: UUID): DiagnosticoDispositivoResponse {
+        val vinculo = usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)
+            ?: throw ResourceNotFoundException("Dispositivo não encontrado ou você não tem acesso")
+
+        if (vinculo.papel != PapelDispositivo.PROPRIETARIO) {
+            throw BadCredentialsException("Apenas o proprietário pode acessar o diagnóstico do dispositivo")
+        }
+
+        val dispositivo = vinculo.dispositivo
+        val erros = eventoPreparoRepository.findEventosComFiltro(
+            dispositivoId,
+            "ERRO",
+            null,
+            null,
+            PageRequest.of(0, 5)
+        ).content.map {
+            ErroRecenteDiagnosticoResponse(
+                eventoId = it.eventoId,
+                timestamp = it.timestamp,
+                origem = it.origem,
+                detalheErro = it.detalheErro
+            )
+        }
+
+        return DiagnosticoDispositivoResponse(
+            dispositivoId = dispositivo.id!!,
+            online = dispositivo.online,
+            ultimoVisto = dispositivo.ultimoVisto,
+            estado = dispositivo.estado,
+            rssi = dispositivo.rssi,
+            firmware = dispositivo.firmware,
+            uptimeS = dispositivo.uptimeS,
+            versaoAgendamentos = dispositivo.versaoAgendamentos,
+            estadoRele = null,
+            errosRecentes = erros,
+            atualizadoEm = dispositivo.atualizadoEm
+        )
     }
 }

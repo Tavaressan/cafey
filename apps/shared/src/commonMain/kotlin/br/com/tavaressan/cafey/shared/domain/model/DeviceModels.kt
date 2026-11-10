@@ -16,6 +16,8 @@ data class CriarDispositivoRequest(
     val limiarDescalcificacao: Int? = null,
     /** Serial lido da placa por BLE; o backend vincula a placa já registrada em vez de criar outra. */
     val serial: String? = null,
+    /** Código de uso único lido por BLE na janela de vínculo (FW-24, #275). */
+    val codigoVinculo: String? = null,
 )
 
 @Serializable
@@ -45,6 +47,7 @@ data class DispositivoResponse(
     val estado: String,
     val online: Boolean,
     val ultimoVisto: String? = null,
+    val preparoIniciadoEm: String? = null,
     val versaoAgendamentos: Int,
     val duracaoPreparoS: Int,
     val limiarDescalcificacao: Int,
@@ -63,6 +66,29 @@ data class CompartilhamentoResponse(
     val compartilhadoEm: String = "",
 )
 
+@Serializable
+data class ErroRecenteDiagnosticoResponse(
+    val eventoId: String,
+    val timestamp: String,
+    val origem: String,
+    val detalheErro: String? = null,
+)
+
+@Serializable
+data class DiagnosticoDispositivoResponse(
+    val dispositivoId: String,
+    val online: Boolean,
+    val ultimoVisto: String? = null,
+    val estado: String,
+    val rssi: Int? = null,
+    val firmware: String? = null,
+    val uptimeS: Long? = null,
+    val versaoAgendamentos: Int,
+    val estadoRele: String? = null,
+    val errosRecentes: List<ErroRecenteDiagnosticoResponse> = emptyList(),
+    val atualizadoEm: String,
+)
+
 /**
  * O backend guarda `estado` como texto livre (o firmware manda o que quiser — ver
  * `Dispositivo.kt`, default `"DESLIGADO"`, e `MqttIngestionService.processarEstado`, que grava o
@@ -73,6 +99,7 @@ data class CompartilhamentoResponse(
 sealed interface DeviceState {
     data object Idle : DeviceState
     data object Brewing : DeviceState
+    data object Ready : DeviceState
     data object Error : DeviceState
     data class Unknown(val raw: String) : DeviceState
 
@@ -80,6 +107,7 @@ sealed interface DeviceState {
         fun from(estado: String): DeviceState = when (estado.trim().uppercase()) {
             "OCIOSO", "DESLIGADO", "IDLE" -> Idle
             "PREPARANDO", "LIGADO", "BREWING" -> Brewing
+            "PRONTO", "READY", "CAFE_PRONTO" -> Ready
             "ERRO", "ERROR" -> Error
             else -> Unknown(estado)
         }

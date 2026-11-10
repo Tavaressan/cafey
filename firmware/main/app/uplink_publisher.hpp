@@ -33,6 +33,17 @@ public:
                                /*retain=*/false);
     }
 
+    /**
+     * @brief Codigo de uso unico da janela de vinculo (FW-24, #275).
+     *
+     * Sem retain: o codigo vale apenas enquanto a janela estiver aberta e nao
+     * deve ser reentregue numa reconexao futura.
+     */
+    bool publish_vinculo(const std::string& codigo) {
+        return client_.publish(topics_.vinculo, "{\"codigo\":\"" + codigo + "\"}",
+                               cafey::core::kMqttQos1, /*retain=*/false);
+    }
+
     bool publish_saude(const std::string& json_payload) {
         return client_.publish(topics_.saude, json_payload, cafey::core::kMqttQos1,
                                /*retain=*/false);

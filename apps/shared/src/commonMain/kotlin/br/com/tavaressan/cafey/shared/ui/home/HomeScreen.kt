@@ -1,10 +1,12 @@
 package br.com.tavaressan.cafey.shared.ui.home
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -29,6 +31,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -42,6 +48,10 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyLightColors
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyLogo
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyStar
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 /**
  * UC-06/07/08/09 — operação e estado em tempo real. Espelha
@@ -114,6 +124,8 @@ fun HomeScreen(onGoToDeviceRegister: () -> Unit = {}) {
                     commandInFlight = state.commandInFlight,
                     canSendCommand = state.canSendCommand,
                     isOffline = state.isOffline,
+                    preparoIniciadoEm = state.device?.preparoIniciadoEm,
+                    duracaoPreparoS = state.device?.duracaoPreparoS ?: 0,
                     onPrepare = viewModel::ligar,
                     onCancel = viewModel::cancelar,
                 )
@@ -422,21 +434,39 @@ internal fun OfflineBanner() {
     }
 }
 
+@OptIn(ExperimentalTime::class)
 @Composable
 internal fun StageCard(
     deviceState: DeviceState,
     commandInFlight: Boolean,
     canSendCommand: Boolean = !commandInFlight,
     isOffline: Boolean = false,
+    preparoIniciadoEm: String? = null,
+    duracaoPreparoS: Int = 0,
     onPrepare: () -> Unit,
     onCancel: () -> Unit,
 ) {
     val (stateLabel, starColor) = when (deviceState) {
         DeviceState.Idle -> "Pronta" to CafeyTheme.colors.blue
         DeviceState.Brewing -> "Preparando" to CafeyTheme.colors.brand
+        DeviceState.Ready -> "Café pronto" to CafeyTheme.colors.blue
         DeviceState.Error -> "Erro" to CafeyTheme.colors.brandDeep
         is DeviceState.Unknown -> deviceState.raw.ifBlank { "Sem dados" } to CafeyTheme.colors.muted
     }
+
+    var animatedNowMs by remember(deviceState, preparoIniciadoEm, duracaoPreparoS) {
+        mutableStateOf(Clock.System.now().toEpochMilliseconds())
+    }
+    LaunchedEffect(deviceState, preparoIniciadoEm, duracaoPreparoS) {
+        if (deviceState == DeviceState.Brewing && !preparoIniciadoEm.isNullOrBlank() && duracaoPreparoS > 0) {
+            while (isActive) {
+                animatedNowMs = Clock.System.now().toEpochMilliseconds()
+                delay(50)
+            }
+        }
+    }
+
+    val brewingProgress = calcularProgressoPreparo(deviceState, preparoIniciadoEm, duracaoPreparoS, animatedNowMs)
 
     Column(
         modifier = Modifier
@@ -446,24 +476,12 @@ internal fun StageCard(
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier = Modifier
-                .size(176.dp)
-                .clip(CircleShape)
-                .background(CafeyTheme.colors.surface)
-                .border(1.dp, CafeyTheme.colors.line, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CafeyStar(color = starColor, size = 44.dp)
-                Text(
-                    stateLabel,
-                    style = CafeyTheme.typography.cardTitle,
-                    color = CafeyTheme.colors.ink,
-                    modifier = Modifier.padding(top = 7.dp),
-                )
-            }
-        }
+        BrewingDial(
+            stateLabel = stateLabel,
+            starColor = starColor,
+            deviceState = deviceState,
+            brewingProgress = brewingProgress,
+        )
 
         Column(
             modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
@@ -499,6 +517,128 @@ internal fun StageCard(
                     style = CafeyTheme.typography.caption,
                     color = CafeyTheme.colors.muted,
                     modifier = Modifier.padding(top = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun BrewingDial(
+    stateLabel: String,
+    starColor: androidx.compose.ui.graphics.Color,
+    deviceState: DeviceState,
+    brewingProgress: BrewingProgress,
+) {
+    val ringSize = 176.dp
+    val strokeWidth = 6.dp
+    val trackColor = CafeyTheme.colors.line
+    val progressColor = when (deviceState) {
+        DeviceState.Ready -> CafeyTheme.colors.blue
+        else -> CafeyTheme.colors.brand
+    }
+    val indeterminateRotation = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(brewingProgress) {
+        if (brewingProgress is BrewingProgress.Indeterminate) {
+            while (isActive) {
+                indeterminateRotation.snapTo(0f)
+                indeterminateRotation.animateTo(
+                    targetValue = 360f,
+                    animationSpec = androidx.compose.animation.core.tween(
+                        durationMillis = 1400,
+                        easing = androidx.compose.animation.core.LinearEasing,
+                    ),
+                )
+            }
+        } else {
+            indeterminateRotation.snapTo(0f)
+        }
+    }
+
+    Box(
+        modifier = Modifier.size(ringSize),
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(modifier = Modifier.size(ringSize)) {
+            val strokePx = strokeWidth.toPx()
+            val diameter = size.minDimension - strokePx
+            val topLeft = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
+            val arcSize = Size(diameter, diameter)
+            when (brewingProgress) {
+                BrewingProgress.Inactive -> {
+                    if (deviceState == DeviceState.Ready) {
+                        drawArc(
+                            color = progressColor,
+                            startAngle = -90f,
+                            sweepAngle = 360f,
+                            useCenter = false,
+                            topLeft = topLeft,
+                            size = arcSize,
+                            style = Stroke(width = strokePx, cap = StrokeCap.Round),
+                        )
+                    }
+                }
+                BrewingProgress.Indeterminate -> {
+                    drawArc(
+                        color = trackColor,
+                        startAngle = 0f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokePx),
+                    )
+                    drawArc(
+                        color = progressColor,
+                        startAngle = -90f + indeterminateRotation.value,
+                        sweepAngle = 100f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokePx, cap = StrokeCap.Round),
+                    )
+                }
+                is BrewingProgress.Determinate -> {
+                    drawArc(
+                        color = trackColor,
+                        startAngle = 0f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokePx),
+                    )
+                    if (brewingProgress.fraction > 0f) {
+                        drawArc(
+                            color = progressColor,
+                            startAngle = -90f,
+                            sweepAngle = 360f * brewingProgress.fraction,
+                            useCenter = false,
+                            topLeft = topLeft,
+                            size = arcSize,
+                            style = Stroke(width = strokePx, cap = StrokeCap.Round),
+                        )
+                    }
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .size(176.dp)
+                .padding(strokeWidth)
+                .clip(CircleShape)
+                .background(CafeyTheme.colors.surface)
+                .border(1.dp, CafeyTheme.colors.line, CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                CafeyStar(color = starColor, size = 44.dp)
+                Text(
+                    stateLabel,
+                    style = CafeyTheme.typography.cardTitle,
+                    color = CafeyTheme.colors.ink,
+                    modifier = Modifier.padding(top = 7.dp),
                 )
             }
         }

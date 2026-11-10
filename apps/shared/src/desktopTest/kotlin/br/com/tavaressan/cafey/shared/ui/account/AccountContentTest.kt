@@ -17,7 +17,14 @@ class AccountContentTest {
         var loggedOut = false
         setContent {
             CafeyTheme {
-                AccountContent(onLogout = { loggedOut = true })
+                AccountContent(
+                    state = AccountUiState(),
+                    onLogout = { loggedOut = true },
+                    onIniciarConfiguracao = {},
+                    onCodigoAtivacaoChange = {},
+                    onConfirmarAtivacao = {},
+                    onDispensarDialogo = {},
+                )
             }
         }
 

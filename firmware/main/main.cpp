@@ -284,6 +284,21 @@ extern "C" void app_main(void) {
         }
     });
 
+    // Janela de vinculo pelo toque longo (FW-24, #275): o mesmo codigo de uso
+    // unico sai por BLE (lido pelo app) e por MQTT (validado pelo backend).
+    g_cafeteira.set_on_bind_window_change([has_mqtt_config](bool aberta, const std::string& codigo) {
+        if (g_ble_service != nullptr) {
+            g_ble_service->publish_vinculo(aberta ? codigo : std::string());
+        }
+        if (!aberta) return;
+        if (!has_mqtt_config || !mqtt_client.is_connected()) {
+            ESP_LOGW(TAG, "janela de vinculo sem MQTT: o codigo nao chegara ao backend");
+            return;
+        }
+        const cafey::core::MqttTopics topics(mqtt_config.client_id);
+        cafey::app::UplinkPublisher(mqtt_client, topics).publish_vinculo(codigo);
+    });
+
     // Servico BLE (FW-17, spec §6.4, UC-04 #249): comando/estado/agendamentos delegam para
     // os mesmos handlers de dominio do caminho MQTT — sem regra de negocio na
     // camada BLE. E o proxy da fila de eventos pendentes (FW-18, spec §6.5).
