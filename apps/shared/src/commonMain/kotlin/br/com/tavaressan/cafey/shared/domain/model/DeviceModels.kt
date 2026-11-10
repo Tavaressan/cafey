@@ -16,6 +16,8 @@ data class CriarDispositivoRequest(
     val limiarDescalcificacao: Int? = null,
     /** Serial lido da placa por BLE; o backend vincula a placa já registrada em vez de criar outra. */
     val serial: String? = null,
+    /** Código de uso único lido por BLE na janela de vínculo (FW-24, #275). */
+    val codigoVinculo: String? = null,
 )
 
 @Serializable
@@ -62,6 +64,29 @@ data class CompartilhamentoResponse(
     val email: String,
     val papel: PapelDispositivo,
     val compartilhadoEm: String = "",
+)
+
+@Serializable
+data class ErroRecenteDiagnosticoResponse(
+    val eventoId: String,
+    val timestamp: String,
+    val origem: String,
+    val detalheErro: String? = null,
+)
+
+@Serializable
+data class DiagnosticoDispositivoResponse(
+    val dispositivoId: String,
+    val online: Boolean,
+    val ultimoVisto: String? = null,
+    val estado: String,
+    val rssi: Int? = null,
+    val firmware: String? = null,
+    val uptimeS: Long? = null,
+    val versaoAgendamentos: Int,
+    val estadoRele: String? = null,
+    val errosRecentes: List<ErroRecenteDiagnosticoResponse> = emptyList(),
+    val atualizadoEm: String,
 )
 
 /**

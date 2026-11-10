@@ -24,14 +24,15 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * Suíte de integração que roda as migrações Flyway reais (V1..V9) contra um
+ * Suíte de integração que roda as migrações Flyway reais (V1..V13) contra um
  * PostgreSQL real via Testcontainers, validando recursos específicos do
  * banco (citext, tipos de data, índices únicos) que o H2 usado nos testes
  * unitários não reproduz fielmente.
  *
- * Ver issue #102.
+ * Ver issue #102. Sem Docker disponível (ex.: ambiente local ou runner sem o
+ * daemon), a suíte é pulada em vez de falhar na inicialização.
  */
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest
 @ActiveProfiles("integration")
 class PostgresIntegrationTest {
@@ -51,13 +52,31 @@ class PostgresIntegrationTest {
     private lateinit var eventoPreparoRepository: EventoPreparoRepository
 
     @Test
-    fun `flyway aplica as migracoes V1 a V9 e V13 no schema_version`() {
+    fun `flyway aplica as migracoes V1 a V13 no schema_version`() {
         val versions = jdbcTemplate.queryForList(
             "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank",
             String::class.java,
         )
 
-        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "13"), versions)
+        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"), versions)
+    }
+
+    @Test
+    fun `migration V10 adiciona as colunas do codigo de vinculo`() {
+        val columns = jdbcTemplate.queryForList(
+            """
+            SELECT column_name, data_type, character_maximum_length, is_nullable
+            FROM information_schema.columns
+            WHERE table_name = 'dispositivos'
+              AND column_name IN ('codigo_vinculo', 'codigo_vinculo_expira_em')
+            """.trimIndent(),
+        ).associateBy { it["column_name"] }
+
+        assertEquals("character varying", columns["codigo_vinculo"]?.get("data_type"))
+        assertEquals(16, columns["codigo_vinculo"]?.get("character_maximum_length"))
+        assertEquals("YES", columns["codigo_vinculo"]?.get("is_nullable"))
+        assertEquals("timestamp with time zone", columns["codigo_vinculo_expira_em"]?.get("data_type"))
+        assertEquals("YES", columns["codigo_vinculo_expira_em"]?.get("is_nullable"))
     }
 
     @Test

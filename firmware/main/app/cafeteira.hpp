@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <string>
 
 #include "core/active_object.hpp"
 #include "core/clock.hpp"
@@ -40,6 +41,11 @@ public:
     // Tempo em que o LED permanece em Branco Fixo apos cafe pronto (spec §5.3: alguns minutos).
     static constexpr uint32_t kReadyDurationS = 180;
 
+    // Vinculo por janela do botao fisico (FW-24, #275): toque longo abre uma
+    // janela curta em que a placa publica um codigo de uso unico.
+    static constexpr uint32_t kLongPressMs = 5000;
+    static constexpr uint32_t kBindWindowS = 120;
+
     explicit Cafeteira(gpio_num_t relay_pin = GPIO_NUM_26,
                        gpio_num_t button_pin = GPIO_NUM_27,
                        gpio_num_t led_r = GPIO_NUM_21,
@@ -54,6 +60,15 @@ public:
     }
     [[nodiscard]] drivers::CoffeeVisualState visual_state() const noexcept { return visual_state_; }
     [[nodiscard]] const drivers::RgbLed& led() const noexcept { return led_; }
+
+    /** @brief Janela de vinculo aberta pelo toque longo (FW-24, #275). */
+    [[nodiscard]] bool bind_window_open() const noexcept { return bind_ticks_left_ > 0; }
+    /** @brief Codigo de uso unico da janela atual (vazio se fechada). */
+    [[nodiscard]] const std::string& bind_code() const noexcept { return bind_code_; }
+    /** @brief Segundos restantes da janela de vinculo (0 se fechada). */
+    [[nodiscard]] uint32_t bind_seconds_left() const noexcept {
+        return (bind_ticks_left_ + kTicksPerSecond - 1) / kTicksPerSecond;
+    }
 
     /**
      * @brief Anexa a fila persistida e o gerador de ID para enfileirar eventos ao
@@ -105,6 +120,15 @@ public:
         on_state_change_ = std::move(on_change);
     }
 
+    /**
+     * @brief Callback da janela de vinculo (FW-24, #275): `aberta=true` traz o
+     * codigo de uso unico para publicar em `dispositivos/<thing>/vinculo` e
+     * expor por BLE; `aberta=false` limpa a caracteristica.
+     */
+    void set_on_bind_window_change(std::function<void(bool, const std::string&)> on_change) {
+        on_bind_window_change_ = std::move(on_change);
+    }
+
 protected:
     void on_start() override;
     void on_tick() override; // polling do botao com debounce e animacao do LED
@@ -114,8 +138,12 @@ private:
     static constexpr int kDebounceSamples = 3; // 3 x 10 ms = 30 ms estaveis
     // O tick do AO roda a cada 10 ms -> 100 ticks por segundo.
     static constexpr uint32_t kTicksPerSecond = 100;
+    static constexpr uint32_t kLongPressTicks = kLongPressMs / 10;
 
     void apply_state();
+    void open_bind_window();
+    void close_bind_window();
+    static std::string generate_bind_code();
     void start_brew(uint32_t duration_s,
                     cafey::storage::EventOrigin origin = cafey::storage::EventOrigin::APP);
     void cancel_brew();
@@ -149,7 +177,13 @@ private:
     int btn_reading_ = 1;
     int btn_stable_ = 1;
     int btn_same_count_ = 0;
+    uint32_t btn_press_ticks_ = 0;
+    bool long_press_consumed_ = false;
     std::function<void(bool)> on_state_change_;
+
+    uint32_t bind_ticks_left_ = 0;
+    std::string bind_code_;
+    std::function<void(bool, const std::string&)> on_bind_window_change_;
 };
 
 } // namespace cafey::app

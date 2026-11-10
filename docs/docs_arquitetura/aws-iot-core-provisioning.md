@@ -145,8 +145,36 @@ mensagem retida não é entregue a assinante com `+`/`#`):
 
 | Papel | Connect (clientId) | Subscribe/Receive | Publish | RetainPublish |
 |---|---|---|---|---|
-| Dispositivo | = thing name | `dispositivos/{id}/comando`, `.../agendamentos` (nome exato) | `.../estado`, `.../eventos`, `.../saude` | `.../estado` |
-| Backend | `cafey-backend` | `dispositivos/+/estado`, `.../eventos`, `.../saude` | `.../comando`, `.../agendamentos` | `.../comando`, `.../agendamentos` |
+| Dispositivo | = thing name | `dispositivos/{id}/comando`, `.../agendamentos` (nome exato) | `.../estado`, `.../eventos`, `.../saude`, `.../vinculo` | `.../estado` |
+| Backend | `cafey-backend` | `dispositivos/+/estado`, `.../eventos`, `.../saude`, `.../vinculo` | `.../comando`, `.../agendamentos` | `.../comando`, `.../agendamentos` |
+
+O tópico `.../vinculo` (FW-24, #275) é deliberadamente **sem retain**: o código de uso único vale
+apenas enquanto a janela aberta pelo toque longo estiver aberta (~2 min) e uma republicação retida
+o entregaria fora do prazo. Por isso ele aparece só no `Publish` do dispositivo, nunca em
+`RetainPublish`, e o backend assina `+/vinculo` para receber de qualquer placa.
+
+### Versionamento das políticas (limite de 5 versões)
+
+A AWS IoT Core mantém no máximo **5 versões por política**. A versão *default* é a que vale para as
+conexões; criar uma versão nova não a ativa sozinho. Como o perfil CLI `cafey-iot` recebe
+`AccessDenied` em `iot:ListPolicyVersions`, a liberação é manual pelo console:
+
+1. Abra **AWS IoT Core → Security → Policies → `cafey-device-policy` (ou
+   `cafey-backend-policy`) → Policy versions** e anote qual é a *default* atual.
+2. Se já houver 5 versões, **libere (delete) a(s) mais antiga(s) primeiro**. Sem isso o console
+   recusa a criação da sexta versão. Essa é a razão de a issue exigir a limpeza antes de aplicar
+   o documento novo.
+3. Copie o documento atualizado de `firmware/aws-iot-device-policy.json` ou
+   `backend/cafey-backend/src/main/resources/aws-iot-backend-policy.json`, clique em
+   **Save as new version** e depois em **Set as default**.
+4. Confira que a nova versão é a *default* e que a política continua anexada ao certificado/thing.
+5. Só então faça o deploy do componente que depende da permissão nova: **backend** para
+   `dispositivos/+/vinculo` e **firmware** para publicar em `dispositivos/<thing>/vinculo`.
+
+Ordem de implantação e rollback (FW-24, #275): libere as versões antigas das duas políticas →
+publique a versão nova da política do dispositivo e a do backend → faça deploy do backend → grave o
+firmware novo → publique o app. No rollback, desfaça na ordem inversa e deixe a versão anterior da
+política como *default* antes de reverter cada componente.
 
 ## 4. Distribuição segura das credenciais
 

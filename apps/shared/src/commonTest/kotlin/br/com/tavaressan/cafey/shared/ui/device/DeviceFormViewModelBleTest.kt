@@ -91,6 +91,28 @@ class DeviceFormViewModelBleTest {
     }
 
     @Test
+    fun initialStep_withBle_includesAlreadyConnectedDevice() = runTest(testDispatcher) {
+        val connectedDevice = BleDispositivo(id = "cafe-connected", nome = "Cafey Conectada", rssi = 0)
+        val scannedDevice = BleDispositivo(id = "cafe-02", nome = "Cafey Sala", rssi = -70)
+        val fakeBle = FakeBleClient(
+            dispositivosEscaneados = listOf(connectedDevice, scannedDevice)
+        )
+        val viewModel = DeviceFormViewModel(
+            deviceApi = appContainer.deviceApi,
+            bleClient = fakeBle,
+            coroutineScope = this,
+        )
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(DeviceFormStep.BLE_SEARCH, state.step)
+        assertEquals(2, state.discoveredDevices.size)
+        assertEquals("cafe-connected", state.discoveredDevices[0].id)
+        assertEquals("cafe-02", state.discoveredDevices[1].id)
+    }
+
+    @Test
     fun switchBetweenBleAndManual() = runTest(testDispatcher) {
         val fakeBle = FakeBleClient()
         val viewModel = DeviceFormViewModel(
@@ -332,6 +354,79 @@ class DeviceFormViewModelBleTest {
         assertTrue(finalState.success)
         assertNotNull(corpoPost)
         assertTrue(corpoPost!!.contains(""""serial":"$serial""""))
+        assertTrue(corpoPost!!.contains(""""codigoVinculo":"123456""""))
+    }
+
+    @Test
+    fun save_withClosedVinculoWindow_showsActionableMessage_andDoesNotRegister() = runTest(testDispatcher) {
+        var posts = 0
+        val engine = MockEngine { request ->
+            if (request.method == HttpMethod.Post && request.url.encodedPath == "/dispositivos") posts++
+            respond(
+                content = """{"id":"qualquer","nome":"Cafey","timezone":"America/Sao_Paulo","estado":"DESLIGADO","online":true,"versaoAgendamentos":1,"duracaoPreparoS":300,"limiarDescalcificacao":200,"contadorPreparos":0,"papel":"PROPRIETARIO","criadoEm":"2026-10-21T10:00:00Z","atualizadoEm":"2026-10-21T10:00:00Z"}""",
+                status = HttpStatusCode.Created,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val tokenStorage = FakeTokenStorage(StoredTokens("demo-access", "demo-refresh"))
+        val httpClient = HttpClient(engine, sharedHttpClientConfig("https://api.cafey.test", tokenStorage))
+        val viewModel = DeviceFormViewModel(
+            deviceApi = DeviceApi(ApiClient("https://api.cafey.test", tokenStorage, httpClient)),
+            bleClient = FakeBleClient(codigoVinculoRetorno = null),
+            coroutineScope = this,
+        )
+        advanceUntilIdle()
+
+        viewModel.selectDevice(BleDispositivo("dev-1", "Cafey Expresso"))
+        advanceUntilIdle()
+        viewModel.onWifiSsidChange("RedeCasa")
+        viewModel.provisionWifi()
+        advanceUntilIdle()
+        assertEquals(DeviceFormStep.CONFIRM_REGISTER, viewModel.uiState.value.step)
+
+        viewModel.save()
+        val finalState = viewModel.uiState.first { it.errorMessage != null }
+
+        assertFalse(finalState.success)
+        assertFalse(finalState.saving)
+        assertNotNull(finalState.errorMessage)
+        assertTrue(finalState.errorMessage.contains("janela de vínculo"))
+        assertTrue(finalState.errorMessage.contains("5 segundos"))
+        assertEquals(0, posts)
+    }
+
+    @Test
+    fun save_whenBleVinculoReadFails_showsSameActionableMessage_andDoesNotRegister() = runTest(testDispatcher) {
+        var posts = 0
+        val engine = MockEngine { request ->
+            if (request.method == HttpMethod.Post && request.url.encodedPath == "/dispositivos") posts++
+            respond(
+                content = "{}",
+                status = HttpStatusCode.Created,
+                headers = headersOf(HttpHeaders.ContentType, "application/json"),
+            )
+        }
+        val tokenStorage = FakeTokenStorage(StoredTokens("demo-access", "demo-refresh"))
+        val httpClient = HttpClient(engine, sharedHttpClientConfig("https://api.cafey.test", tokenStorage))
+        val viewModel = DeviceFormViewModel(
+            deviceApi = DeviceApi(ApiClient("https://api.cafey.test", tokenStorage, httpClient)),
+            bleClient = FakeBleClient(erroAoLerCodigoVinculo = BleError.Timeout()),
+            coroutineScope = this,
+        )
+        advanceUntilIdle()
+
+        viewModel.selectDevice(BleDispositivo("dev-1", "Cafey Expresso"))
+        advanceUntilIdle()
+        viewModel.onWifiSsidChange("RedeCasa")
+        viewModel.provisionWifi()
+        advanceUntilIdle()
+
+        viewModel.save()
+        val finalState = viewModel.uiState.first { it.errorMessage != null }
+
+        assertFalse(finalState.saving)
+        assertTrue(finalState.errorMessage!!.contains("janela de vínculo"))
+        assertEquals(0, posts)
     }
 
     @Test

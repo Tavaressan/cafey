@@ -58,6 +58,12 @@ interface BleClient {
         ssid: String,
         password: String,
     ): Flow<WifiProvisionStatus> = emptyFlow()
+
+    /**
+     * Lê o código de uso único da janela de vínculo (FW-24, #275). Retorna `null` quando a
+     * janela está fechada; implementações que não suportam BLE também retornam `null`.
+     */
+    suspend fun lerCodigoVinculo(dispositivoId: String): String? = null
 }
 
 /** Fábrica da implementação de [BleClient] para a plataforma corrente (retorna null em Desktop/Web). */

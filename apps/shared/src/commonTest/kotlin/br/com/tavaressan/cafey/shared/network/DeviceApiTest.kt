@@ -160,4 +160,43 @@ class DeviceApiTest {
         assertTrue(error is ApiError.Http)
         assertEquals(404, error.status)
     }
+
+    @Test
+    fun diagnostico_sucesso_retornaPainel() = runTest {
+        val engine = MockEngine { request ->
+            assertEquals(HttpMethod.Get, request.method)
+            assertEquals("/dispositivos/dev-1/diagnostico", request.url.encodedPath)
+            respond(
+                content = """
+                    {
+                        "dispositivoId":"dev-1",
+                        "online":true,
+                        "ultimoVisto":"2026-11-09T12:00:00Z",
+                        "estado":"PREPARANDO",
+                        "rssi":-58,
+                        "firmware":"2.0.1",
+                        "uptimeS":7200,
+                        "versaoAgendamentos":3,
+                        "estadoRele":null,
+                        "errosRecentes":[{"eventoId":"e1","timestamp":"2026-11-09T11:59:00Z","origem":"APP","detalheErro":"falha"}],
+                        "atualizadoEm":"2026-11-09T12:00:00Z"
+                    }
+                """.trimIndent(),
+                status = HttpStatusCode.OK,
+                headers = jsonHeaders,
+            )
+        }
+        val httpClient = HttpClient(engine, sharedHttpClientConfig("https://api.cafey.test", tokenStorage))
+        val api = DeviceApi(ApiClient("https://api.cafey.test", tokenStorage, httpClient))
+
+        val diag = api.diagnostico("dev-1")
+        assertEquals("dev-1", diag.dispositivoId)
+        assertEquals(true, diag.online)
+        assertEquals(-58, diag.rssi)
+        assertEquals("2.0.1", diag.firmware)
+        assertEquals(7200L, diag.uptimeS)
+        assertEquals(3, diag.versaoAgendamentos)
+        assertEquals(null, diag.estadoRele)
+        assertEquals(1, diag.errosRecentes.size)
+    }
 }

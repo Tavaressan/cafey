@@ -42,7 +42,14 @@ data class CriarDispositivoRequest(
 
     /** Serial lido da placa no cadastro por BLE. Quando presente, vincula a placa em vez de criar outra. */
     @field:Pattern(regexp = UUID_CANONICO, message = "Serial da cafeteira inválido")
-    val serial: String? = null
+    val serial: String? = null,
+
+    /**
+     * Código de uso único lido da placa por BLE durante a janela de vínculo (FW-24, #275).
+     * Obrigatório apenas quando a placa ainda não tem proprietário.
+     */
+    @field:Pattern(regexp = "\\d{6}", message = "Código de vínculo deve ter 6 dígitos")
+    val codigoVinculo: String? = null
 )
 
 data class AtualizarDispositivoRequest(
@@ -92,4 +99,26 @@ data class CompartilhamentoResponse(
     val email: String,
     val papel: PapelDispositivo,
     val compartilhadoEm: Instant
+)
+
+data class ErroRecenteDiagnosticoResponse(
+    val eventoId: String,
+    val timestamp: Instant,
+    val origem: String,
+    val detalheErro: String?
+)
+
+data class DiagnosticoDispositivoResponse(
+    val dispositivoId: UUID,
+    val online: Boolean,
+    val ultimoVisto: Instant?,
+    val estado: String,
+    val rssi: Int?,
+    val firmware: String?,
+    val uptimeS: Long?,
+    val versaoAgendamentos: Int,
+    /** Estado do relé publicado pelo firmware; `null` quando indisponível (issue #321). */
+    val estadoRele: String?,
+    val errosRecentes: List<ErroRecenteDiagnosticoResponse>,
+    val atualizadoEm: Instant
 )

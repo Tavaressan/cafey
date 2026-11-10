@@ -264,4 +264,57 @@ class DispositivoValidacaoControllerTest @Autowired constructor(
         criar("""{"nome":"Minha","serial":"84:1F:E8:69:97:1C"}""")
             .expectValidationFailed("serial", "Serial da cafeteira inválido")
     }
+
+    @Test
+    fun `POST com codigo de vinculo fora do formato deve responder 400`() {
+        criar("""{"nome":"Minha","serial":"${dispositivo.id}","codigoVinculo":"12ab"}""")
+            .expectValidationFailed("codigoVinculo", "Código de vínculo deve ter 6 dígitos")
+    }
+
+    @Test
+    fun `POST com serial sem codigo em placa sem dono deve responder 400`() {
+        val semDono = dispositivoRepository.save(Dispositivo(nome = "Cafeteira Nova", duracaoPreparoS = 300))
+        try {
+            criar("""{"nome":"Minha","serial":"${semDono.id}"}""")
+                .andExpect(status().isBadRequest)
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(
+                    jsonPath("$.detail").value(
+                        "Código de vínculo inválido ou expirado. Abra a janela de vínculo na cafeteira " +
+                            "(toque longo no botão) e leia o código pelo app antes de cadastrar."
+                    )
+                )
+
+            assertEquals(0, usuarioDispositivoRepository.findByDispositivoId(semDono.id!!).size)
+        } finally {
+            dispositivoRepository.delete(semDono)
+        }
+    }
+
+    @Test
+    fun `POST com serial e codigo valido vincula placa sem dono e apaga o codigo`() {
+        val semDono = dispositivoRepository.save(
+            Dispositivo(
+                nome = "Cafeteira Nova",
+                duracaoPreparoS = 300,
+                codigoVinculo = "123456",
+                codigoVinculoExpiraEm = java.time.Instant.now().plusSeconds(120)
+            )
+        )
+        try {
+            criar("""{"nome":"Minha","serial":"${semDono.id}","codigoVinculo":"123456"}""")
+                .andExpect(status().isCreated)
+                .andExpect(jsonPath("$.id").value(semDono.id.toString()))
+
+            val atualizado = dispositivoRepository.findById(semDono.id!!).orElseThrow()
+            assertEquals(null, atualizado.codigoVinculo)
+            assertEquals(null, atualizado.codigoVinculoExpiraEm)
+            assertEquals(1, usuarioDispositivoRepository.findByDispositivoId(semDono.id!!).size)
+        } finally {
+            usuarioDispositivoRepository.findByDispositivoId(semDono.id!!).forEach {
+                usuarioDispositivoRepository.delete(it)
+            }
+            dispositivoRepository.delete(semDono)
+        }
+    }
 }
