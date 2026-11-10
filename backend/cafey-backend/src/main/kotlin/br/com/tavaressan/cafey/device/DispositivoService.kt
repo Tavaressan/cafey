@@ -89,7 +89,7 @@ class DispositivoService(
         val usuario = usuarioRepository.findById(usuarioId).orElseThrow {
             ResourceNotFoundException("Usuário não encontrado")
         }
-        request.serial?.let { return vincularPorSerial(UUID.fromString(it), usuario, request.codigoVinculo) }
+        request.serial?.let { return vincularPorSerial(UUID.fromString(it), usuario, request) }
 
         val salvo = dispositivoRepository.save(dispositivoMapper.toEntity(request))
 
@@ -113,11 +113,7 @@ class DispositivoService(
      * apagado após o primeiro uso. Recadastro pelo mesmo dono continua idempotente e sem código,
      * preservando o comportamento do #266.
      */
-    private fun vincularPorSerial(
-        dispositivoId: UUID,
-        usuario: Usuario,
-        codigoVinculo: String?
-    ): DispositivoResponse {
+    private fun vincularPorSerial(dispositivoId: UUID, usuario: Usuario, request: CriarDispositivoRequest): DispositivoResponse {
         val dispositivo = dispositivoRepository.findById(dispositivoId).orElseThrow {
             ResourceNotFoundException("Cafeteira não reconhecida pelo servidor. Confira se ela foi registrada antes do cadastro.")
         }
@@ -125,7 +121,9 @@ class DispositivoService(
             .find { it.papel == PapelDispositivo.PROPRIETARIO }
 
         if (proprietario == null) {
-            validarCodigoVinculo(dispositivo, codigoVinculo)
+            validarCodigoVinculo(dispositivo, request.codigoVinculo)
+            dispositivo.nome = request.nome.trim()
+            dispositivo.atualizadoEm = Instant.now()
             usuarioDispositivoRepository.save(
                 UsuarioDispositivo(usuario = usuario, dispositivo = dispositivo, papel = PapelDispositivo.PROPRIETARIO)
             )

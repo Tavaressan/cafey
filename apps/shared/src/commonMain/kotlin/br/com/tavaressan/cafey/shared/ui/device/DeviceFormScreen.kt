@@ -44,6 +44,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
+import br.com.tavaressan.cafey.shared.domain.model.PapelDispositivo
 import br.com.tavaressan.cafey.shared.domain.validation.FieldError
 import br.com.tavaressan.cafey.shared.ui.auth.fieldErrorMessage
 import br.com.tavaressan.cafey.shared.ui.ble.BlePermissionStatus
@@ -365,9 +366,22 @@ private fun ConfirmRegisterStep(
     onNomeChange: (String) -> Unit,
     onSave: () -> Unit,
 ) {
-    Text("Cafeteira Conectada!", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
+    val isReprovision = state.isWifiReprovisioning || state.existingDevice != null
     Text(
-        "A cafeteira foi conectada com sucesso ao Wi-Fi! Defina um nome para identificá-la no aplicativo.",
+        if (isReprovision) "Wi-Fi atualizado" else "Cafeteira Conectada!",
+        style = CafeyTheme.typography.screenTitle,
+        color = CafeyTheme.colors.ink,
+    )
+    Text(
+        if (isReprovision) {
+            if (state.existingDevice?.papel == PapelDispositivo.CONVIDADO) {
+                "A cafeteira já está cadastrada nesta conta como convidado. O nome não pode ser alterado."
+            } else {
+                "Wi-Fi atualizado com sucesso! Você pode editar o nome da cafeteira se quiser."
+            }
+        } else {
+            "A cafeteira foi conectada com sucesso ao Wi-Fi! Defina um nome para identificá-la no aplicativo."
+        },
         style = CafeyTheme.typography.bodySmall,
         color = CafeyTheme.colors.muted,
         modifier = Modifier.padding(top = 8.dp),
@@ -386,20 +400,34 @@ private fun ConfirmRegisterStep(
         }
     }
 
-    Text(
-        "Antes de concluir, segure o botão da cafeteira por 5 segundos até o LED azul piscar. " +
-            "O app lê o código de vínculo nesse momento; a janela fica aberta por cerca de 2 minutos.",
-        style = CafeyTheme.typography.bodySmall,
-        color = CafeyTheme.colors.muted,
-        modifier = Modifier.padding(top = 12.dp),
-    )
+    if (!state.isWifiReprovisioning) {
+        Text(
+            "Antes de concluir, segure o botão da cafeteira por 5 segundos até o LED azul piscar. " +
+                "O app lê o código de vínculo nesse momento; a janela fica aberta por cerca de 2 minutos.",
+            style = CafeyTheme.typography.bodySmall,
+            color = CafeyTheme.colors.muted,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+    }
 
-    DeviceTextField(
-        value = state.nome,
-        onValueChange = onNomeChange,
-        label = "Nome da cafeteira (ex.: Cozinha)",
-        error = state.errors.nome,
-    )
+    if (state.nomeEditavel) {
+        DeviceTextField(
+            value = state.nome,
+            onValueChange = onNomeChange,
+            label = "Nome da cafeteira (ex.: Cozinha)",
+            error = state.errors.nome,
+        )
+    } else {
+        OutlinedTextField(
+            value = state.nome,
+            onValueChange = {},
+            label = { Text("Nome da cafeteira (ex.: Cozinha)") },
+            singleLine = true,
+            enabled = false,
+            colors = OutlinedTextFieldDefaults.colors(disabledBorderColor = CafeyTheme.colors.muted, disabledTextColor = CafeyTheme.colors.ink),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        )
+    }
 
     state.errorMessage?.let {
         Text(it, color = CafeyTheme.colors.brandDeep, modifier = Modifier.padding(top = 12.dp))
@@ -415,7 +443,7 @@ private fun ConfirmRegisterStep(
         if (state.saving) {
             CircularProgressIndicator(modifier = Modifier.size(18.dp), color = CafeyTheme.colors.brandOn)
         } else {
-            Text("Concluir Cadastro")
+            Text(if (isReprovision) "Concluir" else "Concluir Cadastro")
         }
     }
 }
@@ -506,7 +534,9 @@ private fun ManualFormStep(
     }
 
     if (!isCreate) {
-        DeviceGuestsSection(deviceId = state.deviceId!!)
+        state.deviceId?.let { deviceId ->
+            DeviceGuestsSection(deviceId = deviceId)
+        }
     }
 
     if (!isCreate) {

@@ -8,6 +8,8 @@ import br.com.tavaressan.cafey.shared.ble.DispositivoInfo
 import br.com.tavaressan.cafey.shared.ble.WifiProvisionState
 import br.com.tavaressan.cafey.shared.domain.model.AtualizarDispositivoRequest
 import br.com.tavaressan.cafey.shared.domain.model.CriarDispositivoRequest
+import br.com.tavaressan.cafey.shared.domain.model.DispositivoResponse
+import br.com.tavaressan.cafey.shared.domain.model.PapelDispositivo
 import br.com.tavaressan.cafey.shared.domain.validation.DeviceFormErrors
 import br.com.tavaressan.cafey.shared.network.ApiError
 import br.com.tavaressan.cafey.shared.network.DeviceApi
@@ -70,6 +72,11 @@ data class DeviceFormUiState(
     val wifiPasswordVisible: Boolean = false,
     val wifiConnecting: Boolean = false,
     val wifiStatusMessage: String? = null,
+
+    val existingDevice: DispositivoResponse? = null,
+    val originalNome: String = "",
+    val isWifiReprovisioning: Boolean = false,
+    val nomeEditavel: Boolean = true,
 )
 
 /** Formulário de dispositivo: cadastro assistido por BLE (UC-04 #249), manual (APP-13) e edição/exclusão. */
@@ -245,16 +252,47 @@ class DeviceFormViewModel(
                         _uiState.update { it.copy(wifiStatusMessage = "Conectando à rede Wi-Fi...") }
                     }
                     WifiProvisionState.CONNECTED -> {
+                        val serial = state.deviceInfo?.serial
                         val defaultName = state.selectedDevice?.nome?.ifBlank {
-                            state.deviceInfo?.serial ?: "Cafeteira"
+                            serial ?: "Cafeteira"
                         } ?: "Cafeteira"
-                        _uiState.update {
-                            it.copy(
+                        _uiState.update { current ->
+                            val nomeFinal = if (current.nome.isBlank()) defaultName else current.nome
+                            current.copy(
                                 wifiConnecting = false,
                                 step = DeviceFormStep.CONFIRM_REGISTER,
-                                nome = if (it.nome.isBlank()) defaultName else it.nome,
+                                existingDevice = null,
+                                nome = nomeFinal,
+                                originalNome = if (current.originalNome.isBlank()) nomeFinal else current.originalNome,
+                                isWifiReprovisioning = false,
+                                nomeEditavel = true,
                                 wifiStatusMessage = "Wi-Fi conectado com sucesso!",
                             )
+                        }
+                        if (serial != null) {
+                            scope.launch {
+                                try {
+                                    val devices = deviceApi.listar()
+                                    val found = devices.firstOrNull { it.id == serial }
+                                    if (found != null) {
+                                        val isGuest = found.papel == PapelDispositivo.CONVIDADO
+                                        _uiState.update { current ->
+                                            if (current.existingDevice != null) return@update current
+                                            val shouldUpdateNome = current.nome.isBlank() || current.nome == state.selectedDevice?.nome?.ifBlank { state.deviceInfo?.serial } || current.nome == (state.deviceInfo?.serial ?: "")
+                                            current.copy(
+                                                existingDevice = found,
+                                                nome = if (shouldUpdateNome) found.nome else current.nome,
+                                                originalNome = found.nome,
+                                                isWifiReprovisioning = true,
+                                                nomeEditavel = !isGuest,
+                                                wifiStatusMessage = "Wi-Fi atualizado com sucesso!",
+                                            )
+                                        }
+                                    }
+                                } catch (e: Throwable) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
+                                }
+                            }
                         }
                     }
                     WifiProvisionState.AUTH_FAILED -> {
@@ -344,28 +382,95 @@ class DeviceFormViewModel(
 
     /** Botão "Gravar": cadastra ou atualiza, conforme [DeviceFormUiState.deviceId]. */
     fun save() {
-        val state = _uiState.value
-        val errors = DeviceFormErrors.validate(state.nome, state.duracaoPreparoS, state.limiarDescalcificacao)
+        val stateInit = _uiState.value
+        val errors = DeviceFormErrors.validate(stateInit.nome, stateInit.duracaoPreparoS, stateInit.limiarDescalcificacao)
         _uiState.update { it.copy(errors = errors) }
         if (!errors.isValid) return
 
-        val timezone = state.timezone.trim().ifEmpty { null }
-        val duracaoPreparoS = state.duracaoPreparoS.trim().toIntOrNull()
-        val limiarDescalcificacao = state.limiarDescalcificacao.trim().toIntOrNull()
+        val timezoneInit = stateInit.timezone.trim().ifEmpty { null }
+        val duracaoPreparoSInit = stateInit.duracaoPreparoS.trim().toIntOrNull()
+        val limiarDescalcificacaoInit = stateInit.limiarDescalcificacao.trim().toIntOrNull()
 
         _uiState.update { it.copy(saving = true, errorMessage = null) }
         scope.launch {
             try {
-                if (state.deviceId == null) {
+                val current = _uiState.value
+                val timezone = current.timezone.trim().ifEmpty { null }
+                val duracaoPreparoS = current.duracaoPreparoS.trim().toIntOrNull()
+                val limiarDescalcificacao = current.limiarDescalcificacao.trim().toIntOrNull()
+
+                if (current.deviceId != null) {
+                    deviceApi.atualizar(
+                        current.deviceId,
+                        AtualizarDispositivoRequest(current.nome, timezone, duracaoPreparoS, limiarDescalcificacao),
+                    )
+                    _uiState.update { it.copy(saving = false, success = true) }
+                    return@launch
+                }
+
+                if (current.step == DeviceFormStep.CONFIRM_REGISTER) {
+                    var currentState = _uiState.value
+                    var existing = currentState.existingDevice
+                    val serial = currentState.deviceInfo?.serial
+                    if (serial != null) {
+                        try {
+                            val devices = deviceApi.listar()
+                            val found = devices.firstOrNull { it.id == serial }
+                            if (found != null) {
+                                existing = found
+                                _uiState.update { state ->
+                                    state.copy(
+                                        existingDevice = found,
+                                        isWifiReprovisioning = true,
+                                        nomeEditavel = found.papel != PapelDispositivo.CONVIDADO,
+                                        originalNome = found.nome,
+                                    )
+                                }
+                                currentState = _uiState.value
+                            }
+                        } catch (e: Throwable) {
+                            // ignore
+                        }
+                    }
+                    if (existing != null || currentState.existingDevice != null) {
+                        val ex = existing ?: currentState.existingDevice!!
+                        if (ex.papel == PapelDispositivo.CONVIDADO) {
+                            // Convidado vê o nome, mas não pode editá-lo
+                            _uiState.update { it.copy(saving = false, success = true, nome = ex.nome) }
+                            return@launch
+                        }
+                        if (ex.papel == PapelDispositivo.PROPRIETARIO) {
+                            val nomeAtual = currentState.nome
+                            val serialInfo = currentState.deviceInfo?.serial
+                            val nomePadraoBle = currentState.selectedDevice?.nome?.ifBlank { serialInfo ?: "Cafeteira" }
+                                ?: serialInfo ?: "Cafeteira"
+                            // Se o usuário não alterou o nome padrão do BLE, mantém o nome já cadastrado.
+                            val nomeParaSalvar = if (nomeAtual.isBlank() || nomeAtual == nomePadraoBle) ex.nome else nomeAtual
+                            if (nomeParaSalvar == ex.nome) {
+                                _uiState.update { it.copy(saving = false, success = true, nome = ex.nome) }
+                                return@launch
+                            }
+                            try {
+                                deviceApi.atualizar(
+                                    ex.id,
+                                    AtualizarDispositivoRequest(nomeParaSalvar, timezone, duracaoPreparoS, limiarDescalcificacao),
+                                )
+                                _uiState.update { it.copy(saving = false, success = true, nome = nomeParaSalvar) }
+                            } catch (e: ApiError) {
+                                _uiState.update { it.copy(saving = false, errorMessage = e.message) }
+                            }
+                            return@launch
+                        }
+                    }
                     // Só o cadastro por BLE manda o serial: é ele que liga o registro à thing da placa.
-                    val serial = state.deviceInfo?.serial?.takeIf { state.step == DeviceFormStep.CONFIRM_REGISTER }
+                    val serialToSend = currentState.deviceInfo?.serial?.takeIf { currentState.step == DeviceFormStep.CONFIRM_REGISTER }
                     // O código é lido no momento de gravar: a janela é curta (~2 min) e o backend
                     // rejeita código expirado. Falha de leitura e janela fechada têm a mesma ação.
-                    val codigoVinculo = if (serial == null) {
+                    val codigoVinculo = if (serialToSend == null) {
                         null
                     } else {
                         val codigo = try {
-                            bleClient?.lerCodigoVinculo(state.selectedDevice?.id ?: serial)
+                            bleClient?.lerCodigoVinculo(currentState.selectedDevice?.id ?: serialToSend)
                         } catch (_: Throwable) {
                             null
                         }
@@ -375,15 +480,31 @@ class DeviceFormViewModel(
                         }
                         codigo
                     }
-                    deviceApi.criar(
-                        CriarDispositivoRequest(state.nome, timezone, duracaoPreparoS, limiarDescalcificacao, serial, codigoVinculo)
-                    )
-                } else {
-                    deviceApi.atualizar(
-                        state.deviceId,
-                        AtualizarDispositivoRequest(state.nome, timezone, duracaoPreparoS, limiarDescalcificacao),
-                    )
+                    try {
+                        deviceApi.criar(
+                            CriarDispositivoRequest(
+                                currentState.nome, timezone, duracaoPreparoS, limiarDescalcificacao, serialToSend, codigoVinculo,
+                            )
+                        )
+                        _uiState.update { it.copy(saving = false, success = true) }
+                    } catch (e: ApiError) {
+                        if (e.message?.contains("pertence a outra conta") == true || e.message?.contains("outra conta") == true) {
+                            _uiState.update {
+                                it.copy(
+                                    saving = false,
+                                    errorMessage = "Esta cafeteira já pertence a outra conta.",
+                                )
+                            }
+                        } else {
+                            _uiState.update { it.copy(saving = false, errorMessage = e.message) }
+                        }
+                    }
+                    return@launch
                 }
+
+                deviceApi.criar(
+                    CriarDispositivoRequest(current.nome, timezone, duracaoPreparoS, limiarDescalcificacao, null)
+                )
                 _uiState.update { it.copy(saving = false, success = true) }
             } catch (e: ApiError) {
                 _uiState.update { it.copy(saving = false, errorMessage = e.message) }
