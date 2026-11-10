@@ -31,6 +31,11 @@ class JwtTokenService(
     environment: Environment = StandardEnvironment()
 ) {
 
+    companion object {
+        const val MFA_PURPOSE_CLAIM = "purpose"
+        const val MFA_CHALLENGE_PURPOSE = "mfa_challenge"
+    }
+
     private val logger = LoggerFactory.getLogger(JwtTokenService::class.java)
 
     private val keyPair: KeyPair = resolveKeyPair(keyProperties, environment)
@@ -54,6 +59,36 @@ class JwtTokenService(
 
         return encoder.encode(JwtEncoderParameters.from(claims)).tokenValue
     }
+
+    /** Token de desafio MFA (issue #260): curta duração, não pode ser usado como access token Bearer. */
+    fun generateMfaChallengeToken(usuarioId: UUID): String {
+        val now = Instant.now()
+        val claims = JwtClaimsSet.builder()
+            .issuer("cafey-backend")
+            .issuedAt(now)
+            .expiresAt(now.plus(5, ChronoUnit.MINUTES))
+            .subject(usuarioId.toString())
+            .claim(MFA_PURPOSE_CLAIM, MFA_CHALLENGE_PURPOSE)
+            .build()
+        return encoder.encode(JwtEncoderParameters.from(claims)).tokenValue
+    }
+
+    /** Valida um token de desafio MFA e devolve o id do usuário. */
+    fun extrairUsuarioIdDeDesafioMfa(token: String): UUID {
+        val jwt = try {
+            validarToken(token)
+        } catch (ex: JwtException) {
+            throw JwtException("Token de desafio MFA inválido ou expirado", ex)
+        }
+        val purpose = jwt.getClaim<String>(MFA_PURPOSE_CLAIM)
+        if (purpose != MFA_CHALLENGE_PURPOSE) {
+            throw JwtException("Token de desafio MFA inválido")
+        }
+        return extrairUsuarioId(jwt)
+    }
+
+    fun isMfaChallengeToken(jwt: Jwt): Boolean =
+        jwt.getClaim<String>(MFA_PURPOSE_CLAIM) == MFA_CHALLENGE_PURPOSE
 
     /**
      * Valida assinatura e expiração do [token] e devolve o [Jwt]. Toda a validação passa pelo

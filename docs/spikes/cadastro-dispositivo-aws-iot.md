@@ -191,11 +191,26 @@ rotação (fora do escopo deste spike).
    - Comando de console que gera ECC P-256 e imprime o CSR.
    - Script CLI: `create-thing` (UUID) + `create-certificate-from-csr` + `attach-*` + imagem NVS
      sem chave + registro no inventário.
-4. **BE+FW+INFRA — Janela de vínculo por botão e código de uso único (Fase 2, V3).**
-   - Tópico `dispositivos/<thing>/vinculo` e versão nova das duas políticas: liberar versões
-     antigas pelo console antes.
-   - Inventário com estado `fabricado/vinculado` e endpoint de vínculo com TTL (prazo de
-     validade do código).
+4. **BE+FW+INFRA — Janela de vínculo por botão e código de uso único (Fase 2, V3).
+   Implementada parcialmente em 06/11/2026 (FW-24, #275).**
+   - **Firmware:** toque longo (~5 s) abre a janela de ~2 min com LED azul piscando; toque curto
+     continua alternando o preparo. O código de 6 dígitos vai para
+     `dispositivos/<thing>/vinculo` (QoS 1, **sem retain**) e para a característica BLE de leitura
+     `6b3d000a-…`, como `{"codigo":"NNNNNN"}`; ao fechar, vira `{"codigo":null}`.
+   - **Backend:** assina `dispositivos/+/vinculo` e grava o código em `dispositivos.codigo_vinculo`
+     com `codigo_vinculo_expira_em` calculado no recebimento (120 s, migration V10). `POST
+     /dispositivos` com `serial` de placa sem dono exige `codigoVinculo` e apaga o código após o
+     uso; código ausente/errado/expirado responde 400 com mensagem acionável.
+   - **App:** lê o código por BLE ao concluir o cadastro e instrui a abrir a janela quando ela está
+     fechada.
+   - **Políticas:** versões novas de `cafey-device-policy` (publish em `.../vinculo`) e
+     `cafey-backend-policy` (subscribe em `dispositivos/+/vinculo`) nos arquivos do repositório.
+     A liberação das versões antigas na AWS e a publicação continuam **manuais pelo console**
+     (procedimento no runbook `docs/docs_arquitetura/aws-iot-core-provisioning.md`).
+   - **Pendências conhecidas:** não há inventário `fabricado/vinculado` (o código vive na própria
+     linha do dispositivo); excluir o dispositivo apaga o registro, então o recadastro posterior
+     responde 404 e exige reprovisionar a placa; o BLE continua em claro (#276), risco aceito
+     porque o código é de uso único e expira rápido.
 5. **FW+APP — Canal BLE criptografado (Fase 2).**
    - `wifi_provisioning` com Security 2 ou pareamento LESC.
    - A senha do Wi-Fi deixa de trafegar em claro.

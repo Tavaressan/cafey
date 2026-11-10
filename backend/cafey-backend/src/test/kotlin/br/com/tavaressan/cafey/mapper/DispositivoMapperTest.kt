@@ -104,6 +104,8 @@ class DispositivoMapperTest {
             atualizadoEm = atualizadoEm
         )
 
+        val preparoIniciadoEm = Instant.parse("2026-10-13T09:55:00Z")
+        entity.preparoIniciadoEm = preparoIniciadoEm
         val response = mapper.toResponse(entity, PapelDispositivo.CONVIDADO)
 
         assertEquals(id, response.id)
@@ -112,6 +114,7 @@ class DispositivoMapperTest {
         assertEquals("PREPARANDO", response.estado)
         assertTrue(response.online)
         assertEquals(ultimoVisto, response.ultimoVisto)
+        assertEquals(preparoIniciadoEm, response.preparoIniciadoEm)
         assertEquals(4, response.versaoAgendamentos)
         assertEquals(240, response.duracaoPreparoS)
         assertEquals(150, response.limiarDescalcificacao)
@@ -122,9 +125,11 @@ class DispositivoMapperTest {
     }
 
     @Test
-    fun `toResponse mantem ultimoVisto nulo`() {
+    fun `toResponse mantem ultimoVisto e preparoIniciadoEm nulos`() {
         val entity = Dispositivo(id = UUID.randomUUID(), nome = "Cafeteira")
 
-        assertNull(mapper.toResponse(entity, PapelDispositivo.PROPRIETARIO).ultimoVisto)
+        val response = mapper.toResponse(entity, PapelDispositivo.PROPRIETARIO)
+        assertNull(response.ultimoVisto)
+        assertNull(response.preparoIniciadoEm)
     }
 }

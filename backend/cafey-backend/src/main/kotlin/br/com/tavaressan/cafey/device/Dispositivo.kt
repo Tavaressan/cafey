@@ -26,6 +26,10 @@ class Dispositivo(
     @Column(name = "ultimo_visto")
     var ultimoVisto: Instant? = null,
 
+    /** Início do preparo em andamento (estado PREPARANDO), vindo do `desde` do payload MQTT. */
+    @Column(name = "preparo_iniciado_em")
+    var preparoIniciadoEm: Instant? = null,
+
     @Column(name = "versao_agendamentos", nullable = false)
     var versaoAgendamentos: Int = 1,
 
@@ -37,6 +41,23 @@ class Dispositivo(
 
     @Column(name = "contador_preparos", nullable = false)
     var contadorPreparos: Int = 0,
+
+    @Column(name = "rssi")
+    var rssi: Int? = null,
+
+    @Column(name = "uptime_s")
+    var uptimeS: Long? = null,
+
+    @Column(name = "firmware", length = 100)
+    var firmware: String? = null,
+
+    /** Código de uso único publicado pela placa na janela de vínculo (FW-24, #275). */
+    @Column(name = "codigo_vinculo", length = 16)
+    var codigoVinculo: String? = null,
+
+    /** Prazo do código, calculado pelo backend no recebimento do MQTT. */
+    @Column(name = "codigo_vinculo_expira_em")
+    var codigoVinculoExpiraEm: Instant? = null,
 
     @Column(name = "criado_em", nullable = false, updatable = false)
     var criadoEm: Instant = Instant.now(),

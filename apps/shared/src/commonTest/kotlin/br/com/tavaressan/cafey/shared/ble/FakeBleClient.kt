@@ -22,6 +22,9 @@ class FakeBleClient(
     ),
     var erroAoLerInfo: Throwable? = null,
     var erroAoProvisionar: Throwable? = null,
+    /** Código da janela de vínculo lido por BLE (FW-24, #275); `null` simula janela fechada. */
+    var codigoVinculoRetorno: String? = "123456",
+    var erroAoLerCodigoVinculo: Throwable? = null,
     /** Simula a notificação final que nunca chega: o fluxo fica aberto após os status. */
     var manterProvisionamentoAberto: Boolean = false,
     var redesWifiRetorno: WifiNetworksInfo = WifiNetworksInfo(),
@@ -52,6 +55,12 @@ class FakeBleClient(
         if (falharAoConectar) throw BleError.BaseNaoEncontrada
         erroAoLerInfo?.let { throw it }
         return infoDispositivoRetorno
+    }
+
+    override suspend fun lerCodigoVinculo(dispositivoId: String): String? {
+        if (falharAoConectar) throw BleError.BaseNaoEncontrada
+        erroAoLerCodigoVinculo?.let { throw it }
+        return codigoVinculoRetorno
     }
 
     override suspend fun provisionarWifi(

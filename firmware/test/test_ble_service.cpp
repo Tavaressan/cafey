@@ -62,6 +62,7 @@ static void test_registers_characteristics_and_advertises() {
     assert(server.has(BleService::kDeviceInfoUuid));
     assert(server.has(BleService::kWifiNetworksUuid));
     assert(server.has(BleService::kWifiManageUuid));
+    assert(server.has(BleService::kVinculoUuid));
 
     assert(server.props(BleService::kCommandUuid) & cafey::core::kBleWrite);
     assert(server.props(BleService::kStateUuid) & cafey::core::kBleRead);
@@ -77,6 +78,7 @@ static void test_registers_characteristics_and_advertises() {
 
     // Leitura inicial de redes (sem provider: lista vazia)
     assert(server.read(BleService::kWifiNetworksUuid) == R"({"ssid_atual":null,"redes":[]})");
+    assert(server.props(BleService::kVinculoUuid) & cafey::core::kBleRead);
 
     // Leitura inicial de DeviceInfo
     const std::string dev_info = server.read(BleService::kDeviceInfoUuid);
@@ -88,7 +90,25 @@ static void test_registers_characteristics_and_advertises() {
     const std::string wifi_status = server.read(BleService::kWifiStatusUuid);
     assert(wifi_status.find("\"state\":\"DISCONNECTED\"") != std::string::npos);
 
+    // Janela de vinculo fechada: codigo nulo.
+    assert(server.read(BleService::kVinculoUuid) == R"({"codigo":null})");
+
     std::cout << "OK: test_registers_characteristics_and_advertises\n";
+}
+
+static void test_publish_vinculo_updates_and_clears() {
+    FakeBleServer server;
+    Capture cap;
+    BleService service = make_service(server, cap);
+    service.begin("cafey-001");
+
+    assert(service.publish_vinculo("123456"));
+    assert(server.read(BleService::kVinculoUuid) == R"({"codigo":"123456"})");
+
+    assert(service.publish_vinculo(""));
+    assert(server.read(BleService::kVinculoUuid) == R"({"codigo":null})");
+
+    std::cout << "OK: test_publish_vinculo_updates_and_clears\n";
 }
 
 static void test_command_write_routes_to_domain_handler() {
@@ -335,6 +355,7 @@ int main() {
     test_wifi_manage_forget_one_with_guard();
     test_wifi_manage_forget_all_with_guard();
     test_wifi_manage_invalid_payloads();
+    test_publish_vinculo_updates_and_clears();
     std::cout << "Todos os testes de BleService passaram.\n";
     return 0;
 }

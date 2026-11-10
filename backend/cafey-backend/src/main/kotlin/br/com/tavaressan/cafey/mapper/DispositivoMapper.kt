@@ -43,6 +43,7 @@ class DispositivoMapper {
             contadorPreparos = entity.contadorPreparos,
             papel = papel,
             criadoEm = entity.criadoEm,
-            atualizadoEm = entity.atualizadoEm
+            atualizadoEm = entity.atualizadoEm,
+            preparoIniciadoEm = entity.preparoIniciadoEm
         )
 }

@@ -16,8 +16,11 @@ object BleUuids {
     const val PENDING_EVENTS = "6b3d0008-0b0b-4a3a-9c0e-cafe1a000000"
     const val CONFIRM_EVENTS = "6b3d0009-0b0b-4a3a-9c0e-cafe1a000000"
     // FW-30 (#332): redes salvas (leitura, sem senhas) e gerenciamento (escrita).
-    const val WIFI_NETWORKS = "6b3d000a-0b0b-4a3a-9c0e-cafe1a000000"
-    const val WIFI_MANAGE = "6b3d000b-0b0b-4a3a-9c0e-cafe1a000000"
+    const val WIFI_NETWORKS = "6b3d000b-0b0b-4a3a-9c0e-cafe1a000000"
+    const val WIFI_MANAGE = "6b3d000c-0b0b-4a3a-9c0e-cafe1a000000"
+
+    /** Código de uso único da janela de vínculo aberta pelo toque longo (FW-24, #275). */
+    const val VINCULO = "6b3d000a-0b0b-4a3a-9c0e-cafe1a000000"
 }
 
 /**
@@ -78,6 +81,15 @@ data class WifiNetworksInfo(
 data class WifiManagePayload(
     val acao: String,
     val ssid: String? = null,
+)
+
+/**
+ * Payload da característica kVinculoUuid (FW-24, #275). `codigo` é `null` quando a
+ * janela de vínculo está fechada.
+ */
+@Serializable
+data class CodigoVinculoPayload(
+    val codigo: String? = null,
 )
 
 /**

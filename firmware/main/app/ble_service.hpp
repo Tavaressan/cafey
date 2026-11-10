@@ -44,8 +44,11 @@ public:
     static constexpr const char* kWifiStatusUuid = "6b3d0006-0b0b-4a3a-9c0e-cafe1a000000";
     static constexpr const char* kDeviceInfoUuid = "6b3d0007-0b0b-4a3a-9c0e-cafe1a000000";
     // FW-30 (#332): gerenciamento de redes Wi-Fi (listagem e exclusao). 0008/0009 = eventos.
-    static constexpr const char* kWifiNetworksUuid = "6b3d000a-0b0b-4a3a-9c0e-cafe1a000000";
-    static constexpr const char* kWifiManageUuid = "6b3d000b-0b0b-4a3a-9c0e-cafe1a000000";
+    static constexpr const char* kWifiNetworksUuid = "6b3d000b-0b0b-4a3a-9c0e-cafe1a000000";
+    static constexpr const char* kWifiManageUuid = "6b3d000c-0b0b-4a3a-9c0e-cafe1a000000";
+
+    // Codigo de uso unico da janela de vinculo aberta pelo toque longo (FW-24, #275).
+    static constexpr const char* kVinculoUuid = "6b3d000a-0b0b-4a3a-9c0e-cafe1a000000";
 
     // Limite alinhado a Agendador::kMaxSchedules / ScheduleStore::kMaxSchedules.
     static constexpr size_t kMaxSchedules = 16;
@@ -118,6 +121,7 @@ public:
         server_.add_characteristic(
             kWifiManageUuid, cafey::core::kBleWrite,
             [this](const std::string& value) { handle_wifi_manage_write(value); });
+        server_.add_characteristic(kVinculoUuid, cafey::core::kBleRead, nullptr);
 
         bool ok = server_.start(device_name);
         if (ok) {
@@ -126,10 +130,22 @@ public:
                                     "\",\"firmware\":\"" + device_info_.firmware +
                                     "\",\"model\":\"" + device_info_.model + "\"}";
             server_.update_value(kDeviceInfoUuid, info_json);
+            server_.update_value(kVinculoUuid, "{\"codigo\":null}");
             publish_wifi_status("DISCONNECTED");
             publish_wifi_networks();
         }
         return ok;
+    }
+
+    /**
+     * @brief Publica o codigo da janela de vinculo (FW-24, #275) na
+     * caracteristica de leitura. String vazia limpa a caracteristica.
+     */
+    bool publish_vinculo(const std::string& codigo) {
+        const std::string json = codigo.empty()
+                                     ? "{\"codigo\":null}"
+                                     : "{\"codigo\":\"" + codigo + "\"}";
+        return server_.update_value(kVinculoUuid, json);
     }
 
     /**

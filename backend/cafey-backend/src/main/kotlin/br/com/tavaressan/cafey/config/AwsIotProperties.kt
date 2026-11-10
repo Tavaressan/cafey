@@ -22,8 +22,10 @@ class AwsIotProperties(
         const val TOPIC_ESTADO = "dispositivos/+/estado"
         const val TOPIC_EVENTOS = "dispositivos/+/eventos"
         const val TOPIC_SAUDE = "dispositivos/+/saude"
+        const val TOPIC_VINCULO = "dispositivos/+/vinculo"
 
         fun topicComando(dispositivoId: String) = "dispositivos/$dispositivoId/comando"
         fun topicAgendamentos(dispositivoId: String) = "dispositivos/$dispositivoId/agendamentos"
+        fun topicVinculo(dispositivoId: String) = "dispositivos/$dispositivoId/vinculo"
     }
 }

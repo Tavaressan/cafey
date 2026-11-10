@@ -66,4 +66,10 @@ class DeviceApi(private val apiClient: ApiClient) {
             url { path("dispositivos", id, "compartilhar", convidadoId) }
         }
     }
+
+    suspend fun diagnostico(id: String): br.com.tavaressan.cafey.shared.domain.model.DiagnosticoDispositivoResponse =
+        apiClient.http.apiRequest {
+            method = HttpMethod.Get
+            url { path("dispositivos", id, "diagnostico") }
+        }
 }

@@ -35,6 +35,7 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.ble.WifiNetworksInfo
+import br.com.tavaressan.cafey.shared.domain.model.DiagnosticoDispositivoResponse
 import br.com.tavaressan.cafey.shared.domain.model.DispositivoResponse
 import br.com.tavaressan.cafey.shared.domain.model.PapelDispositivo
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyLogo
@@ -45,6 +46,7 @@ fun BaseScreen(
     onGoToAccount: () -> Unit = {},
     onEditDevice: (String) -> Unit = {},
     onRegisterDevice: () -> Unit = {},
+    onViewTutorial: () -> Unit = {},
 ) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<BaseViewModel>(
@@ -67,6 +69,8 @@ fun BaseScreen(
     BaseContent(
         loading = state.loading,
         device = state.device,
+        diagnostico = state.diagnostico,
+        diagnosticoRestrito = state.diagnosticoRestrito,
         darkTheme = state.darkTheme,
         errorMessage = state.errorMessage,
         wifiRedes = state.wifiRedes,
@@ -84,6 +88,7 @@ fun BaseScreen(
         onSolicitarEsquecerTodas = viewModel::solicitarEsquecerTodas,
         onCancelarConfirmacao = viewModel::cancelarConfirmacao,
         onConfirmarEsquecimento = { viewModel.confirmarEsquecimento() },
+        onViewTutorial = onViewTutorial,
     )
 }
 
@@ -112,6 +117,9 @@ internal fun BaseContent(
     onSolicitarEsquecerTodas: () -> Unit = {},
     onCancelarConfirmacao: () -> Unit = {},
     onConfirmarEsquecimento: () -> Unit = {},
+    diagnostico: DiagnosticoDispositivoResponse? = null,
+    diagnosticoRestrito: Boolean = false,
+    onViewTutorial: () -> Unit = {},
 ) {
     if (confirmarEsquecimento != null) {
         val todas = confirmarEsquecimento == CONFIRMAR_ESQUECER_TODAS
@@ -141,8 +149,11 @@ internal fun BaseContent(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground)
-            .verticalScroll(rememberScrollState()).padding(22.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .background(CafeyTheme.colors.ground)
+            .verticalScroll(rememberScrollState())
+            .padding(22.dp)
     ) {
         Text("Base da cozinha", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
         Text(
@@ -192,6 +203,10 @@ internal fun BaseContent(
                 onSolicitarEsquecerRede = onSolicitarEsquecerRede,
                 onSolicitarEsquecerTodas = onSolicitarEsquecerTodas,
             )
+
+            if (device.papel == PapelDispositivo.PROPRIETARIO) {
+                DiagnosticoCard(diagnostico = diagnostico, restrito = diagnosticoRestrito)
+            }
             Button(
                 onClick = onRegisterDevice,
                 colors = ButtonDefaults.buttonColors(containerColor = CafeyTheme.colors.brand),
@@ -213,6 +228,90 @@ internal fun BaseContent(
         OutlinedButton(onClick = onGoToAccount, modifier = Modifier.fillMaxWidth().padding(top = 14.dp)) {
             Text("Conta")
         }
+        OutlinedButton(onClick = onViewTutorial, modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+            Text("Ver tutorial")
+        }
+    }
+}
+
+/** Issue #321 — painel de diagnóstico do módulo, com valores reais ou "indisponível" explícito. */
+@Composable
+private fun DiagnosticoCard(diagnostico: DiagnosticoDispositivoResponse?, restrito: Boolean) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 14.dp)
+            .background(CafeyTheme.colors.surface, CafeyTheme.shapes.large)
+            .border(1.dp, CafeyTheme.colors.line, CafeyTheme.shapes.large)
+            .padding(18.dp),
+    ) {
+        Text("Diagnóstico do módulo", style = CafeyTheme.typography.cardTitle, color = CafeyTheme.colors.ink)
+        if (diagnostico == null) {
+            val msg = if (restrito) "Indisponível no momento." else "Carregando diagnóstico..."
+            Text(
+                msg,
+                style = CafeyTheme.typography.bodySmall,
+                color = CafeyTheme.colors.muted,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            return@Column
+        }
+
+        if (!diagnostico.online) {
+            Text(
+                "Base offline — últimos valores conhecidos em ${diagnostico.ultimoVisto ?: "indisponível"}.",
+                style = CafeyTheme.typography.bodySmall,
+                color = CafeyTheme.colors.brandDeep,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+
+        DiagnosticoItem("Conexão Wi-Fi (RSSI)", diagnostico.rssi?.let { "$it dBm" } ?: "Indisponível")
+        DiagnosticoItem("Conexão com a nuvem", if (diagnostico.online) "Online" else "Offline")
+        DiagnosticoItem("Última comunicação", diagnostico.ultimoVisto ?: "Indisponível")
+        DiagnosticoItem("Estado do módulo", diagnostico.estado.ifBlank { "Indisponível" })
+        DiagnosticoItem("Estado do relé", diagnostico.estadoRele ?: "Indisponível")
+        DiagnosticoItem("Versão do firmware", diagnostico.firmware ?: "Indisponível")
+        DiagnosticoItem("Tempo ligado (uptime)", diagnostico.uptimeS?.let { "${it}s" } ?: "Indisponível")
+        DiagnosticoItem("Versão dos agendamentos", diagnostico.versaoAgendamentos.toString())
+
+        Text(
+            "Erros recentes",
+            style = CafeyTheme.typography.bodySmall,
+            color = CafeyTheme.colors.ink,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+        if (diagnostico.errosRecentes.isEmpty()) {
+            Text("Nenhum erro recente.", style = CafeyTheme.typography.bodySmall, color = CafeyTheme.colors.muted, modifier = Modifier.padding(top = 4.dp))
+        } else {
+            diagnostico.errosRecentes.forEach { erro ->
+                val detalhe = erro.detalheErro?.let { " — $it" } ?: ""
+                Text(
+                    "${erro.timestamp} (${erro.origem})$detalhe",
+                    style = CafeyTheme.typography.bodySmall,
+                    color = CafeyTheme.colors.muted,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiagnosticoItem(rotulo: String, valor: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.Top) {
+        Text(
+            rotulo,
+            style = CafeyTheme.typography.bodySmall,
+            color = CafeyTheme.colors.muted,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            valor,
+            style = CafeyTheme.typography.bodySmall,
+            color = CafeyTheme.colors.ink,
+            modifier = Modifier.padding(start = 12.dp),
+        )
     }
 }
 
@@ -324,6 +423,9 @@ private fun WifiSection(
     }
 }
 
+/**
+ * Nome do dispositivo + estado online/offline.
+ */
 @Composable
 private fun DeviceInfoCard(nome: String, online: Boolean) {
     Row(

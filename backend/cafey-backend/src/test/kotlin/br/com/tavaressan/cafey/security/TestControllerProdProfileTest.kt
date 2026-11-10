@@ -42,6 +42,10 @@ class TestControllerProdProfileTest @Autowired constructor(
             registry.add("cafey.jwt.public-key") {
                 Base64.getEncoder().encodeToString(jwtKeyPair.public.encoded)
             }
+            // Chave AES-256 para cifra do segredo MFA (issue #260): exigida em prod, como as chaves JWT.
+            registry.add("cafey.mfa.encryption-key") {
+                Base64.getEncoder().encodeToString(ByteArray(32) { it.toByte() })
+            }
 
             // application-prod.yml exige AWS_IOT_ENDPOINT/CERTIFICATE_PATH/PRIVATE_KEY_PATH/ROOT_CA_PATH
             // sem default (INFRA-05). Sobrescrever as chaves canônicas `aws.iot.*` evita a

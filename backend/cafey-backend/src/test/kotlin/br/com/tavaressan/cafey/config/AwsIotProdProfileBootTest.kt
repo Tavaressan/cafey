@@ -30,6 +30,10 @@ class AwsIotProdProfileBootTest {
             val keyPair = keyPairGenerator.generateKeyPair()
             registry.add("cafey.jwt.private-key") { Base64.getEncoder().encodeToString(keyPair.private.encoded) }
             registry.add("cafey.jwt.public-key") { Base64.getEncoder().encodeToString(keyPair.public.encoded) }
+            // Chave AES-256 para cifra do segredo MFA (issue #260): exigida em prod, como as chaves JWT.
+            registry.add("cafey.mfa.encryption-key") {
+                Base64.getEncoder().encodeToString(ByteArray(32) { it.toByte() })
+            }
         }
     }
 
