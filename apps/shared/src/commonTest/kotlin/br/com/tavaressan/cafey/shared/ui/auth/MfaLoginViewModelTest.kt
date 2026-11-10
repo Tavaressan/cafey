@@ -56,7 +56,7 @@ class MfaLoginViewModelTest {
     }
 
     @Test
-    fun login_sem_2fa_sinaliza_sucesso() = runTest {
+    fun login_sem_2fa_sinaliza_sucesso() = runTest(testDispatcher) {
         val authApi = createAuthApi { path ->
             if (path == "/auth/login") {
                 HttpStatusCode.OK to """{"accessToken":"a1","refreshToken":"r1","tokenType":"Bearer","expiresIn":900}"""
@@ -77,7 +77,7 @@ class MfaLoginViewModelTest {
     }
 
     @Test
-    fun login_com_2fa_retorna_desafio_sem_sucesso() = runTest {
+    fun login_com_2fa_retorna_desafio_sem_sucesso() = runTest(testDispatcher) {
         val authApi = createAuthApi { path ->
             if (path == "/auth/login") {
                 HttpStatusCode.OK to """{"mfaRequerido":true,"desafioToken":"desafio.jwt","tokenType":"Bearer","expiresIn":300}"""
@@ -98,7 +98,7 @@ class MfaLoginViewModelTest {
     }
 
     @Test
-    fun login_com_2fa_indisponivel_mostra_mensagem_amigavel() = runTest {
+    fun login_com_2fa_indisponivel_mostra_mensagem_amigavel() = runTest(testDispatcher) {
         val authApi = createAuthApi { path ->
             if (path == "/auth/login") {
                 HttpStatusCode.ServiceUnavailable to """{"title":"Service Unavailable","detail":"2FA indisponível no servidor"}"""
@@ -118,7 +118,7 @@ class MfaLoginViewModelTest {
     }
 
     @Test
-    fun validacao_de_codigo_aceita_apenas_6_digitos_numericos() = runTest {
+    fun validacao_de_codigo_aceita_apenas_6_digitos_numericos() = runTest(testDispatcher) {
         // isCodigoValido é puro: cobre a regra de 6 dígitos numéricos.
         assertTrue(MfaChallengeViewModel.isCodigoValido("123456"))
         assertFalse(MfaChallengeViewModel.isCodigoValido("12345"))
@@ -148,7 +148,7 @@ class MfaLoginViewModelTest {
     }
 
     @Test
-    fun desafio_mfa_valida_codigo_e_sinaliza_sucesso() = runTest {
+    fun desafio_mfa_valida_codigo_e_sinaliza_sucesso() = runTest(testDispatcher) {
         val authApi = createAuthApi { path ->
             if (path == "/auth/2fa/validar") {
                 HttpStatusCode.OK to """{"accessToken":"a2","refreshToken":"r2","tokenType":"Bearer","expiresIn":900}"""
