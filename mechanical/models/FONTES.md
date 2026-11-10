@@ -1,5 +1,12 @@
 # Modelos visuais — origem, licença e divergências
 
+> **Revisão B (09/11/2026):** `hlk-pmxx.step` (#306), `porta-fusivel-inline.step`
+> (#307), `modulo-rele-v3.step` (#305), `led-5mm-rgb.step` e
+> `adafruit-916-botao-metal-16mm.step` (#308) e `adafruit-3258-microusb-painel.step`
+> (#309) representam componentes **fora de uso**. O arranjo retangular atual
+> ainda os usa; a carcaça circular (#302) deve usar os componentes da revisão B
+> (`hardware/README.md`).
+
 Modelos usados por `scripts/build_arranjo_3d.py` (tabela `MODELS`) no lugar das
 caixas de `params/componentes_3d.csv`. São **representação visual**: a validação
 (`check_arranjo_3d.py`) continua sobre as caixas, que ficam ocultas no FCStd.
@@ -60,7 +67,7 @@ antes de usar o arranjo como referência dimensional:
   faces (sem sólido): no STEP reimportado vira um objeto por face.
 - **`botao`**: Adafruit 916 é a versão **liga/desliga com anel de LED**; a lista
   (M1) pede momentâneo NA sem anel. Mesmo furo de 16 mm.
-- **`usb_painel`**: corpo 12 × 9,8 mm contra o recorte `usb_w` × `usb_h` de
+- **`usb_painel`** (fora de uso, #309): corpo 12 × 9,8 mm contra o recorte `usb_w` × `usb_h` de
   16 × 9 (placeholder) — 0,8 mm mais alto que o recorte; flange com orelhas de
   parafuso de 25 mm que o recorte atual não prevê.
 - **`prensa_cabo_corpo`**: o modelo prevê parede de 2,0 mm; com 2,4 mm a
