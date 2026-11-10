@@ -14,12 +14,15 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.time.Instant
@@ -231,6 +234,123 @@ class HomeViewModelTest {
         assertEquals(7, stateAfterSwitch.sequenciaManhasDias)
         assertNotNull(stateAfterSwitch.proximoPreparo)
         assertEquals("ag-2", stateAfterSwitch.proximoPreparo?.agendamento?.id)
+    }
+
+    @Test
+    fun selectDevice_duranteRefreshStale_doPoll_naoReverteNemMisturaEstatisticas() = runTest(testDispatcher) {
+        var gatePollAgendamentos = false
+        val pollRequestReached = CompletableDeferred<Unit>()
+        val releasePollRequest = CompletableDeferred<Unit>()
+
+        val engine = MockEngine { request ->
+            when (request.url.encodedPath) {
+                "/dispositivos" -> respond(
+                    content = """
+                        [
+                            {
+                                "id": "cafey-1",
+                                "nome": "Caféy Cozinha",
+                                "timezone": "America/Sao_Paulo",
+                                "estado": "PRONTO",
+                                "online": true,
+                                "versaoAgendamentos": 1,
+                                "duracaoPreparoS": 300,
+                                "limiarDescalcificacao": 100,
+                                "contadorPreparos": 10,
+                                "papel": "PROPRIETARIO",
+                                "criadoEm": "2026-09-01T10:00:00Z",
+                                "atualizadoEm": "2026-10-15T21:00:00Z"
+                            },
+                            {
+                                "id": "cafey-2",
+                                "nome": "Caféy Escritório",
+                                "timezone": "America/Sao_Paulo",
+                                "estado": "PREPARANDO",
+                                "online": true,
+                                "versaoAgendamentos": 1,
+                                "duracaoPreparoS": 360,
+                                "limiarDescalcificacao": 120,
+                                "contadorPreparos": 25,
+                                "papel": "CONVIDADO",
+                                "criadoEm": "2026-09-05T10:00:00Z",
+                                "atualizadoEm": "2026-10-15T21:00:00Z"
+                            }
+                        ]
+                    """.trimIndent(),
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                "/dispositivos/cafey-1/agendamentos" -> {
+                    if (gatePollAgendamentos && !pollRequestReached.isCompleted) {
+                        pollRequestReached.complete(Unit)
+                        releasePollRequest.await()
+                    }
+                    respond(content = "[]", status = HttpStatusCode.OK, headers = jsonHeaders)
+                }
+                "/dispositivos/cafey-1/estatisticas" -> respond(
+                    content = """{"totalPreparosConcluidos":10,"porOrigem":{},"tempoTotalPreparoSegundos":3000,"sequenciaManhasDias":3}""",
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                "/dispositivos/cafey-2/agendamentos" -> respond(
+                    content = """
+                        [
+                            {
+                                "id": "ag-2",
+                                "dispositivoId": "cafey-2",
+                                "hora": "23:59",
+                                "diasSemana": 127,
+                                "ativo": true,
+                                "duracaoPreparoS": 360,
+                                "criadoEm": "2026-09-01T10:00:00Z",
+                                "atualizadoEm": "2026-10-15T10:00:00Z"
+                            }
+                        ]
+                    """.trimIndent(),
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                "/dispositivos/cafey-2/estatisticas" -> respond(
+                    content = """{"totalPreparosConcluidos":25,"porOrigem":{},"tempoTotalPreparoSegundos":9000,"sequenciaManhasDias":7}""",
+                    status = HttpStatusCode.OK,
+                    headers = jsonHeaders,
+                )
+                else -> respond(content = "{}", status = HttpStatusCode.OK, headers = jsonHeaders)
+            }
+        }
+
+        val (deviceApi, commandApi, otherApis) = createApis(engine)
+        val (scheduleApi, eventApi) = otherApis
+        val activeDeviceId = MutableStateFlow<String?>(null)
+
+        val viewModel = HomeViewModel(
+            deviceApi = deviceApi,
+            commandApi = commandApi,
+            scheduleApi = scheduleApi,
+            eventApi = eventApi,
+            activeDeviceId = activeDeviceId,
+            coroutineScope = backgroundScope,
+        )
+
+        viewModel.uiState.first { !it.loading && it.device?.id == "cafey-1" }
+
+        gatePollAgendamentos = true
+        advanceTimeBy(5_000)
+        runCurrent()
+        pollRequestReached.await()
+
+        viewModel.selectDevice("cafey-2")
+        releasePollRequest.complete(Unit)
+        advanceTimeBy(4_900)
+        runCurrent()
+        viewModel.refresh()
+        runCurrent()
+
+        val finalState = viewModel.uiState.value
+        assertEquals(false, finalState.loading)
+        assertEquals("cafey-2", finalState.device?.id)
+        assertEquals(7, finalState.sequenciaManhasDias)
+        assertEquals("cafey-2", activeDeviceId.value)
     }
 
     @Test
