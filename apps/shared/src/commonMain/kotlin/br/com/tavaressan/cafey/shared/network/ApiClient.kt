@@ -62,8 +62,10 @@ fun sharedHttpClientConfig(baseUrl: String, tokenStorage: TokenStorage): HttpCli
                         contentType(ContentType.Application.Json)
                         setBody(RefreshRequest(stored.refreshToken))
                     }.body()
-                    tokenStorage.save(StoredTokens(response.accessToken, response.refreshToken))
-                    BearerTokens(response.accessToken, response.refreshToken)
+                    val access = response.accessToken ?: return@refreshTokens null
+                    val refresh = response.refreshToken ?: return@refreshTokens null
+                    tokenStorage.save(StoredTokens(access, refresh))
+                    BearerTokens(access, refresh)
                 } catch (e: CancellationException) {
                     // Cancelamento (navegacao, app em background) nao significa sessao invalida:
                     // limpar o token aqui deslogaria o usuario sem motivo.

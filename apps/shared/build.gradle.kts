@@ -75,6 +75,7 @@ kotlin {
             implementation(libs.ktor.client.okhttp)
             implementation(libs.androidx.datastore.preferences)
             implementation(libs.androidx.security.crypto)
+            implementation(libs.androidx.activity.compose)
         }
         androidUnitTest.dependencies {
             // Mesmo motivo do desktopTest: o alvo Android tambem precisa do mapeamento

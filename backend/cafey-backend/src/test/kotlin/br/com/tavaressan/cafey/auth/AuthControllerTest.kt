@@ -3,6 +3,8 @@ package br.com.tavaressan.cafey.auth
 import br.com.tavaressan.cafey.exception.GlobalExceptionHandler
 import br.com.tavaressan.cafey.mail.FakeEmailSenderService
 import br.com.tavaressan.cafey.security.JwtTokenService
+import br.com.tavaressan.cafey.security.MfaCryptoService
+import br.com.tavaressan.cafey.security.MfaTotpService
 import br.com.tavaressan.cafey.security.RefreshToken
 import br.com.tavaressan.cafey.security.RefreshTokenRepository
 import br.com.tavaressan.cafey.security.UsuarioDetailsService
@@ -64,7 +66,9 @@ class AuthControllerTest {
             passwordEncoder,
             ProviderManager(authenticationProvider),
             jwtTokenService,
-            emailSenderService
+            emailSenderService,
+            MfaTotpService(),
+            MfaCryptoService()
         )
         val authController = AuthController(authService)
 

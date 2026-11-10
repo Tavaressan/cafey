@@ -1,5 +1,7 @@
 package br.com.tavaressan.cafey.device
 
+import br.com.tavaressan.cafey.event.EventoPreparo
+import br.com.tavaressan.cafey.event.EventoPreparoRepository
 import br.com.tavaressan.cafey.exception.BadCredentialsException
 import br.com.tavaressan.cafey.exception.ConflitoException
 import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
@@ -12,6 +14,8 @@ import br.com.tavaressan.cafey.schedule.AgendamentosAlteradosEvent
 import br.com.tavaressan.cafey.user.Usuario
 import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.domain.PageImpl
+import org.springframework.data.domain.PageRequest
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -22,6 +26,8 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyBoolean
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.ArgumentMatchers.eq
+import org.mockito.ArgumentMatchers.isNull
+import org.mockito.ArgumentMatchers.nullable
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
@@ -48,6 +54,9 @@ class DispositivoServiceTest {
     @Mock
     private lateinit var eventPublisher: ApplicationEventPublisher
 
+    @Mock
+    private lateinit var eventoPreparoRepository: EventoPreparoRepository
+
     private lateinit var service: DispositivoService
 
     private val ownerId = UUID.randomUUID()
@@ -62,7 +71,7 @@ class DispositivoServiceTest {
 
     @BeforeEach
     fun setUp() {
-        service = DispositivoService(dispositivoRepository, usuarioDispositivoRepository, usuarioRepository, mqttClientService, eventPublisher, DispositivoMapper())
+        service = DispositivoService(dispositivoRepository, usuarioDispositivoRepository, usuarioRepository, mqttClientService, eventPublisher, DispositivoMapper(), eventoPreparoRepository)
 
         ownerUser = Usuario(id = ownerId, nome = "Owner", email = "owner@cafey.com", senhaHash = "hash")
         guestUser = Usuario(id = guestId, nome = "Guest", email = "guest@cafey.com", senhaHash = "hash")
@@ -100,6 +109,11 @@ class DispositivoServiceTest {
         `when`(usuarioDispositivoRepository.save(any(UsuarioDispositivo::class.java))).thenAnswer { it.getArgument(0) }
         `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
 
+        val timezoneAnterior = device.timezone
+        val duracaoAnterior = device.duracaoPreparoS
+        val limiarAnterior = device.limiarDescalcificacao
+        val versaoAnterior = device.versaoAgendamentos
+
         val res = service.criar(
             CriarDispositivoRequest(nome = "Minha Cafeteira", serial = deviceId.toString(), codigoVinculo = "123456"),
             ownerId
@@ -107,6 +121,11 @@ class DispositivoServiceTest {
 
         assertEquals(deviceId, res.id)
         assertEquals(PapelDispositivo.PROPRIETARIO, res.papel)
+        assertEquals("Minha Cafeteira", res.nome)
+        assertEquals(timezoneAnterior, device.timezone)
+        assertEquals(duracaoAnterior, device.duracaoPreparoS)
+        assertEquals(limiarAnterior, device.limiarDescalcificacao)
+        assertEquals(versaoAnterior, device.versaoAgendamentos)
         val captor = ArgumentCaptor.forClass(UsuarioDispositivo::class.java)
         verify(usuarioDispositivoRepository).save(captor.capture())
         assertEquals(ownerId, captor.value.usuario.id)
@@ -439,6 +458,66 @@ class DispositivoServiceTest {
 
         assertThrows<ServicoIndisponivelException> {
             service.comandar(deviceId, ComandoRequest(acao = "CANCELAR"), ownerId)
+        }
+    }
+
+    @Test
+    fun `diagnostico retorna dados persistidos para o proprietario`() {
+        device.online = true
+        device.rssi = -62
+        device.uptimeS = 3600
+        device.firmware = "1.2.3"
+        device.ultimoVisto = Instant.parse("2026-11-09T10:00:00Z")
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(ownerLink)
+        val erro = EventoPreparo(
+            id = UUID.randomUUID(),
+            eventoId = "evt-err-1",
+            dispositivo = device,
+            tipo = "PREPARO",
+            resultado = "ERRO",
+            origem = "APP",
+            duracaoS = 0,
+            timestamp = Instant.parse("2026-11-09T09:59:00Z"),
+            detalheErro = "boiler timeout"
+        )
+        `when`(
+            eventoPreparoRepository.findEventosComFiltro(
+                eq(deviceId) ?: deviceId,
+                eq("ERRO") ?: "ERRO",
+                nullable(Instant::class.java),
+                nullable(Instant::class.java),
+                any(PageRequest::class.java) ?: PageRequest.of(0, 5)
+            )
+        ).thenReturn(PageImpl(listOf(erro)))
+
+        val res = service.obterDiagnostico(deviceId, ownerId)
+
+        assertEquals(deviceId, res.dispositivoId)
+        assertTrue(res.online)
+        assertEquals(-62, res.rssi)
+        assertEquals(3600L, res.uptimeS)
+        assertEquals("1.2.3", res.firmware)
+        assertEquals("DESLIGADO", res.estado)
+        assertNull(res.estadoRele)
+        assertEquals(1, res.errosRecentes.size)
+        assertEquals("boiler timeout", res.errosRecentes[0].detalheErro)
+    }
+
+    @Test
+    fun `diagnostico rejeita convidado`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(guestId, deviceId)).thenReturn(guestLink)
+
+        assertThrows<BadCredentialsException> {
+            service.obterDiagnostico(deviceId, guestId)
+        }
+    }
+
+    @Test
+    fun `diagnostico rejeita usuario sem vinculo`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(ownerId, deviceId)).thenReturn(null)
+
+        assertThrows<ResourceNotFoundException> {
+            service.obterDiagnostico(deviceId, ownerId)
         }
     }
 }

@@ -53,9 +53,11 @@ extern "C" void app_main(void) {
     // Inicia status de rede da Cafeteira como desconectado (Amarelo piscando se ocioso, spec §5.3)
     g_cafeteira.set_network_ok(false);
 
-    // Fila da Conectividade antes de qualquer produtor (Wi-Fi, MQTT, Cafeteira):
-    // post() em fila inexistente descarta a mensagem.
+    // Filas dos AOs antes de qualquer produtor (Wi-Fi, MQTT, BLE, boot): post()
+    // em fila inexistente descarta a mensagem (#334).
     g_conectividade.init();
+    g_cafeteira.init();
+    g_agendador.init();
 
     // Carrega agendamentos e fila de eventos persistidos em NVS (spec §5.4):
     // sobrevivem a reboot e queda de energia. Consumidos futuramente pelos
@@ -114,6 +116,7 @@ extern "C" void app_main(void) {
         g_conectividade.post(Message{MessageType::WifiConnected, 0});
         if (g_ble_service != nullptr) {
             g_ble_service->publish_wifi_status("CONNECTED", ip);
+            g_ble_service->publish_wifi_networks();
         }
         // Se nao tem MQTT configurado, a conexao Wi-Fi valida o status de rede
         if (!has_mqtt_config) {
@@ -129,6 +132,7 @@ extern "C" void app_main(void) {
             } else {
                 g_ble_service->publish_wifi_status("DISCONNECTED");
             }
+            g_ble_service->publish_wifi_networks();
         }
     });
     wifi_manager.set_on_provision_timeout([] {
@@ -179,9 +183,8 @@ extern "C" void app_main(void) {
         g_cafeteira.post(cafey::core::Message{cafey::core::MessageType::TimeSynced, 0});
     });
 
-    // Handler de dominio do comando, compartilhado pelo downlink MQTT e pela
-    // caracteristica BLE (spec §6.4: sem regra de negocio no transporte).
-    static const auto handle_command = [](const cafey::app::CoffeeCommand& cmd) {
+    // Handler de preparo (BLE comando 0002 e uso interno): apenas acoes de preparo.
+    static const auto handle_brew_command = [](const cafey::app::CoffeeCommand& cmd) {
         switch (cmd.action) {
             case cafey::app::CoffeeAction::Ligar:
                 g_cafeteira.post(Message{MessageType::StartBrew,
@@ -191,6 +194,37 @@ extern "C" void app_main(void) {
             case cafey::app::CoffeeAction::Desligar:
             case cafey::app::CoffeeAction::Cancelar:
                 g_cafeteira.post(Message{MessageType::StopBrew, 0});
+                break;
+            default:
+                // Acoes destrutivas de Wi-Fi via BLE usam a caracteristica de gerenciamento
+                // (kWifiManageUuid), protegida por janela de vinculo (FW-24/#275).
+                break;
+        }
+    };
+
+    // Handler MQTT (backend valida proprietario para acoes Wi-Fi destrutivas, FW-30).
+    static const auto handle_mqtt_command = [&wifi_manager](const cafey::app::CoffeeCommand& cmd) {
+        switch (cmd.action) {
+            case cafey::app::CoffeeAction::Ligar:
+                g_cafeteira.post(Message{MessageType::StartBrew,
+                                         static_cast<int32_t>(cmd.duracao_s),
+                                         static_cast<int32_t>(cafey::storage::EventOrigin::APP)});
+                break;
+            case cafey::app::CoffeeAction::Desligar:
+            case cafey::app::CoffeeAction::Cancelar:
+                g_cafeteira.post(Message{MessageType::StopBrew, 0});
+                break;
+            case cafey::app::CoffeeAction::EsquecerRede:
+                if (!cmd.ssid.empty()) {
+                    ESP_LOGI(TAG, "comando mqtt: esquecer rede Wi-Fi '%s'", cmd.ssid.c_str());
+                    wifi_manager.forget_network(cmd.ssid);
+                    if (g_ble_service != nullptr) g_ble_service->publish_wifi_networks();
+                }
+                break;
+            case cafey::app::CoffeeAction::EsquecerTodasRedes:
+                ESP_LOGI(TAG, "comando mqtt: esquecer todas as redes Wi-Fi");
+                wifi_manager.forget_all_networks();
+                if (g_ble_service != nullptr) g_ble_service->publish_wifi_networks();
                 break;
             case cafey::app::CoffeeAction::Unknown:
                 break;
@@ -218,6 +252,16 @@ extern "C" void app_main(void) {
             ESP_LOGI(TAG, "agendamentos versao %u ignorados (gravada: %u)",
                      static_cast<unsigned>(meta.version),
                      static_cast<unsigned>(schedule_store.version()));
+            // Retido reentregue com mesma versao: renotifica o estado armado com
+            // base na lista gravada (idempotente, #334).
+            bool armed = false;
+            for (size_t i = 0; i < schedule_store.count(); ++i) {
+                if (schedule_store.at(i).active) {
+                    armed = true;
+                    break;
+                }
+            }
+            g_cafeteira.post(Message{MessageType::ScheduleArmedChanged, armed ? 1 : 0});
             return;
         }
         apply_timezone(schedule_store.timezone());
@@ -249,7 +293,7 @@ extern "C" void app_main(void) {
         });
         mqtt_client.set_on_message([](const std::string& topic, const std::string& payload) {
             if (topic == topics.comando) {
-                handle_command(cafey::app::parse_coffee_command(payload));
+                handle_mqtt_command(cafey::app::parse_coffee_command(payload));
             } else if (topic == topics.agendamentos) {
                 apply_cloud_schedules(payload);
             }
@@ -271,6 +315,38 @@ extern "C" void app_main(void) {
             g_ble_service->publish_state("{\"estado\":\"" + state_str + "\"}");
         }
     });
+
+    static const auto json_escape = [](const std::string& in) {
+        std::string out;
+        out.reserve(in.size() + 4);
+        for (char c : in) {
+            if (c == '\\' || c == '"') {
+                out += '\\';
+                out += c;
+            } else if (static_cast<unsigned char>(c) >= 0x20) {
+                out += c;
+            }
+        }
+        return out;
+    };
+
+    static const auto wifi_networks_json = [&wifi_manager, &json_escape]() {
+        std::string json = "{\"ssid_atual\":";
+        if (wifi_manager.state() == cafey::core::WifiState::CONNECTED &&
+            !wifi_manager.current_ssid().empty()) {
+            json += "\"" + json_escape(wifi_manager.current_ssid()) + "\"";
+        } else {
+            json += "null";
+        }
+        json += ",\"redes\":[";
+        const auto redes = wifi_manager.list_networks();
+        for (size_t i = 0; i < redes.size(); ++i) {
+            if (i > 0) json += ",";
+            json += "\"" + json_escape(redes[i].ssid) + "\"";
+        }
+        json += "]}";
+        return json;
+    };
 
     // Janela de vinculo pelo toque longo (FW-24/FW-29): o mesmo codigo de uso
     // unico sai por BLE (lido pelo app) e por MQTT (validado pelo backend). No
@@ -298,7 +374,7 @@ extern "C" void app_main(void) {
     static cafey::core::EspNimbleServer ble_server(cafey::app::BleService::kServiceUuid);
     static cafey::app::BleService ble_service(
         ble_server,
-        [](const cafey::app::CoffeeCommand& cmd) { handle_command(cmd); },
+        [](const cafey::app::CoffeeCommand& cmd) { handle_brew_command(cmd); },
         [](const cafey::storage::Schedule* list, size_t count,
            const cafey::app::SchedulePayloadMeta& meta) {
             schedule_store.replace_all(list, count, meta.timezone.c_str());
@@ -309,6 +385,19 @@ extern "C" void app_main(void) {
         [](const std::string& ssid, const std::string& password) {
             wifi_manager.provision(ssid, password);
         });
+    ble_service.set_wifi_management(
+        [&wifi_manager](const std::string& ssid) {
+            wifi_manager.forget_network(ssid);
+            if (g_ble_service != nullptr) g_ble_service->publish_wifi_networks();
+        },
+        [&wifi_manager]() {
+            wifi_manager.forget_all_networks();
+            if (g_ble_service != nullptr) g_ble_service->publish_wifi_networks();
+        },
+        wifi_networks_json);
+    // FW-24/#275 ausente neste branch: ponto de verificacao isolado, conservador
+    // (nega comandos BLE destrutivos) ate a janela de vinculo ser implementada.
+    ble_service.set_destructive_ble_guard([] { return false; });
     g_ble_service = &ble_service;
     std::string ble_serial = mqtt_config.client_id.empty() ? "cafey" : mqtt_config.client_id;
     ble_service.set_device_info(cafey::app::BleDeviceInfo(ble_serial, "1.0.0", "ESP32-WROOM-32"));

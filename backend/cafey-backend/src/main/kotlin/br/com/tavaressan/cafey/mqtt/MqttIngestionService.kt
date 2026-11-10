@@ -34,12 +34,22 @@ class MqttIngestionService(
             return
         }
 
+        val agora = Instant.now()
         dispositivo.estado = payload.estado
-        dispositivo.ultimoVisto = payload.desde ?: Instant.now()
-        dispositivo.atualizadoEm = Instant.now()
+        dispositivo.ultimoVisto = payload.desde ?: agora
+        dispositivo.preparoIniciadoEm = if (isBrewingState(payload.estado)) {
+            payload.desde ?: dispositivo.preparoIniciadoEm ?: agora
+        } else {
+            null
+        }
+        payload.firmware?.let { dispositivo.firmware = it }
+        dispositivo.atualizadoEm = agora
         dispositivoRepository.save(dispositivo)
         logger.info("Estado do dispositivo {} atualizado para {}", dispositivoId, payload.estado)
     }
+
+    private fun isBrewingState(estado: String): Boolean =
+        estado.trim().uppercase() in setOf("PREPARANDO", "LIGADO", "BREWING")
 
     @Transactional
     fun processarSaude(dispositivoId: UUID, payload: SaudePayload) {
@@ -52,6 +62,8 @@ class MqttIngestionService(
         val wasOffline = !dispositivo.online
         dispositivo.online = payload.online
         dispositivo.ultimoVisto = Instant.now()
+        payload.rssi?.let { dispositivo.rssi = it }
+        payload.uptimeS?.let { dispositivo.uptimeS = it }
         dispositivo.atualizadoEm = Instant.now()
         dispositivoRepository.save(dispositivo)
         logger.info("Saúde do dispositivo {} atualizada: online={}", dispositivoId, payload.online)

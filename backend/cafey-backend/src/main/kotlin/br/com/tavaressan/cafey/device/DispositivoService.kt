@@ -1,6 +1,7 @@
 package br.com.tavaressan.cafey.device
 
 import br.com.tavaressan.cafey.config.AwsIotProperties
+import br.com.tavaressan.cafey.event.EventoPreparoRepository
 import br.com.tavaressan.cafey.exception.BadCredentialsException
 import br.com.tavaressan.cafey.exception.ConflitoException
 import br.com.tavaressan.cafey.exception.RequisicaoInvalidaException
@@ -13,6 +14,7 @@ import br.com.tavaressan.cafey.schedule.AgendamentosAlteradosEvent
 import br.com.tavaressan.cafey.user.Usuario
 import br.com.tavaressan.cafey.user.UsuarioRepository
 import org.springframework.context.ApplicationEventPublisher
+import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.nio.charset.StandardCharsets
@@ -27,7 +29,8 @@ class DispositivoService(
     private val usuarioRepository: UsuarioRepository,
     private val mqttClientService: MqttClientService,
     private val eventPublisher: ApplicationEventPublisher,
-    private val dispositivoMapper: DispositivoMapper
+    private val dispositivoMapper: DispositivoMapper,
+    private val eventoPreparoRepository: EventoPreparoRepository
 ) {
 
     @Transactional(readOnly = true)
@@ -66,10 +69,20 @@ class DispositivoService(
                 "Ação inválida: '${request.acao}'. Valores aceitos: ${AcaoComando.entries.joinToString()}"
             )
 
+        val wifiDestrutivo = acao == AcaoComando.ESQUECER_REDE || acao == AcaoComando.ESQUECER_TODAS_REDES
+        if (wifiDestrutivo && vinculo.papel != PapelDispositivo.PROPRIETARIO) {
+            throw BadCredentialsException("Apenas o proprietário pode gerenciar as redes Wi-Fi do dispositivo")
+        }
+        val ssid = if (acao == AcaoComando.ESQUECER_REDE) {
+            val valor = request.ssid?.trim().orEmpty()
+            if (valor.isEmpty()) throw RequisicaoInvalidaException("ssid é obrigatório para ESQUECER_REDE")
+            valor
+        } else null
+
         // Duração só faz sentido para ligar o preparo; nos demais casos o firmware ignora o campo.
         val duracaoS = if (acao == AcaoComando.LIGAR) request.duracaoS ?: dispositivo.duracaoPreparoS else 0
         val comandoId = UUID.randomUUID().toString()
-        val payload = ComandoPayload(comandoId = comandoId, acao = acao.name, duracaoS = duracaoS)
+        val payload = ComandoPayload(comandoId = comandoId, acao = acao.name, duracaoS = duracaoS, ssid = ssid)
 
         // retain = false: comando retido reexecutaria assim que o dispositivo religasse (spec §6.2).
         val topic = AwsIotProperties.topicComando(dispositivoId.toString())
@@ -86,7 +99,7 @@ class DispositivoService(
         val usuario = usuarioRepository.findById(usuarioId).orElseThrow {
             ResourceNotFoundException("Usuário não encontrado")
         }
-        request.serial?.let { return vincularPorSerial(UUID.fromString(it), usuario, request.codigoVinculo) }
+        request.serial?.let { return vincularPorSerial(UUID.fromString(it), usuario, request) }
 
         val salvo = dispositivoRepository.save(dispositivoMapper.toEntity(request))
 
@@ -110,11 +123,7 @@ class DispositivoService(
      * apagado após o primeiro uso. Recadastro pelo mesmo dono continua idempotente e sem código,
      * preservando o comportamento do #266.
      */
-    private fun vincularPorSerial(
-        dispositivoId: UUID,
-        usuario: Usuario,
-        codigoVinculo: String?
-    ): DispositivoResponse {
+    private fun vincularPorSerial(dispositivoId: UUID, usuario: Usuario, request: CriarDispositivoRequest): DispositivoResponse {
         val dispositivo = dispositivoRepository.findById(dispositivoId).orElseThrow {
             ResourceNotFoundException("Cafeteira não reconhecida pelo servidor. Confira se ela foi registrada antes do cadastro.")
         }
@@ -122,7 +131,9 @@ class DispositivoService(
             .find { it.papel == PapelDispositivo.PROPRIETARIO }
 
         if (proprietario == null) {
-            validarCodigoVinculo(dispositivo, codigoVinculo)
+            validarCodigoVinculo(dispositivo, request.codigoVinculo)
+            dispositivo.nome = request.nome.trim()
+            dispositivo.atualizadoEm = Instant.now()
             usuarioDispositivoRepository.save(
                 UsuarioDispositivo(usuario = usuario, dispositivo = dispositivo, papel = PapelDispositivo.PROPRIETARIO)
             )
@@ -195,5 +206,45 @@ class DispositivoService(
         }
 
         dispositivoRepository.delete(vinculo.dispositivo)
+    }
+
+    @Transactional(readOnly = true)
+    fun obterDiagnostico(dispositivoId: UUID, usuarioId: UUID): DiagnosticoDispositivoResponse {
+        val vinculo = usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)
+            ?: throw ResourceNotFoundException("Dispositivo não encontrado ou você não tem acesso")
+
+        if (vinculo.papel != PapelDispositivo.PROPRIETARIO) {
+            throw BadCredentialsException("Apenas o proprietário pode acessar o diagnóstico do dispositivo")
+        }
+
+        val dispositivo = vinculo.dispositivo
+        val erros = eventoPreparoRepository.findEventosComFiltro(
+            dispositivoId,
+            "ERRO",
+            null,
+            null,
+            PageRequest.of(0, 5)
+        ).content.map {
+            ErroRecenteDiagnosticoResponse(
+                eventoId = it.eventoId,
+                timestamp = it.timestamp,
+                origem = it.origem,
+                detalheErro = it.detalheErro
+            )
+        }
+
+        return DiagnosticoDispositivoResponse(
+            dispositivoId = dispositivo.id!!,
+            online = dispositivo.online,
+            ultimoVisto = dispositivo.ultimoVisto,
+            estado = dispositivo.estado,
+            rssi = dispositivo.rssi,
+            firmware = dispositivo.firmware,
+            uptimeS = dispositivo.uptimeS,
+            versaoAgendamentos = dispositivo.versaoAgendamentos,
+            estadoRele = null,
+            errosRecentes = erros,
+            atualizadoEm = dispositivo.atualizadoEm
+        )
     }
 }

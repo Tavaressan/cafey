@@ -17,6 +17,10 @@ CoffeeCommand parse_coffee_command(const std::string& json) {
             cmd.action = CoffeeAction::Desligar;
         } else if (acao == "CANCELAR") {
             cmd.action = CoffeeAction::Cancelar;
+        } else if (acao == "ESQUECER_REDE") {
+            cmd.action = CoffeeAction::EsquecerRede;
+        } else if (acao == "ESQUECER_TODAS_REDES") {
+            cmd.action = CoffeeAction::EsquecerTodasRedes;
         }
     }
 
@@ -24,6 +28,11 @@ CoffeeCommand parse_coffee_command(const std::string& json) {
     if (mj::get_long(json, "duracaoS", dur) && dur > 0) {
         cmd.duracao_s = static_cast<uint32_t>(dur);
         cmd.has_duracao = true;
+    }
+
+    std::string ssid;
+    if (mj::get_string(json, "ssid", ssid)) {
+        cmd.ssid = ssid;
     }
 
     return cmd;

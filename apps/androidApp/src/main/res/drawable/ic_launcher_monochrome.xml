@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Gerado por docs/docs_interface/logo/generate_android_icons.py — não editar manualmente.
+     Desenho monocromático da logo (contorno, curvas em S, estrela) para ícones temáticos (Android 13+).
+     O sistema aplica o tingimento do tema ao alfa desta camada. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:pathData="M 54 25.348 C 65.124 25.348 73.551 38.157 73.551 53.326 C 73.551 69.506 64.787 82.652 54 82.652 C 43.213 82.652 34.449 69.506 34.449 53.326 C 34.449 38.157 42.876 25.348 54 25.348 Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.697"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <path
+        android:pathData="M 54 28.382 C 53.343 28.989 50.68 30.826 50.039 32.039 C 49.399 33.27 50.073 34.483 50.124 35.697 C 50.157 36.927 50.292 38.14 50.258 39.354 C 50.242 40.584 50.191 41.798 50.006 43.028 C 49.82 44.242 49.534 45.455 49.163 46.685 C 48.809 47.899 48.32 49.112 47.831 50.343 C 47.343 51.556 46.753 52.787 46.247 54 C 45.742 55.213 45.185 56.444 44.781 57.657 C 44.376 58.888 44.006 60.101 43.803 61.315 C 43.601 62.545 43.517 63.758 43.601 64.972 C 43.669 66.202 43.904 67.416 44.275 68.646 C 44.646 69.86 45.169 71.073 45.809 72.303 C 46.449 73.517 46.719 74.73 48.084 75.961 C 49.449 77.174 53.006 79.011 54 79.618"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.191"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <path
+        android:pathData="M 54 28.382 C 54.994 28.989 58.551 30.826 59.916 32.039 C 61.281 33.27 61.551 34.483 62.191 35.697 C 62.831 36.927 63.354 38.14 63.725 39.354 C 64.096 40.584 64.331 41.798 64.399 43.028 C 64.483 44.242 64.399 45.455 64.197 46.685 C 63.994 47.899 63.624 49.112 63.219 50.343 C 62.815 51.556 62.258 52.787 61.753 54 C 61.247 55.213 60.657 56.444 60.169 57.657 C 59.68 58.888 59.191 60.101 58.837 61.315 C 58.466 62.545 58.18 63.758 57.994 64.972 C 57.809 66.202 57.758 67.416 57.742 68.646 C 57.708 69.86 57.843 71.073 57.876 72.303 C 57.927 73.517 58.601 74.73 57.961 75.961 C 57.32 77.174 54.657 79.011 54 79.618"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.191"
+        android:fillColor="#00000000"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <path
+        android:pathData="M 54 48.944 Q 55.18 52.82 59.056 54 Q 55.18 55.18 54 59.056 Q 52.82 55.18 48.944 54 Q 52.82 52.82 54 48.944 Z"
+        android:fillColor="#000000"/>
+</vector>

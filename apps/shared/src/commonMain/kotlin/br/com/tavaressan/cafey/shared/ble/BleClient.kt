@@ -59,6 +59,20 @@ interface BleClient {
         password: String,
     ): Flow<WifiProvisionStatus> = emptyFlow()
 
+    /** Le a rede atual e as redes salvas na cafeteira, sem senhas (FW-30, via BLE). */
+    suspend fun listarRedesWifi(dispositivoId: String): WifiNetworksInfo =
+        throw BleError.BaseNaoEncontrada("Listagem de redes Wi-Fi indisponível por BLE")
+
+    /** Esquece uma rede salva (FW-30, via BLE). */
+    suspend fun esquecerRedeWifi(dispositivoId: String, ssid: String) {
+        throw BleError.BaseNaoEncontrada("Gerenciamento de Wi-Fi indisponível por BLE")
+    }
+
+    /** Esquece todas as redes salvas (FW-30, via BLE). */
+    suspend fun esquecerTodasRedesWifi(dispositivoId: String) {
+        throw BleError.BaseNaoEncontrada("Gerenciamento de Wi-Fi indisponível por BLE")
+    }
+
     /**
      * Lê o código de uso único da janela de vínculo (FW-24, #275). Retorna `null` quando a
      * janela está fechada; implementações que não suportam BLE também retornam `null`.

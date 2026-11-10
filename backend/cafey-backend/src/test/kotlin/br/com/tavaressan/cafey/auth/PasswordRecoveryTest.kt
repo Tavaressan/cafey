@@ -4,6 +4,8 @@ import br.com.tavaressan.cafey.exception.BadCredentialsException
 import br.com.tavaressan.cafey.mail.EmailSenderService
 import br.com.tavaressan.cafey.mail.FakeEmailSenderService
 import br.com.tavaressan.cafey.security.JwtTokenService
+import br.com.tavaressan.cafey.security.MfaCryptoService
+import br.com.tavaressan.cafey.security.MfaTotpService
 import br.com.tavaressan.cafey.security.PasswordResetToken
 import br.com.tavaressan.cafey.security.PasswordResetTokenRepository
 import br.com.tavaressan.cafey.security.RefreshTokenRepository
@@ -63,7 +65,9 @@ class PasswordRecoveryTest {
             passwordEncoder,
             authenticationManager,
             jwtTokenService,
-            emailSenderService
+            emailSenderService,
+            MfaTotpService(),
+            MfaCryptoService()
         )
         user = Usuario(id = userId, nome = "User", email = "user@cafey.com", senhaHash = "oldhash")
     }
@@ -104,7 +108,9 @@ class PasswordRecoveryTest {
             passwordEncoder,
             authenticationManager,
             jwtTokenService,
-            failingSender
+            failingSender,
+            MfaTotpService(),
+            MfaCryptoService()
         )
 
         val res = service.solicitarRecuperacaoSenha(SolicitarRecuperacaoSenhaRequest(email = "user@cafey.com"))

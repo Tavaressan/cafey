@@ -1,5 +1,13 @@
 # mechanical — módulo físico (pedestal)
 
+> **Carcaça circular (#302, 09/11/2026): fonte da verdade atual.** Ver
+> [`circular/README.md`](circular/README.md). Toolchain escolhido: **FreeCAD
+> por script** (`mechanical/circular/build.py`, API `Part`), dirigido por CSVs,
+> com verificação em Python puro (`check.py`) e a marca gravada sobre a malha
+> (`marca.py`). O modelo retangular abaixo (FreeCAD `scripts/*_3d.py` e o
+> equivalente `cad/` em build123d) fica como **histórico** e não é mais o alvo
+> de impressão.
+
 Modelo paramétrico do pedestal de `docs/status-modulo-fisico.md`.
 
 **Impressão 3D (atual, issue #116):** ver a seção
@@ -63,6 +71,14 @@ Ordem: `build_peca1` → `build_peca2` → `build_montagem` → `check_montagem`
 "Descrição"); os objetos `notas_fabricacao` e `notas_furos` reúnem o que não é
 geometria. **[`FUROS.md`](FUROS.md)** — catálogo do propósito de cada furo e
 abertura, espelhado no `notas_furos` de cada FCStd.
+
+### Corpo de prova da marca (#303)
+
+```sh
+uv run mechanical/scripts/build_corpo_prova_marca.py   # build/corpo_prova_marca_{gravado,relevo}.stl
+```
+
+Placa com a composição [símbolo] Caféy em três escalas (símbolo de 25, 20 e 15 mm), gravada ou em relevo de 0,8 mm. Usa os SVGs de `docs/docs_interface/logo/`. Detalhes e o que medir: [`MARCA-NA-PECA.md`](../docs/docs_interface/logo/MARCA-NA-PECA.md).
 
 ## Entregáveis (`build/`, fora do versionamento)
 

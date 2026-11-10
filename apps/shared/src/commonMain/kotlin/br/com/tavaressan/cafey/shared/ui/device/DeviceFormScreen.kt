@@ -44,8 +44,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
+import br.com.tavaressan.cafey.shared.domain.model.PapelDispositivo
 import br.com.tavaressan.cafey.shared.domain.validation.FieldError
 import br.com.tavaressan.cafey.shared.ui.auth.fieldErrorMessage
+import br.com.tavaressan.cafey.shared.ui.ble.BlePermissionStatus
+import br.com.tavaressan.cafey.shared.ui.ble.BleReadinessGate
+import br.com.tavaressan.cafey.shared.ui.ble.rememberBlePermissionController
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
 /**
@@ -67,6 +71,7 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
         },
     )
     val state by viewModel.uiState.collectAsState()
+    val blePermissionController = rememberBlePermissionController()
     var confirmDelete by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.success) {
@@ -83,9 +88,18 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
         when (state.step) {
             DeviceFormStep.BLE_SEARCH -> BleSearchStep(
                 state = state,
+                blePermissionStatus = blePermissionController.status,
                 onSelectDevice = viewModel::selectDevice,
                 onRefreshScan = viewModel::startBleScan,
                 onSwitchToManual = viewModel::switchToManual,
+                bleReadiness = {
+                    BleReadinessGate(
+                        status = blePermissionController.status,
+                        controller = blePermissionController,
+                        explanation = "Para buscar e parear a cafeteira, o app precisa de permissão de Bluetooth/localização. A permissão é solicitada somente agora, quando você inicia esta ação.",
+                        onReady = { viewModel.startBleScan() },
+                    )
+                },
             )
             DeviceFormStep.WIFI_CREDENTIALS -> WifiCredentialsStep(
                 state = state,
@@ -135,9 +149,11 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
 @Composable
 private fun BleSearchStep(
     state: DeviceFormUiState,
+    blePermissionStatus: BlePermissionStatus,
     onSelectDevice: (br.com.tavaressan.cafey.shared.ble.BleDispositivo) -> Unit,
     onRefreshScan: () -> Unit,
     onSwitchToManual: () -> Unit,
+    bleReadiness: @Composable () -> Unit,
 ) {
     Text("Buscar Cafeteira via Bluetooth", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
     Text(
@@ -146,6 +162,19 @@ private fun BleSearchStep(
         color = CafeyTheme.colors.muted,
         modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
     )
+
+    if (!blePermissionStatus.ready) {
+        bleReadiness()
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedButton(
+            onClick = onSwitchToManual,
+            modifier = Modifier.fillMaxWidth(),
+            shape = CafeyTheme.shapes.small,
+        ) {
+            Text("Configurar manualmente com serial")
+        }
+        return
+    }
 
     if (state.scanning) {
         Row(
@@ -337,9 +366,22 @@ private fun ConfirmRegisterStep(
     onNomeChange: (String) -> Unit,
     onSave: () -> Unit,
 ) {
-    Text("Cafeteira Conectada!", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
+    val isReprovision = state.isWifiReprovisioning || state.existingDevice != null
     Text(
-        "A cafeteira foi conectada com sucesso ao Wi-Fi! Defina um nome para identificá-la no aplicativo.",
+        if (isReprovision) "Wi-Fi atualizado" else "Cafeteira Conectada!",
+        style = CafeyTheme.typography.screenTitle,
+        color = CafeyTheme.colors.ink,
+    )
+    Text(
+        if (isReprovision) {
+            if (state.existingDevice?.papel == PapelDispositivo.CONVIDADO) {
+                "A cafeteira já está cadastrada nesta conta como convidado. O nome não pode ser alterado."
+            } else {
+                "Wi-Fi atualizado com sucesso! Você pode editar o nome da cafeteira se quiser."
+            }
+        } else {
+            "A cafeteira foi conectada com sucesso ao Wi-Fi! Defina um nome para identificá-la no aplicativo."
+        },
         style = CafeyTheme.typography.bodySmall,
         color = CafeyTheme.colors.muted,
         modifier = Modifier.padding(top = 8.dp),
@@ -358,20 +400,34 @@ private fun ConfirmRegisterStep(
         }
     }
 
-    Text(
-        "Antes de concluir, segure o botão da cafeteira por 5 segundos até o LED azul piscar. " +
-            "O app lê o código de vínculo nesse momento; a janela fica aberta por cerca de 2 minutos.",
-        style = CafeyTheme.typography.bodySmall,
-        color = CafeyTheme.colors.muted,
-        modifier = Modifier.padding(top = 12.dp),
-    )
+    if (!state.isWifiReprovisioning) {
+        Text(
+            "Antes de concluir, segure o botão da cafeteira por 5 segundos até o LED azul piscar. " +
+                "O app lê o código de vínculo nesse momento; a janela fica aberta por cerca de 2 minutos.",
+            style = CafeyTheme.typography.bodySmall,
+            color = CafeyTheme.colors.muted,
+            modifier = Modifier.padding(top = 12.dp),
+        )
+    }
 
-    DeviceTextField(
-        value = state.nome,
-        onValueChange = onNomeChange,
-        label = "Nome da cafeteira (ex.: Cozinha)",
-        error = state.errors.nome,
-    )
+    if (state.nomeEditavel) {
+        DeviceTextField(
+            value = state.nome,
+            onValueChange = onNomeChange,
+            label = "Nome da cafeteira (ex.: Cozinha)",
+            error = state.errors.nome,
+        )
+    } else {
+        OutlinedTextField(
+            value = state.nome,
+            onValueChange = {},
+            label = { Text("Nome da cafeteira (ex.: Cozinha)") },
+            singleLine = true,
+            enabled = false,
+            colors = OutlinedTextFieldDefaults.colors(disabledBorderColor = CafeyTheme.colors.muted, disabledTextColor = CafeyTheme.colors.ink),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        )
+    }
 
     state.errorMessage?.let {
         Text(it, color = CafeyTheme.colors.brandDeep, modifier = Modifier.padding(top = 12.dp))
@@ -387,7 +443,7 @@ private fun ConfirmRegisterStep(
         if (state.saving) {
             CircularProgressIndicator(modifier = Modifier.size(18.dp), color = CafeyTheme.colors.brandOn)
         } else {
-            Text("Concluir Cadastro")
+            Text(if (isReprovision) "Concluir" else "Concluir Cadastro")
         }
     }
 }
@@ -478,7 +534,9 @@ private fun ManualFormStep(
     }
 
     if (!isCreate) {
-        DeviceGuestsSection(deviceId = state.deviceId!!)
+        state.deviceId?.let { deviceId ->
+            DeviceGuestsSection(deviceId = deviceId)
+        }
     }
 
     if (!isCreate) {

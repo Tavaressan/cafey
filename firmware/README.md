@@ -122,6 +122,12 @@ wokwi-cli --serial-log-file /tmp/serial.log .            # lê wokwi.toml automa
 
 ## Compilação Local com ESP-IDF (≥ 5.x)
 
+> **Gravação na placa montada (revisão B, #309):** a carcaça não tem USB externo.
+> Antes de ligar o USB ao computador: tirar o módulo da tomada, desconectar o
+> cabo da fonte A1385 do micro-USB do ESP32 e retirar a placa da carcaça.
+> Procedimento completo em `docs/status-modulo-fisico.md` ("Revisão B: sem USB
+> de painel").
+
 ```sh
 . $IDF_PATH/export.sh
 idf.py set-target esp32

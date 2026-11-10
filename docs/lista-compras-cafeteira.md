@@ -2,6 +2,7 @@
 
 Projeto: retrofit IoT da cafeteira Britânia CP30 (800 W, 127 V, ~6,3 A).
 Revisão: 2026-09-08. Prazo de defesa: 2026-10-16.
+**Revisão B: 2026-11-09** — componentes da montagem de 10/11/2026 (#304–#309, #311).
 
 Esta é a versão revisada da lista, cruzada com o esquemático
 (`hardware/pi_dsm_26_2.kicad_sch`), o firmware (`firmware/`) e o modelo
@@ -20,6 +21,51 @@ mecânico (`mechanical/`). As decisões de revisão estão registradas em
 4. Prioridade P1 antes de P2. Os itens marcados `MEDIR` devem chegar primeiro:
    as cotas deles alimentam o modelo mecânico, que está em análise.
 5. Ao final, gerar um resumo com: itens no carrinho, itens não resolvidos, total.
+
+---
+
+## Revisão B (09/11/2026) — situação dos itens
+
+A montagem de 10/11/2026 usa componentes que **substituem** parte desta lista.
+O esquemático correspondente é a revisão B (`hardware/README.md`). Os itens
+abaixo prevalecem sobre as tabelas de compra mais adiante, que ficam como
+registro da revisão A.
+
+### Componentes da revisão B
+
+| ID | Item | Modelo | Situação | Issue |
+|---|---|---|---|---|
+| B1 | Relé de estado sólido (SSR1) | Fotek **SSR-40DA**: entrada 3–32 V DC, saída 24–380 V AC. Corpo **63 × 45 × 23 mm** (medido em 09/11/2026) | Adquirido; autenticidade confirmada pelo responsável. Furação, etiqueta, curva de redução e fuga **a registrar** | #305 |
+| B2 | Dissipador aletado de alumínio + pasta térmica | — | Dimensões e furação **a medir**. Se não houver em mãos, o CAD usa envelope provisório | #305 |
+| B3 | Fonte 5 V (PS1) | Apple **A1385**, 100–240 V AC → 5 V / 1 A, saída USB-A. Corpo ~38 × 25 × 25 mm (1,5 × 1 × 1 pol.), sem os pinos | Adquirida; modelo confirmado; testada pelo responsável (220 V → 5 V). Foto da etiqueta **a registrar** | #306 |
+| B4 | Cabo USB-A → micro-USB | — | Comprimento, percurso e alívio de tração **a definir**. Precisa sair do DevKit sem forçar o conector da placa | #306, #309 |
+| B5 | Chave disjuntora 10 A (CB1) | **ST-001**, 10 A, 125/250 V AC, reset/off, LED vermelho, 3 terminais (o 3º é da lâmpada, ao N), 29 × 14 × 25 mm, 9 g. Fixação em painel (tampo), não DIN | Adquirida. Recorte de painel, espessura máxima de painel e marcação dos terminais **a medir**. Capacidade de interrupção não informada pelo vendedor | #307 |
+| B6 | Botão momentâneo com anel de LED RGB (SW1) | Anti-vandalismo, aço inox, IP65, rosca 16 mm, frente 18 mm, comprimento 35 mm, 11 g, com chicote. Contato 1NA, até 250 V / 5 A (fios amarelo e branco). Anel RGB de **cátodo comum** (preto = negativo; vermelho, verde, azul = anodos), **LED de 12–24 V DC** | Adquirido. **O anel não é compatível com 3,3 V direto do GPIO:** acionamento a definir por teste de bancada (`hardware/README.md`, seção 3.1). Nome comercial **a registrar** | #308 |
+| B7 | Buzzer | Do kit LAFVIN: 1 ativo + 1 passivo por kit (2 kits). O manual não traz tensão nem corrente | Em estoque. Escolher o tipo e medir a corrente para definir se o GPIO aciona direto ou por transistor | #311 |
+| B8 | Componentes do acionamento do anel RGB | Chaves high-side por cor; talvez um conversor 5 → 12 V | **Condicional:** só se o teste de bancada do anel mostrar que 3,3 V não basta. Ver `hardware/README.md`, seção 3.1 | #308 |
+
+### Itens fora de uso na revisão B
+
+| ID | Item | Motivo | Issue |
+|---|---|---|---|
+| E11 | HLK-PM01 | Substituído pela fonte Apple A1385 (B3) | #306 |
+| E12 | Porta-fusível in-line F-103C | O fusível F1 foi substituído pelo disjuntor (B5) | #307 |
+| E13 | Fusível 10 A T | Idem | #307 |
+| M1 | Botão metálico 16 mm | Substituído pelo botão RGB (B6) | #308 |
+| M2 | Aro para LED 5 mm | Sem LED discreto: o LED de estado é o anel do botão RGB | #308 |
+| M8 | Cabo extensor micro-USB de painel | **Descartado:** a carcaça não terá abertura USB externa. A gravação é manual, retirando o ESP32 e usando o micro-USB da própria placa | #309 |
+| — | Módulo de relé HL-52S (estoque) | Substituído pelo SSR (B1). **Não ligar ao GPIO26 com o firmware atual**, que é active-high e acionaria a carga no boot | #305 |
+| — | LED RGB 5 mm do kit (D1) | Substituído pelo anel do botão RGB | #308 |
+
+Itens que continuam, com ressalvas:
+
+- **E15 (trilho DIN):** o ST-001 é de painel, então o trilho fica só para o borne de terra E14 (~5 cm bastam).
+- **M7 (JST-XH):** o botão RGB tem chicote de 6 fios: 4 vias para o anel
+  (R, G, B, comum) e 2 vias para o contato. Somando buzzer (2) e entrada do SSR
+  (2): 1 × 4 vias e 3 × 2 vias, mais reservas. Conferir contra o estoque de M7. Os rabichos destacáveis (botão, anel, buzzer, entrada do SSR)
+  mantêm o ESP32 removível sem solda (#309).
+- **E3/E4 (WAGO):** a contagem de emendas da revisão B está abaixo, em
+  "Contagem de conectores".
 
 ---
 
@@ -43,7 +89,8 @@ mecânico (`mechanical/`). As decisões de revisão estão registradas em
 | E14 | Borne de aterramento DIN | 1 | `borne aterramento trilho DIN verde amarelo 4mm` | Verde-amarelo, para trilho DIN 35 mm, 4–6 mm² | Borne comum (não identificado como terra); tipo parafuso de chapa |
 | E15 | Trilho DIN + travas | 1 | `trilho DIN 35mm + trava fim de trilho` | ~5 cm de trilho 35 mm + 2 travas de fim de trilho | — (alternativa: dispensar e projetar clipe no boss impresso — decisão do modelo mecânico) |
 
-**Intenção de projeto de E12/E13 (revisada 08/09/2026):** F1 protege **todo o
+**Intenção de projeto de E12/E13 (revisada 08/09/2026; revisão A — na revisão B o
+disjuntor B5 ocupa a mesma posição no circuito, #307):** F1 protege **todo o
 módulo, incluindo a carga** — está em série no caminho
 `L_REDE → F1 → relé COM → NO → tomada`. Dimensionado entre a cafeteira
 (~6,3 A) e o contato do relé (10 A). O disjuntor da instalação continua sendo a
@@ -68,6 +115,9 @@ conector de alavanca. Continuidade cabo→tomada é o item crítico de seguranç
 | M6 | Fio rígido para montagem | 1 kit | `fio rigido 22AWG kit cores jumper solda` | 22 AWG, rígido, ≥3 cores | Fio flexível fino sem estanhar |
 | M7 | Conectores JST-XH (rabichos do LED e do botão) | 4 vias: 2 conjuntos; 2 vias: 2 conjuntos (1 + reserva cada) | `conector JST XH 4 vias cabo pre crimpado header 180 graus` / `... 2 vias ...` | Passo 2,5 mm; header macho PTH vertical (180°) + cabo pré-crimpado ≥ 10 cm (4 vias) e ≥ 15 cm (2 vias) | JST-PH (passo 2,0 mm); JST-SM; header SMD |
 | M8 | Cabo extensor micro-USB de painel `MEDIR` | 1 | `cabo extensor micro usb painel macho femea com parafuso` | Micro-B macho → micro-B fêmea com flange de fixação por parafuso; 20–30 cm; dados (não só carga) — **escolhido:** [Mercado Livre MLB-1781256517, 30 cm, 5 pinos](https://produto.mercadolivre.com.br/MLB-1781256517-cabo-micro-usb-para-montagem-painel-macho-femea-30-cm-_JM) | Só carga; USB-C; sem flange de painel; versão de 50 cm do mesmo vendedor |
+
+> **M8 descartado em 09/11/2026 (#309):** sem abertura USB externa na carcaça.
+> O registro abaixo fica como histórico da escolha.
 
 **Definição de M8 (02/11/2026):** comprar o cabo genérico do Mercado Livre
 acima, o mais barato que atende a `exigido`: **R$ 28 + frete** (preço do
@@ -108,7 +158,8 @@ Comprar somente o que não existir:
 
 - ESP32 DEVKIT V1 — kit LAFVIN + 1 sobressalente
 - Módulo de relé **2 canais** 10 A — kit LAFVIN + 1 sobressalente (usa 1 canal;
-  é **active-low** / gatilho de nível BAIXO — HL-52S)
+  é **active-low** / gatilho de nível BAIXO — HL-52S). **Fora de uso na revisão
+  B** (substituído pelo SSR, #305)
 - LED RGB 5 mm, pushbutton de protoboard, resistores 220 Ω, protoboard
   MB-102, jumpers, cabo USB — kit LAFVIN
 - Resistores 10 kΩ (R1, R2) — em estoque, fora do kit LAFVIN, que só traz
@@ -123,6 +174,24 @@ Comprar somente o que não existir:
 ---
 
 ## Contagem de conectores (derivada do esquemático)
+
+### Revisão B (09/11/2026)
+
+Pontos físicos de cada nó de rede, pela netlist da revisão B. O tipo de emenda
+de cada nó (WAGO, borne ou terminal do próprio componente) só será fixado no
+diagrama de conexões fio a fio, depois de validar #305–#307 (#304). O esboço do
+responsável usa um borne de 3 posições na entrada (L, PE, N) e outro na saída
+para a tomada.
+
+| Nó | Pontos físicos |
+|---|---|
+| `L_REDE` | cabo P1 (L) · entrada do disjuntor CB1 |
+| `L_FONTE` | saída do CB1 · SSR terminal 1 · A1385 (L, direto no pino) |
+| `L_SAIDA` | SSR terminal 2 · tomada J1 (L) |
+| `N` | cabo P1 (N) · tomada J1 (N) · A1385 (N, direto no pino) |
+| `PE` | cabo P1 (PE) · tomada J1 (PE) — borne DIN E14 |
+
+### Revisão A (histórico)
 
 Nós de rede e o que se junta em cada um:
 
@@ -160,19 +229,33 @@ O restante pode ir em compra única.
 
 - [ ] E2 é 10 A (pinos de 4,0 mm), não 20 A
 - [ ] ⌀ externo de E1 está dentro da faixa de aperto de E10 (≤ 8 mm para PG9)
-- [ ] E11 tem marcação "HLK-PM01" e "5V" impressa no corpo
+- [ ] ~~E11 tem marcação "HLK-PM01" e "5V" impressa no corpo~~ (fora de uso, #306)
 - [ ] E1 tem bitola **1,0 mm²** indicada na capa
-- [ ] E13 é **10 A retardado (T)**, não ação rápida e não 500 mA
-- [ ] E12 é **in-line com rabicho**, não de painel
+- [ ] ~~E13 é **10 A retardado (T)**, não ação rápida e não 500 mA~~ (fora de uso, #307)
+- [ ] ~~E12 é **in-line com rabicho**, não de painel~~ (fora de uso, #307)
 - [ ] Recorte de E2 (`tomada_j1`), furo de M1 (`furo_botao`, hoje 16 mm no
       modelo) e corpo de E10 (`prensa_cabo` Ø15) medidos e enviados para o
       modelo mecânico
 - [ ] M4 permite soquetar o DevKit de 30 pinos (15 por lado após corte)
 - [ ] Plugue da CP30: confirmar se o 3º pino (terra) está populado
 
+**Revisão B (registrar com foto da etiqueta, na issue indicada):**
+
+- [ ] B1 SSR-40DA: etiqueta, corrente de entrada a 3,3 V e fuga desligado (#305)
+- [ ] B2 dissipador: dimensões externas, aletas e furação (#305 → #302)
+- [ ] B3 A1385: etiqueta (#306)
+- [ ] B5 ST-001: recorte de painel, espessura máxima de painel, marcação dos 3 terminais e foto da etiqueta (#307)
+- [ ] B6 botão RGB: nome comercial e **teste do anel a 3,3 V e a 5 V** (brilho e corrente por cor), sem rede (#308)
+- [ ] B7 buzzer: qual dos dois do kit (ativo ou passivo) e corrente medida (#311)
+
 ## Pendências para o profissional habilitado (marco de 02/10)
 
-- Bondar ao PE o botão metálico M1 e o conector USB (lado da baixa tensão), ou
-  mantê-los só no SELV confiando na barreira do HLK-PM01 + divisória?
+- Bondar ao PE o corpo do botão RGB, se for metálico (lado da baixa tensão), ou
+  mantê-lo só no SELV confiando na barreira da fonte A1385 + divisória?
+  (Revisão B: o conector USB de painel foi descartado, #309. Na revisão A a
+  pergunta era sobre o botão M1 e a barreira do HLK-PM01.)
+- Revisão B: verificar a ligação da rede direto nos pinos da A1385 (decisão do
+  responsável, #306), a coordenação disjuntor × SSR × condutores (#307) e a
+  corrente de fuga do SSR desligado (#305).
 - Declarar na defesa: o módulo pressupõe alimentação por circuito com
   **DR 30 mA** a montante (exigência NBR 5410 para circuito de cozinha).

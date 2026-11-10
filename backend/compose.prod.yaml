@@ -37,6 +37,9 @@ services:
       CAFEY_MAIL_SMTP_PORT: ${CAFEY_MAIL_SMTP_PORT:-587}
       CAFEY_MAIL_SMTP_USERNAME: ${CAFEY_MAIL_SMTP_USERNAME:-}
       CAFEY_MAIL_SMTP_PASSWORD: ${CAFEY_MAIL_SMTP_PASSWORD:-}
+      # Chave AES-256 (Base64, 32 bytes) da cifra do segredo TOTP em repouso (issue #260).
+      # Sem ela em prod o 2FA fica indisponível (503), mas o app sobe e login sem 2FA segue normal.
+      CAFEY_MFA_ENCRYPTION_KEY: ${CAFEY_MFA_ENCRYPTION_KEY:-}
     volumes:
       # Certificados AWS IoT Core (INFRA-05) — arquivos reais ficam fora do repositório,
       # em /opt/cafey/secrets na instância (nunca commitados).

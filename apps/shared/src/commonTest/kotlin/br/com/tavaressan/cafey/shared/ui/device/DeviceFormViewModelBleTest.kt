@@ -91,6 +91,28 @@ class DeviceFormViewModelBleTest {
     }
 
     @Test
+    fun initialStep_withBle_includesAlreadyConnectedDevice() = runTest(testDispatcher) {
+        val connectedDevice = BleDispositivo(id = "cafe-connected", nome = "Cafey Conectada", rssi = 0)
+        val scannedDevice = BleDispositivo(id = "cafe-02", nome = "Cafey Sala", rssi = -70)
+        val fakeBle = FakeBleClient(
+            dispositivosEscaneados = listOf(connectedDevice, scannedDevice)
+        )
+        val viewModel = DeviceFormViewModel(
+            deviceApi = appContainer.deviceApi,
+            bleClient = fakeBle,
+            coroutineScope = this,
+        )
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(DeviceFormStep.BLE_SEARCH, state.step)
+        assertEquals(2, state.discoveredDevices.size)
+        assertEquals("cafe-connected", state.discoveredDevices[0].id)
+        assertEquals("cafe-02", state.discoveredDevices[1].id)
+    }
+
+    @Test
     fun switchBetweenBleAndManual() = runTest(testDispatcher) {
         val fakeBle = FakeBleClient()
         val viewModel = DeviceFormViewModel(
@@ -421,5 +443,227 @@ class DeviceFormViewModelBleTest {
         val state = viewModel.uiState.value
         assertEquals(DeviceFormStep.MANUAL, state.step)
         assertFalse(state.bleSupported)
+    }
+
+    @Test
+    fun reprovisionOwnedDevice_prefillsName_noChangeDoesNotCallApi() = runTest(testDispatcher) {
+        val serial = "c40a1340-e5cf-4290-8fd4-f6e838d80fb5"
+        var postCount = 0
+        var putCount = 0
+        val engine = MockEngine { request ->
+            when (request.method) {
+                HttpMethod.Get if request.url.encodedPath == "/dispositivos" -> {
+                    respond(
+                        content = """[{"id":"$serial","nome":"Cozinha","timezone":"America/Sao_Paulo","estado":"DESLIGADO","online":true,"versaoAgendamentos":1,"duracaoPreparoS":300,"limiarDescalcificacao":200,"contadorPreparos":0,"papel":"PROPRIETARIO","criadoEm":"2026-10-21T10:00:00Z","atualizadoEm":"2026-10-21T10:00:00Z"}]""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+                HttpMethod.Post if request.url.encodedPath == "/dispositivos" -> {
+                    postCount++
+                    respond(
+                        content = """{"id":"$serial","nome":"Cozinha","timezone":"America/Sao_Paulo","estado":"DESLIGADO","online":true,"versaoAgendamentos":1,"duracaoPreparoS":300,"limiarDescalcificacao":200,"contadorPreparos":0,"papel":"PROPRIETARIO","criadoEm":"2026-10-21T10:00:00Z","atualizadoEm":"2026-10-21T10:00:00Z"}""",
+                        status = HttpStatusCode.Created,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+                HttpMethod.Put -> {
+                    putCount++
+                    respond(
+                        content = """{"id":"$serial","nome":"Nova Cozinha","timezone":"America/Sao_Paulo","estado":"DESLIGADO","online":true,"versaoAgendamentos":1,"duracaoPreparoS":300,"limiarDescalcificacao":200,"contadorPreparos":0,"papel":"PROPRIETARIO","criadoEm":"2026-10-21T10:00:00Z","atualizadoEm":"2026-10-21T10:00:00Z"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+                else -> respond(content = "{}", status = HttpStatusCode.OK)
+            }
+        }
+        val tokenStorage = FakeTokenStorage(StoredTokens("demo-access", "demo-refresh"))
+        val httpClient = HttpClient(engine, sharedHttpClientConfig("https://api.cafey.test", tokenStorage))
+        val viewModel = DeviceFormViewModel(
+            deviceApi = DeviceApi(ApiClient("https://api.cafey.test", tokenStorage, httpClient)),
+            bleClient = FakeBleClient(
+                infoDispositivoRetorno = DispositivoInfo(serial = serial),
+                statusProvisionamentoRetorno = listOf(
+                    WifiProvisionStatus(WifiProvisionState.CONNECTING),
+                    WifiProvisionStatus(WifiProvisionState.CONNECTED, ip = "192.168.1.100"),
+                ),
+            ),
+            coroutineScope = this,
+        )
+        advanceUntilIdle()
+
+        viewModel.selectDevice(BleDispositivo("dev-1", "Cafey Expresso"))
+        advanceUntilIdle()
+        viewModel.onWifiSsidChange("RedeCasa")
+        viewModel.onWifiPasswordChange("Senha123")
+        viewModel.provisionWifi()
+        advanceUntilIdle()
+        advanceUntilIdle()
+        runCurrent()
+
+        val state = viewModel.uiState.value
+        assertEquals(DeviceFormStep.CONFIRM_REGISTER, state.step)
+        // O save pode rodar antes ou depois da pré-detecção (no wasm o MockEngine responde pelo
+        // event loop do JS, fora do tempo virtual): em ambos os casos o nome cadastrado prevalece.
+        viewModel.save()
+        val finalState = viewModel.uiState.first { it.success || it.errorMessage != null }
+        assertTrue(finalState.success)
+        assertEquals("Cozinha", finalState.nome)
+        assertEquals(0, postCount)
+        assertEquals(0, putCount)
+    }
+
+    @Test
+    fun reprovisionOwnedDevice_renameCallsUpdate() = runTest(testDispatcher) {
+        val serial = "c40a1340-e5cf-4290-8fd4-f6e838d80fb5"
+        var putCount = 0
+        val engine = MockEngine { request ->
+            when (request.method) {
+                HttpMethod.Get if request.url.encodedPath == "/dispositivos" -> {
+                    respond(
+                        content = """[{"id":"$serial","nome":"Cozinha","timezone":"America/Sao_Paulo","estado":"DESLIGADO","online":true,"versaoAgendamentos":1,"duracaoPreparoS":300,"limiarDescalcificacao":200,"contadorPreparos":0,"papel":"PROPRIETARIO","criadoEm":"2026-10-21T10:00:00Z","atualizadoEm":"2026-10-21T10:00:00Z"}]""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+                HttpMethod.Put -> {
+                    putCount++
+                    respond(
+                        content = """{"id":"$serial","nome":"Nova Cozinha","timezone":"America/Sao_Paulo","estado":"DESLIGADO","online":true,"versaoAgendamentos":1,"duracaoPreparoS":300,"limiarDescalcificacao":200,"contadorPreparos":0,"papel":"PROPRIETARIO","criadoEm":"2026-10-21T10:00:00Z","atualizadoEm":"2026-10-21T10:00:00Z"}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+                else -> respond(content = "{}", status = HttpStatusCode.OK)
+            }
+        }
+        val tokenStorage = FakeTokenStorage(StoredTokens("demo-access", "demo-refresh"))
+        val httpClient = HttpClient(engine, sharedHttpClientConfig("https://api.cafey.test", tokenStorage))
+        val viewModel = DeviceFormViewModel(
+            deviceApi = DeviceApi(ApiClient("https://api.cafey.test", tokenStorage, httpClient)),
+            bleClient = FakeBleClient(
+                infoDispositivoRetorno = DispositivoInfo(serial = serial),
+                statusProvisionamentoRetorno = listOf(
+                    WifiProvisionStatus(WifiProvisionState.CONNECTING),
+                    WifiProvisionStatus(WifiProvisionState.CONNECTED, ip = "192.168.1.100"),
+                ),
+            ),
+            coroutineScope = this,
+        )
+        advanceUntilIdle()
+
+        viewModel.selectDevice(BleDispositivo("dev-1", "Cafey Expresso"))
+        advanceUntilIdle()
+        viewModel.onWifiSsidChange("RedeCasa")
+        viewModel.onWifiPasswordChange("Senha123")
+        viewModel.provisionWifi()
+        advanceUntilIdle()
+        advanceUntilIdle()
+        runCurrent()
+
+        assertEquals(DeviceFormStep.CONFIRM_REGISTER, viewModel.uiState.value.step)
+        viewModel.onNomeChange("Nova Cozinha")
+        viewModel.save()
+        val finalState = viewModel.uiState.first { it.success || it.errorMessage != null }
+        assertTrue(finalState.success)
+        assertEquals(1, putCount)
+    }
+
+    @Test
+    fun reprovisionFirstCadastro_sendsSerialAndNome() = runTest(testDispatcher) {
+        val serial = "c40a1340-e5cf-4290-8fd4-f6e838d80fb5"
+        var corpoPost: String? = null
+        val engine = MockEngine { request ->
+            when (request.method) {
+                HttpMethod.Get if request.url.encodedPath == "/dispositivos" -> {
+                    respond(content = "[]", status = HttpStatusCode.OK, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+                }
+                HttpMethod.Post if request.url.encodedPath == "/dispositivos" -> {
+                    corpoPost = request.body.toByteArray().decodeToString()
+                    respond(
+                        content = """{"id":"$serial","nome":"Minha Cafeteira","timezone":"America/Sao_Paulo","estado":"DESLIGADO","online":true,"versaoAgendamentos":1,"duracaoPreparoS":300,"limiarDescalcificacao":200,"contadorPreparos":0,"papel":"PROPRIETARIO","criadoEm":"2026-10-21T10:00:00Z","atualizadoEm":"2026-10-21T10:00:00Z"}""",
+                        status = HttpStatusCode.Created,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+                else -> respond(content = "{}", status = HttpStatusCode.OK)
+            }
+        }
+        val tokenStorage = FakeTokenStorage(StoredTokens("demo-access", "demo-refresh"))
+        val httpClient = HttpClient(engine, sharedHttpClientConfig("https://api.cafey.test", tokenStorage))
+        val viewModel = DeviceFormViewModel(
+            deviceApi = DeviceApi(ApiClient("https://api.cafey.test", tokenStorage, httpClient)),
+            bleClient = FakeBleClient(
+                infoDispositivoRetorno = DispositivoInfo(serial = serial),
+                statusProvisionamentoRetorno = listOf(
+                    WifiProvisionStatus(WifiProvisionState.CONNECTING),
+                    WifiProvisionStatus(WifiProvisionState.CONNECTED, ip = "192.168.1.100"),
+                ),
+            ),
+            coroutineScope = this,
+        )
+        advanceUntilIdle()
+
+        viewModel.selectDevice(BleDispositivo("dev-1", "Cafey Expresso"))
+        advanceUntilIdle()
+        viewModel.onWifiSsidChange("RedeCasa")
+        viewModel.provisionWifi()
+        advanceUntilIdle()
+
+        assertEquals(DeviceFormStep.CONFIRM_REGISTER, viewModel.uiState.value.step)
+        viewModel.onNomeChange("Minha Cafeteira")
+        viewModel.save()
+        val finalState = viewModel.uiState.first { it.success || it.errorMessage != null }
+        assertTrue(finalState.success)
+        assertNotNull(corpoPost)
+        assertTrue(corpoPost!!.contains(""""serial":"$serial""""))
+    }
+
+    @Test
+    fun reprovisionDeviceOwnedByAnotherAccount_showsClearMessage() = runTest(testDispatcher) {
+        val serial = "c40a1340-e5cf-4290-8fd4-f6e838d80fb5"
+        val engine = MockEngine { request ->
+            when (request.method) {
+                HttpMethod.Get if request.url.encodedPath == "/dispositivos" -> {
+                    respond(content = "[]", status = HttpStatusCode.OK, headers = headersOf(HttpHeaders.ContentType, "application/json"))
+                }
+                HttpMethod.Post if request.url.encodedPath == "/dispositivos" -> {
+                    respond(
+                        content = """{"type":"https://api.cafey.test/problem/ConflitoException","title":"Conflito","status":409,"detail":"Esta cafeteira já pertence a outra conta."}""",
+                        status = HttpStatusCode.Conflict,
+                        headers = headersOf(HttpHeaders.ContentType, "application/problem+json"),
+                    )
+                }
+                else -> respond(content = "{}", status = HttpStatusCode.OK)
+            }
+        }
+        val tokenStorage = FakeTokenStorage(StoredTokens("demo-access", "demo-refresh"))
+        val httpClient = HttpClient(engine, sharedHttpClientConfig("https://api.cafey.test", tokenStorage))
+        val viewModel = DeviceFormViewModel(
+            deviceApi = DeviceApi(ApiClient("https://api.cafey.test", tokenStorage, httpClient)),
+            bleClient = FakeBleClient(
+                infoDispositivoRetorno = DispositivoInfo(serial = serial),
+                statusProvisionamentoRetorno = listOf(
+                    WifiProvisionStatus(WifiProvisionState.CONNECTING),
+                    WifiProvisionStatus(WifiProvisionState.CONNECTED, ip = "192.168.1.100"),
+                ),
+            ),
+            coroutineScope = this,
+        )
+        advanceUntilIdle()
+
+        viewModel.selectDevice(BleDispositivo("dev-1", "Cafey Expresso"))
+        advanceUntilIdle()
+        viewModel.onWifiSsidChange("RedeCasa")
+        viewModel.provisionWifi()
+        advanceUntilIdle()
+
+        assertEquals(DeviceFormStep.CONFIRM_REGISTER, viewModel.uiState.value.step)
+        viewModel.save()
+        val finalState = viewModel.uiState.first { it.success || it.errorMessage != null }
+        assertFalse(finalState.success)
+        assertNotNull(finalState.errorMessage)
+        assertTrue(finalState.errorMessage!!.contains("pertence a outra conta"))
     }
 }
