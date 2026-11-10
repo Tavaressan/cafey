@@ -36,6 +36,7 @@ class MqttIngestionService(
 
         dispositivo.estado = payload.estado
         dispositivo.ultimoVisto = payload.desde ?: Instant.now()
+        payload.firmware?.let { dispositivo.firmware = it }
         dispositivo.atualizadoEm = Instant.now()
         dispositivoRepository.save(dispositivo)
         logger.info("Estado do dispositivo {} atualizado para {}", dispositivoId, payload.estado)
@@ -52,6 +53,8 @@ class MqttIngestionService(
         val wasOffline = !dispositivo.online
         dispositivo.online = payload.online
         dispositivo.ultimoVisto = Instant.now()
+        payload.rssi?.let { dispositivo.rssi = it }
+        payload.uptimeS?.let { dispositivo.uptimeS = it }
         dispositivo.atualizadoEm = Instant.now()
         dispositivoRepository.save(dispositivo)
         logger.info("Saúde do dispositivo {} atualizada: online={}", dispositivoId, payload.online)

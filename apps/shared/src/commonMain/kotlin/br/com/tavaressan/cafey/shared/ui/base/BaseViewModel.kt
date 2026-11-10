@@ -2,7 +2,9 @@ package br.com.tavaressan.cafey.shared.ui.base
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import br.com.tavaressan.cafey.shared.domain.model.DiagnosticoDispositivoResponse
 import br.com.tavaressan.cafey.shared.domain.model.DispositivoResponse
+import br.com.tavaressan.cafey.shared.domain.model.PapelDispositivo
 import br.com.tavaressan.cafey.shared.network.ApiError
 import br.com.tavaressan.cafey.shared.network.DeviceApi
 import br.com.tavaressan.cafey.shared.preferences.ThemePreference
@@ -15,16 +17,15 @@ import kotlinx.coroutines.launch
 data class BaseUiState(
     val loading: Boolean = true,
     val device: DispositivoResponse? = null,
+    val diagnostico: DiagnosticoDispositivoResponse? = null,
+    val diagnosticoRestrito: Boolean = false,
     val darkTheme: Boolean = false,
     val errorMessage: String? = null,
 )
 
 /**
- * Issue #182 — tela "Base" (dispositivo + alternador de tema). Espelha
- * `docs/docs_interface/prototype/base.html` só no que tem dado real via [DeviceApi] (nome, estado
- * online/offline): Wi-Fi, nuvem e firmware/OTA do protótipo não têm campo em
- * `DispositivoResponse`/endpoint no backend hoje — omitidos em vez de inventados, mesmo critério já
- * usado em `CareScreen`/`ScheduleScreen` para dados sem endpoint correspondente.
+ * Issue #182 — tela "Base" (dispositivo + alternador de tema). Issue #321 adiciona o painel de
+ * diagnóstico (restrito ao proprietário): dados persistidos pelo backend a partir do MQTT.
  */
 class BaseViewModel(
     private val deviceApi: DeviceApi,
@@ -63,7 +64,26 @@ class BaseViewModel(
                 val allDevices = deviceApi.listar()
                 val targetId = activeDeviceId?.value
                 val device = allDevices.firstOrNull { it.id == targetId } ?: allDevices.firstOrNull()
-                _uiState.update { it.copy(loading = false, device = device, errorMessage = null) }
+                var diagnostico: DiagnosticoDispositivoResponse? = null
+                var diagnosticoRestrito = false
+                if (device != null && device.papel == PapelDispositivo.PROPRIETARIO) {
+                    try {
+                        diagnostico = deviceApi.diagnostico(device.id)
+                    } catch (_: ApiError) {
+                        diagnosticoRestrito = true
+                    }
+                } else if (device != null) {
+                    diagnosticoRestrito = true
+                }
+                _uiState.update {
+                    it.copy(
+                        loading = false,
+                        device = device,
+                        diagnostico = diagnostico,
+                        diagnosticoRestrito = diagnosticoRestrito,
+                        errorMessage = null
+                    )
+                }
             } catch (e: ApiError) {
                 _uiState.update { it.copy(loading = false, errorMessage = e.message) }
             }

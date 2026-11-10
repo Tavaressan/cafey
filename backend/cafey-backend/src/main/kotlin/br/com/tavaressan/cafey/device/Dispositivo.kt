@@ -38,6 +38,15 @@ class Dispositivo(
     @Column(name = "contador_preparos", nullable = false)
     var contadorPreparos: Int = 0,
 
+    @Column(name = "rssi")
+    var rssi: Int? = null,
+
+    @Column(name = "uptime_s")
+    var uptimeS: Long? = null,
+
+    @Column(name = "firmware", length = 100)
+    var firmware: String? = null,
+
     /** Código de uso único publicado pela placa na janela de vínculo (FW-24, #275). */
     @Column(name = "codigo_vinculo", length = 16)
     var codigoVinculo: String? = null,
