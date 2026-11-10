@@ -17,5 +17,7 @@ class RateLimitProperties(
     var registrarCapacity: Long = 10,
     var registrarPeriodSeconds: Long = 60,
     var recuperarSenhaCapacity: Long = 5,
-    var recuperarSenhaPeriodSeconds: Long = 60
+    var recuperarSenhaPeriodSeconds: Long = 60,
+    var validar2faCapacity: Long = 10,
+    var validar2faPeriodSeconds: Long = 60
 )

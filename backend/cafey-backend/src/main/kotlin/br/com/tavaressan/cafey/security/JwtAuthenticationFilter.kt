@@ -51,6 +51,10 @@ class JwtAuthenticationFilter(
             try {
                 val jwt = jwtTokenService.validarToken(token)
                 jwtTokenService.extrairUsuarioId(jwt)
+                // Token de desafio MFA (#260) não concede acesso a rotas protegidas.
+                if (jwtTokenService.isMfaChallengeToken(jwt)) {
+                    throw JwtException("Token de desafio MFA não pode ser usado como access token")
+                }
 
                 val context = SecurityContextHolder.createEmptyContext()
                 context.authentication = authenticationConverter.convert(jwt)

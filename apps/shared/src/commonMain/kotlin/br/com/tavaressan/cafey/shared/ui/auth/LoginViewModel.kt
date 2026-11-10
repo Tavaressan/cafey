@@ -19,6 +19,7 @@ data class LoginUiState(
     val loading: Boolean = false,
     val errorMessage: String? = null,
     val success: Boolean = false,
+    val mfaChallengeToken: String? = null,
 )
 
 /** UC-02 (autenticar). A regra de validação vem de `shared` (`LoginFormErrors`) — este ViewModel
@@ -41,14 +42,28 @@ class LoginViewModel(private val authApi: AuthApi) : ViewModel() {
         _uiState.update { it.copy(errors = errors) }
         if (!errors.isValid) return
 
-        _uiState.update { it.copy(loading = true, errorMessage = null) }
+        _uiState.update { it.copy(loading = true, errorMessage = null, mfaChallengeToken = null) }
         viewModelScope.launch {
             try {
-                authApi.login(LoginRequest(email = state.email, senha = state.senha))
-                _uiState.update { it.copy(loading = false, success = true) }
+                val response = authApi.login(LoginRequest(email = state.email, senha = state.senha))
+                val desafio = response.desafioToken
+                if (response.mfaRequerido == true && !desafio.isNullOrBlank()) {
+                    _uiState.update { it.copy(loading = false, mfaChallengeToken = desafio) }
+                } else {
+                    _uiState.update { it.copy(loading = false, success = true) }
+                }
             } catch (e: ApiError) {
-                _uiState.update { it.copy(loading = false, errorMessage = e.message) }
+                val message = if (e is ApiError.Http && e.status == 503) {
+                    "2FA indisponível no servidor"
+                } else {
+                    e.message ?: "Falha ao entrar"
+                }
+                _uiState.update { it.copy(loading = false, errorMessage = message) }
             }
         }
+    }
+
+    fun consumeMfaChallenge() {
+        _uiState.update { it.copy(mfaChallengeToken = null) }
     }
 }
