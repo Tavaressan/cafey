@@ -91,6 +91,28 @@ class DeviceFormViewModelBleTest {
     }
 
     @Test
+    fun initialStep_withBle_includesAlreadyConnectedDevice() = runTest(testDispatcher) {
+        val connectedDevice = BleDispositivo(id = "cafe-connected", nome = "Cafey Conectada", rssi = 0)
+        val scannedDevice = BleDispositivo(id = "cafe-02", nome = "Cafey Sala", rssi = -70)
+        val fakeBle = FakeBleClient(
+            dispositivosEscaneados = listOf(connectedDevice, scannedDevice)
+        )
+        val viewModel = DeviceFormViewModel(
+            deviceApi = appContainer.deviceApi,
+            bleClient = fakeBle,
+            coroutineScope = this,
+        )
+
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals(DeviceFormStep.BLE_SEARCH, state.step)
+        assertEquals(2, state.discoveredDevices.size)
+        assertEquals("cafe-connected", state.discoveredDevices[0].id)
+        assertEquals("cafe-02", state.discoveredDevices[1].id)
+    }
+
+    @Test
     fun switchBetweenBleAndManual() = runTest(testDispatcher) {
         val fakeBle = FakeBleClient()
         val viewModel = DeviceFormViewModel(
