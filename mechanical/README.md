@@ -1,5 +1,13 @@
 # mechanical — módulo físico (pedestal)
 
+> **Carcaça circular (#302, 09/11/2026): fonte da verdade atual.** Ver
+> [`circular/README.md`](circular/README.md). Toolchain escolhido: **FreeCAD
+> por script** (`mechanical/circular/build.py`, API `Part`), dirigido por CSVs,
+> com verificação em Python puro (`check.py`) e a marca gravada sobre a malha
+> (`marca.py`). O modelo retangular abaixo (FreeCAD `scripts/*_3d.py` e o
+> equivalente `cad/` em build123d) fica como **histórico** e não é mais o alvo
+> de impressão.
+
 Modelo paramétrico do pedestal de `docs/status-modulo-fisico.md`.
 
 **Impressão 3D (atual, issue #116):** ver a seção
