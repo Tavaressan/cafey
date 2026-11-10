@@ -284,7 +284,7 @@ class DeviceFormViewModel(
                                         }
                                     }
                                 } catch (e: Throwable) {
-                                    // ignore
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
                                 }
                             }
                         }
@@ -430,42 +430,30 @@ class DeviceFormViewModel(
                         val ex = existing ?: currentState.existingDevice!!
                         if (ex.papel == PapelDispositivo.CONVIDADO) {
                             // Convidado vê o nome, mas não pode editá-lo
-                            _uiState.update { it.copy(saving = false, success = true) }
+                            _uiState.update { it.copy(saving = false, success = true, nome = ex.nome) }
                             return@launch
                         }
                         if (ex.papel == PapelDispositivo.PROPRIETARIO) {
-                            if (currentState.nome.isBlank()) {
-                                _uiState.update { it.copy(saving = false, success = true) }
-                                return@launch
-                            }
-                            if (currentState.nome != ex.nome) {
-                                try {
-                                    deviceApi.atualizar(
-                                        ex.id,
-                                        AtualizarDispositivoRequest(currentState.nome, timezone, duracaoPreparoS, limiarDescalcificacao),
-                                    )
-                                    _uiState.update { it.copy(saving = false, success = true) }
-                                    return@launch
-                                } catch (e: ApiError) {
-                                    _uiState.update { it.copy(saving = false, errorMessage = e.message) }
-                                    return@launch
-                                }
-                            }
-                            if (currentState.nome == ex.nome) {
-                                _uiState.update { it.copy(saving = false, success = true) }
+                            val nomeAtual = currentState.nome
+                            val serialInfo = currentState.deviceInfo?.serial
+                            val nomePadraoBle = currentState.selectedDevice?.nome?.ifBlank { serialInfo ?: "Cafeteira" }
+                                ?: serialInfo ?: "Cafeteira"
+                            // Se o usuário não alterou o nome padrão do BLE, mantém o nome já cadastrado.
+                            val nomeParaSalvar = if (nomeAtual.isBlank() || nomeAtual == nomePadraoBle) ex.nome else nomeAtual
+                            if (nomeParaSalvar == ex.nome) {
+                                _uiState.update { it.copy(saving = false, success = true, nome = ex.nome) }
                                 return@launch
                             }
                             try {
                                 deviceApi.atualizar(
                                     ex.id,
-                                    AtualizarDispositivoRequest(currentState.nome, timezone, duracaoPreparoS, limiarDescalcificacao),
+                                    AtualizarDispositivoRequest(nomeParaSalvar, timezone, duracaoPreparoS, limiarDescalcificacao),
                                 )
-                                _uiState.update { it.copy(saving = false, success = true) }
-                                return@launch
+                                _uiState.update { it.copy(saving = false, success = true, nome = nomeParaSalvar) }
                             } catch (e: ApiError) {
                                 _uiState.update { it.copy(saving = false, errorMessage = e.message) }
-                                return@launch
                             }
+                            return@launch
                         }
                     }
                     // Só o cadastro por BLE manda o serial: é ele que liga o registro à thing da placa.

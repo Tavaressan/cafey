@@ -496,7 +496,9 @@ private fun ManualFormStep(
     }
 
     if (!isCreate) {
-        DeviceGuestsSection(deviceId = state.deviceId!!)
+        state.deviceId?.let { deviceId ->
+            DeviceGuestsSection(deviceId = deviceId)
+        }
     }
 
     if (!isCreate) {
