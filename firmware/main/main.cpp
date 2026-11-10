@@ -53,9 +53,11 @@ extern "C" void app_main(void) {
     // Inicia status de rede da Cafeteira como desconectado (Amarelo piscando se ocioso, spec §5.3)
     g_cafeteira.set_network_ok(false);
 
-    // Fila da Conectividade antes de qualquer produtor (Wi-Fi, MQTT, Cafeteira):
-    // post() em fila inexistente descarta a mensagem.
+    // Filas dos AOs antes de qualquer produtor (Wi-Fi, MQTT, BLE, boot): post()
+    // em fila inexistente descarta a mensagem (#334).
     g_conectividade.init();
+    g_cafeteira.init();
+    g_agendador.init();
 
     // Carrega agendamentos e fila de eventos persistidos em NVS (spec §5.4):
     // sobrevivem a reboot e queda de energia. Consumidos futuramente pelos
@@ -218,6 +220,16 @@ extern "C" void app_main(void) {
             ESP_LOGI(TAG, "agendamentos versao %u ignorados (gravada: %u)",
                      static_cast<unsigned>(meta.version),
                      static_cast<unsigned>(schedule_store.version()));
+            // Retido reentregue com mesma versao: renotifica o estado armado com
+            // base na lista gravada (idempotente, #334).
+            bool armed = false;
+            for (size_t i = 0; i < schedule_store.count(); ++i) {
+                if (schedule_store.at(i).active) {
+                    armed = true;
+                    break;
+                }
+            }
+            g_cafeteira.post(Message{MessageType::ScheduleArmedChanged, armed ? 1 : 0});
             return;
         }
         apply_timezone(schedule_store.timezone());
