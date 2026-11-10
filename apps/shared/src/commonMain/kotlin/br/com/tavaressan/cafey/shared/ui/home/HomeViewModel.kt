@@ -97,8 +97,6 @@ class HomeViewModel(
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     private var lastStatsFetchMs = 0L
     private var selectedDeviceId: String? = null
-    /** Estado otimista aplicado após comando via BLE; preservado até o servidor confirmar. */
-    private var optimisticEstado: Pair<String, String>? = null // deviceId -> estado
 
     private val fallback: BleCommandFallback? =
         if (bleClient != null && bleClient.isSupported) {
@@ -153,25 +151,9 @@ class HomeViewModel(
             }
             _uiState.update { current ->
                 val errorParaManter = if (current.device == null) null else current.errorMessage
-                val optimistic = optimisticEstado
-                val deviceFinal = device?.let { serverDevice ->
-                    if (optimistic != null && optimistic.first == serverDevice.id) {
-                        if (serverDevice.estado == optimistic.second) {
-                            optimisticEstado = null
-                            serverDevice
-                        } else {
-                            serverDevice.copy(estado = optimistic.second)
-                        }
-                    } else {
-                        if (optimistic != null && optimistic.first != serverDevice.id) {
-                            optimisticEstado = null
-                        }
-                        serverDevice
-                    }
-                }
                 current.copy(
                     loading = false,
-                    device = deviceFinal,
+                    device = device,
                     devices = devices,
                     errorMessage = errorParaManter,
                     proximoPreparo = proximoPreparo,
@@ -187,7 +169,6 @@ class HomeViewModel(
     fun selectDevice(id: String) {
         if (selectedDeviceId == id && _uiState.value.device?.id == id) return
         selectedDeviceId = id
-        optimisticEstado = null
         lastStatsFetchMs = 0L
         _uiState.update { it.copy(loading = true) }
         if (activeDeviceId != null) {
@@ -248,7 +229,6 @@ class HomeViewModel(
                         AcaoComando.LIGAR -> "PREPARANDO"
                         AcaoComando.DESLIGAR, AcaoComando.CANCELAR -> "PRONTO"
                     }
-                    optimisticEstado = deviceId to estadoEstimado
                     _uiState.update {
                         it.copy(
                             commandInFlight = false,

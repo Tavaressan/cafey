@@ -35,8 +35,9 @@ class HomeViewModelBleFallbackTest {
             val path = request.url.encodedPath
             when {
                 path == "/dispositivos" -> {
+                    val estado = if (bleClient?.comandosEnviados?.isNotEmpty() == true) "PREPARANDO" else "PRONTO"
                     respond(
-                        content = """[{"id":"dev-1","nome":"Caféy","timezone":"America/Sao_Paulo","estado":"PRONTO","online":true,"versaoAgendamentos":1,"duracaoPreparoS":480,"limiarDescalcificacao":100,"contadorPreparos":10,"papel":"PROPRIETARIO","criadoEm":"2026-10-15T10:00:00Z","atualizadoEm":"2026-10-15T10:00:00Z"}]""",
+                        content = """[{"id":"dev-1","nome":"Caféy","timezone":"America/Sao_Paulo","estado":"$estado","online":true,"versaoAgendamentos":1,"duracaoPreparoS":480,"limiarDescalcificacao":100,"contadorPreparos":10,"papel":"PROPRIETARIO","criadoEm":"2026-10-15T10:00:00Z","atualizadoEm":"2026-10-15T10:00:00Z"}]""",
                         status = HttpStatusCode.OK,
                         headers = headersOf(HttpHeaders.ContentType, "application/json"),
                     )
@@ -104,7 +105,7 @@ class HomeViewModelBleFallbackTest {
 
         viewModel.uiState.first { !it.loading }
         viewModel.ligar()
-        val state = viewModel.uiState.first { !it.commandInFlight }
+        val state = viewModel.uiState.first { !it.commandInFlight && it.device?.estado == "PREPARANDO" }
 
         assertEquals(1, fakeBle.comandosEnviados.size)
         assertEquals("dev-1" to AcaoComando.LIGAR, fakeBle.comandosEnviados.first())
