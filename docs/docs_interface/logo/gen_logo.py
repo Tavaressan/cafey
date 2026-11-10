@@ -109,4 +109,4 @@ def render(path, size=BASE, fill_fraction=None):
 if __name__ == "__main__":
     render("cafey-logo.svg")                             # marca, com respiro
     render("cafey-icon.svg", fill_fraction=0.80)         # icone generico
-    render("cafey-icon-foreground.svg", fill_fraction=72.0 / 108.0)  # zona segura Android
+    render("cafey-icon-foreground.svg", fill_fraction=60.0 / 108.0)  # zona segura Android (66 dp), ~60 dp de altura

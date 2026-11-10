@@ -62,8 +62,8 @@ android {
         applicationId = "br.com.tavaressan.cafey.android"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 3
+        versionName = "0.3.0"
 
         buildConfigField("String", "BACKEND_BASE_URL", "\"$backendBaseUrl\"")
     }
