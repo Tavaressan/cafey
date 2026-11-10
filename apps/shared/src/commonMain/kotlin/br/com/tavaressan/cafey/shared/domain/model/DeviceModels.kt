@@ -16,6 +16,8 @@ data class CriarDispositivoRequest(
     val limiarDescalcificacao: Int? = null,
     /** Serial lido da placa por BLE; o backend vincula a placa já registrada em vez de criar outra. */
     val serial: String? = null,
+    /** Código de uso único lido por BLE na janela de vínculo (FW-24, #275). */
+    val codigoVinculo: String? = null,
 )
 
 @Serializable

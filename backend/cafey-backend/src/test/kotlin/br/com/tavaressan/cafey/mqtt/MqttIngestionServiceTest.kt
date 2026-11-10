@@ -79,6 +79,75 @@ class MqttIngestionServiceTest {
     }
 
     @Test
+    fun `should store vinculo code with backend calculated expiration`() {
+        val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira")
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        val antes = Instant.now()
+        ingestionService.processarVinculo(dispositivoId, VinculoPayload(codigo = "123456"))
+        val depois = Instant.now()
+
+        assertEquals("123456", disp.codigoVinculo)
+        assertNotNull(disp.codigoVinculoExpiraEm)
+        val expiraEm = disp.codigoVinculoExpiraEm!!
+        val esperadoMin = antes.plusSeconds(MqttIngestionService.VINCULO_TTL_SEGUNDOS)
+        val esperadoMax = depois.plusSeconds(MqttIngestionService.VINCULO_TTL_SEGUNDOS)
+        assertFalse(expiraEm.isBefore(esperadoMin))
+        assertFalse(expiraEm.isAfter(esperadoMax))
+        verify(dispositivoRepository).save(disp)
+    }
+
+    @Test
+    fun `should overwrite previous vinculo code when window is reopened`() {
+        val disp = Dispositivo(
+            id = dispositivoId,
+            nome = "Cafeteira",
+            codigoVinculo = "111111",
+            codigoVinculoExpiraEm = Instant.now().plusSeconds(10)
+        )
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarVinculo(dispositivoId, VinculoPayload(codigo = "222222"))
+
+        assertEquals("222222", disp.codigoVinculo)
+        assertTrue(disp.codigoVinculoExpiraEm!!.isAfter(Instant.now().plusSeconds(100)))
+    }
+
+    @Test
+    fun `should ignore vinculo code for unknown device`() {
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.empty())
+
+        ingestionService.processarVinculo(dispositivoId, VinculoPayload(codigo = "123456"))
+
+        verify(dispositivoRepository, never()).save(any(Dispositivo::class.java))
+    }
+
+    @Test
+    fun `should ignore empty vinculo code`() {
+        val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira", codigoVinculo = "123456")
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+
+        ingestionService.processarVinculo(dispositivoId, VinculoPayload(codigo = "  "))
+
+        assertEquals("123456", disp.codigoVinculo)
+        verify(dispositivoRepository, never()).save(any(Dispositivo::class.java))
+    }
+
+    @Test
+    fun `should parse incoming vinculo topic and route to ingestion`() {
+        val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira")
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        clientService.handleIncomingMessage("dispositivos/$dispositivoId/vinculo", """{"codigo":"654321"}""")
+
+        assertEquals("654321", disp.codigoVinculo)
+        assertNotNull(disp.codigoVinculoExpiraEm)
+    }
+
+    @Test
     fun `should parse incoming topic and route to state ingestion`() {
         val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira", estado = "DESLIGADO")
         `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))

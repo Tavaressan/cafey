@@ -60,6 +60,7 @@ static void test_registers_characteristics_and_advertises() {
     assert(server.has(BleService::kWifiProvisionUuid));
     assert(server.has(BleService::kWifiStatusUuid));
     assert(server.has(BleService::kDeviceInfoUuid));
+    assert(server.has(BleService::kVinculoUuid));
 
     assert(server.props(BleService::kCommandUuid) & cafey::core::kBleWrite);
     assert(server.props(BleService::kStateUuid) & cafey::core::kBleRead);
@@ -69,6 +70,7 @@ static void test_registers_characteristics_and_advertises() {
     assert(server.props(BleService::kWifiStatusUuid) & cafey::core::kBleRead);
     assert(server.props(BleService::kWifiStatusUuid) & cafey::core::kBleNotify);
     assert(server.props(BleService::kDeviceInfoUuid) & cafey::core::kBleRead);
+    assert(server.props(BleService::kVinculoUuid) & cafey::core::kBleRead);
 
     // Leitura inicial de DeviceInfo
     const std::string dev_info = server.read(BleService::kDeviceInfoUuid);
@@ -80,7 +82,25 @@ static void test_registers_characteristics_and_advertises() {
     const std::string wifi_status = server.read(BleService::kWifiStatusUuid);
     assert(wifi_status.find("\"state\":\"DISCONNECTED\"") != std::string::npos);
 
+    // Janela de vinculo fechada: codigo nulo.
+    assert(server.read(BleService::kVinculoUuid) == R"({"codigo":null})");
+
     std::cout << "OK: test_registers_characteristics_and_advertises\n";
+}
+
+static void test_publish_vinculo_updates_and_clears() {
+    FakeBleServer server;
+    Capture cap;
+    BleService service = make_service(server, cap);
+    service.begin("cafey-001");
+
+    assert(service.publish_vinculo("123456"));
+    assert(server.read(BleService::kVinculoUuid) == R"({"codigo":"123456"})");
+
+    assert(service.publish_vinculo(""));
+    assert(server.read(BleService::kVinculoUuid) == R"({"codigo":null})");
+
+    std::cout << "OK: test_publish_vinculo_updates_and_clears\n";
 }
 
 static void test_command_write_routes_to_domain_handler() {
@@ -213,6 +233,7 @@ int main() {
     test_wifi_provision_write_valid_payload();
     test_wifi_provision_write_invalid_payload();
     test_publish_wifi_status_states();
+    test_publish_vinculo_updates_and_clears();
     std::cout << "Todos os testes de BleService passaram.\n";
     return 0;
 }

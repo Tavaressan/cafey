@@ -97,10 +97,12 @@ class SecurityConfig(
                 auth.requestMatchers(
                     HttpMethod.POST, "/auth/signin", "/auth/signup", "/auth/login", "/auth/registrar"
                 ).permitAll()
-                // Renovação do access token e recuperação/redefinição de senha: fluxos que, por
-                // natureza, são usados sem um access token válido (expirado ou esquecido).
+                // Renovação do access token, recuperação/redefinição de senha e validação do desafio
+                // MFA (issue #260): fluxos usados sem um access token válido (expirado/esquecido ou
+                // desafio TOTP pendente, identificado pelo token de desafio no corpo).
                 auth.requestMatchers(
-                    HttpMethod.POST, "/auth/refresh", "/auth/recuperar-senha", "/auth/redefinir-senha"
+                    HttpMethod.POST, "/auth/refresh", "/auth/recuperar-senha", "/auth/redefinir-senha",
+                    "/auth/2fa/validar"
                 ).permitAll()
                 // Página estática de redefinição de senha (issue #194), aberta pelo link do e-mail.
                 auth.requestMatchers("/redefinir-senha.html").permitAll()

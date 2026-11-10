@@ -27,10 +27,12 @@ data class RefreshRequest(
 
 @Serializable
 data class AuthResponse(
-    val accessToken: String,
-    val refreshToken: String,
+    val accessToken: String? = null,
+    val refreshToken: String? = null,
     val tokenType: String = "Bearer",
     val expiresIn: Long = 900,
+    val mfaRequerido: Boolean? = null,
+    val desafioToken: String? = null,
 )
 
 @Serializable
@@ -48,4 +50,26 @@ data class RedefinirSenhaRequest(
 data class RecuperacaoSenhaResponse(
     val mensagem: String,
     val token: String? = null,
+)
+
+@Serializable
+data class MfaConfigurarResponse(
+    val otpauthUri: String,
+    val segredo: String,
+)
+
+@Serializable
+data class MfaAtivarRequest(
+    val codigo: String,
+)
+
+@Serializable
+data class MfaValidarRequest(
+    val desafioToken: String,
+    val codigo: String,
+)
+
+@Serializable
+data class MfaStatusResponse(
+    val mfaHabilitado: Boolean,
 )

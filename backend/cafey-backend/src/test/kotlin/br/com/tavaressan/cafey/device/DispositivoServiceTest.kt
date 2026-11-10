@@ -100,13 +100,19 @@ class DispositivoServiceTest {
     }
 
     @Test
-    fun `should link device by serial when it has no owner`() {
+    fun `should link device by serial when it has no owner and code is valid`() {
+        device.codigoVinculo = "123456"
+        device.codigoVinculoExpiraEm = Instant.now().plusSeconds(60)
         `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
         `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
         `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(emptyList())
         `when`(usuarioDispositivoRepository.save(any(UsuarioDispositivo::class.java))).thenAnswer { it.getArgument(0) }
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
 
-        val res = service.criar(CriarDispositivoRequest(nome = "Minha Cafeteira", serial = deviceId.toString()), ownerId)
+        val res = service.criar(
+            CriarDispositivoRequest(nome = "Minha Cafeteira", serial = deviceId.toString(), codigoVinculo = "123456"),
+            ownerId
+        )
 
         assertEquals(deviceId, res.id)
         assertEquals(PapelDispositivo.PROPRIETARIO, res.papel)
@@ -114,11 +120,79 @@ class DispositivoServiceTest {
         verify(usuarioDispositivoRepository).save(captor.capture())
         assertEquals(ownerId, captor.value.usuario.id)
         assertEquals(PapelDispositivo.PROPRIETARIO, captor.value.papel)
-        verify(dispositivoRepository, never()).save(any(Dispositivo::class.java))
+        // Código de uso único: apagado após o vínculo.
+        assertNull(device.codigoVinculo)
+        assertNull(device.codigoVinculoExpiraEm)
+        verify(dispositivoRepository).save(device)
     }
 
     @Test
-    fun `should return the same device without new link when serial already belongs to the user`() {
+    fun `should reject link without code when device has no owner`() {
+        device.codigoVinculo = "123456"
+        device.codigoVinculoExpiraEm = Instant.now().plusSeconds(60)
+        `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
+        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
+        `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(emptyList())
+
+        assertThrows<RequisicaoInvalidaException> {
+            service.criar(CriarDispositivoRequest(nome = "Minha", serial = deviceId.toString()), ownerId)
+        }
+        verify(usuarioDispositivoRepository, never()).save(any(UsuarioDispositivo::class.java))
+        assertEquals("123456", device.codigoVinculo)
+    }
+
+    @Test
+    fun `should reject link with wrong code when device has no owner`() {
+        device.codigoVinculo = "123456"
+        device.codigoVinculoExpiraEm = Instant.now().plusSeconds(60)
+        `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
+        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
+        `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(emptyList())
+
+        assertThrows<RequisicaoInvalidaException> {
+            service.criar(
+                CriarDispositivoRequest(nome = "Minha", serial = deviceId.toString(), codigoVinculo = "654321"),
+                ownerId
+            )
+        }
+        verify(usuarioDispositivoRepository, never()).save(any(UsuarioDispositivo::class.java))
+        assertEquals("123456", device.codigoVinculo)
+    }
+
+    @Test
+    fun `should reject link when vinculo code expired`() {
+        device.codigoVinculo = "123456"
+        device.codigoVinculoExpiraEm = Instant.now().minusSeconds(1)
+        `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
+        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
+        `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(emptyList())
+
+        assertThrows<RequisicaoInvalidaException> {
+            service.criar(
+                CriarDispositivoRequest(nome = "Minha", serial = deviceId.toString(), codigoVinculo = "123456"),
+                ownerId
+            )
+        }
+        verify(usuarioDispositivoRepository, never()).save(any(UsuarioDispositivo::class.java))
+    }
+
+    @Test
+    fun `should reject link when device never opened a vinculo window`() {
+        `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
+        `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
+        `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(emptyList())
+
+        assertThrows<RequisicaoInvalidaException> {
+            service.criar(
+                CriarDispositivoRequest(nome = "Minha", serial = deviceId.toString(), codigoVinculo = "123456"),
+                ownerId
+            )
+        }
+        verify(usuarioDispositivoRepository, never()).save(any(UsuarioDispositivo::class.java))
+    }
+
+    @Test
+    fun `should keep relink idempotent for the same owner without vinculo code`() {
         `when`(usuarioRepository.findById(ownerId)).thenReturn(Optional.of(ownerUser))
         `when`(dispositivoRepository.findById(deviceId)).thenReturn(Optional.of(device))
         `when`(usuarioDispositivoRepository.findByDispositivoId(deviceId)).thenReturn(listOf(ownerLink, guestLink))

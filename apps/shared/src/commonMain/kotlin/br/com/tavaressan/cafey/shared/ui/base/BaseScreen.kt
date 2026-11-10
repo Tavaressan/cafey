@@ -42,6 +42,7 @@ fun BaseScreen(
     onGoToAccount: () -> Unit = {},
     onEditDevice: (String) -> Unit = {},
     onRegisterDevice: () -> Unit = {},
+    onViewTutorial: () -> Unit = {},
 ) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<BaseViewModel>(
@@ -62,6 +63,7 @@ fun BaseScreen(
         onGoToAccount = onGoToAccount,
         onEditDevice = { state.device?.let { onEditDevice(it.id) } },
         onRegisterDevice = onRegisterDevice,
+        onViewTutorial = onViewTutorial,
     )
 }
 
@@ -81,6 +83,7 @@ internal fun BaseContent(
     onRegisterDevice: () -> Unit = {},
     diagnostico: DiagnosticoDispositivoResponse? = null,
     diagnosticoRestrito: Boolean = false,
+    onViewTutorial: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
@@ -150,6 +153,9 @@ internal fun BaseContent(
         // lista 5, todas espelhadas na issue #182); "Base" é o ponto de entrada natural.
         OutlinedButton(onClick = onGoToAccount, modifier = Modifier.fillMaxWidth().padding(top = 14.dp)) {
             Text("Conta")
+        }
+        OutlinedButton(onClick = onViewTutorial, modifier = Modifier.fillMaxWidth().padding(top = 10.dp)) {
+            Text("Ver tutorial")
         }
     }
 }

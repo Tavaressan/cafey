@@ -18,13 +18,15 @@ struct MqttTopics {
           agendamentos("dispositivos/" + device_id + "/agendamentos"),
           estado("dispositivos/" + device_id + "/estado"),
           eventos("dispositivos/" + device_id + "/eventos"),
-          saude("dispositivos/" + device_id + "/saude") {}
+          saude("dispositivos/" + device_id + "/saude"),
+          vinculo("dispositivos/" + device_id + "/vinculo") {}
 
     std::string comando;
     std::string agendamentos;
     std::string estado;
     std::string eventos;
     std::string saude;
+    std::string vinculo;
 };
 
 } // namespace cafey::core

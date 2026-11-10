@@ -38,6 +38,10 @@ cafey:
   jwt:
     private-key: ${CAFEY_JWT_PRIVATE_KEY:}
     public-key: ${CAFEY_JWT_PUBLIC_KEY:}
+  mfa:
+    # Chave AES-256 (Base64, 32 bytes) para cifrar o segredo TOTP em repouso (issue #260).
+    # Separada do par RSA de JWT. Obrigatória em prod; fora de prod, ausente = chave efêmera.
+    encryption-key: ${CAFEY_MFA_ENCRYPTION_KEY:}
   rate-limit:
     enabled: true
     login-capacity: 5

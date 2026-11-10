@@ -20,6 +20,13 @@ class Usuario(
     @Column(name = "senha_hash", nullable = false)
     var senhaHash: String,
 
+    @Column(name = "mfa_habilitado", nullable = false)
+    var mfaHabilitado: Boolean = false,
+
+    /** Segredo TOTP cifrado (AES-GCM). Nunca em texto claro. */
+    @Column(name = "mfa_secret", length = 512)
+    var mfaSecret: String? = null,
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     var criadoEm: Instant = Instant.now(),
 
