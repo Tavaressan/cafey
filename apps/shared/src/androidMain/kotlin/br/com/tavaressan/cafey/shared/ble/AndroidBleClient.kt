@@ -431,6 +431,31 @@ class AndroidBleClient(private val context: Context) : BleClient {
             session.writeCharacteristic(UUID.fromString(BleUuids.CONFIRM_EVENTS), payload)
         }
     }
+
+    override suspend fun listarRedesWifi(dispositivoId: String): WifiNetworksInfo {
+        return withGattSession(dispositivoId) { session ->
+            val jsonStr = session.readCharacteristic(UUID.fromString(BleUuids.WIFI_NETWORKS))
+            try {
+                json.decodeFromString<WifiNetworksInfo>(jsonStr)
+            } catch (_: Exception) {
+                WifiNetworksInfo()
+            }
+        }
+    }
+
+    override suspend fun esquecerRedeWifi(dispositivoId: String, ssid: String) {
+        val payload = json.encodeToString(WifiManagePayload(acao = "ESQUECER_REDE", ssid = ssid))
+        withGattSession(dispositivoId) { session ->
+            session.writeCharacteristic(UUID.fromString(BleUuids.WIFI_MANAGE), payload)
+        }
+    }
+
+    override suspend fun esquecerTodasRedesWifi(dispositivoId: String) {
+        val payload = json.encodeToString(WifiManagePayload(acao = "ESQUECER_TODAS_REDES"))
+        withGattSession(dispositivoId) { session ->
+            session.writeCharacteristic(UUID.fromString(BleUuids.WIFI_MANAGE), payload)
+        }
+    }
 }
 
 /**

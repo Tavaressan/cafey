@@ -60,6 +60,8 @@ static void test_registers_characteristics_and_advertises() {
     assert(server.has(BleService::kWifiProvisionUuid));
     assert(server.has(BleService::kWifiStatusUuid));
     assert(server.has(BleService::kDeviceInfoUuid));
+    assert(server.has(BleService::kWifiNetworksUuid));
+    assert(server.has(BleService::kWifiManageUuid));
     assert(server.has(BleService::kVinculoUuid));
 
     assert(server.props(BleService::kCommandUuid) & cafey::core::kBleWrite);
@@ -70,6 +72,12 @@ static void test_registers_characteristics_and_advertises() {
     assert(server.props(BleService::kWifiStatusUuid) & cafey::core::kBleRead);
     assert(server.props(BleService::kWifiStatusUuid) & cafey::core::kBleNotify);
     assert(server.props(BleService::kDeviceInfoUuid) & cafey::core::kBleRead);
+    assert(server.props(BleService::kWifiNetworksUuid) & cafey::core::kBleRead);
+    assert(server.props(BleService::kWifiNetworksUuid) & cafey::core::kBleNotify);
+    assert(server.props(BleService::kWifiManageUuid) & cafey::core::kBleWrite);
+
+    // Leitura inicial de redes (sem provider: lista vazia)
+    assert(server.read(BleService::kWifiNetworksUuid) == R"({"ssid_atual":null,"redes":[]})");
     assert(server.props(BleService::kVinculoUuid) & cafey::core::kBleRead);
 
     // Leitura inicial de DeviceInfo
@@ -225,6 +233,115 @@ static void test_publish_wifi_status_states() {
     std::cout << "OK: test_publish_wifi_status_states\n";
 }
 
+static void test_wifi_networks_published_from_provider() {
+    FakeBleServer server;
+    Capture cap;
+    BleService service = make_service(server, cap);
+    service.set_wifi_management(nullptr, nullptr, [] {
+        return std::string(R"({"ssid_atual":"Casa","redes":["Casa","Escritorio"]})");
+    });
+    service.begin("cafey-001");
+    assert(server.read(BleService::kWifiNetworksUuid) ==
+           R"({"ssid_atual":"Casa","redes":["Casa","Escritorio"]})");
+    service.publish_wifi_networks();
+    assert(server.read(BleService::kWifiNetworksUuid) ==
+           R"({"ssid_atual":"Casa","redes":["Casa","Escritorio"]})");
+    std::cout << "OK: test_wifi_networks_published_from_provider\n";
+}
+
+static void test_wifi_manage_denied_without_bonding_window() {
+    FakeBleServer server;
+    Capture cap;
+    BleService service = make_service(server, cap);
+    int forget_calls = 0;
+    int forget_all_calls = 0;
+    service.set_wifi_management(
+        [&forget_calls](const std::string&) { forget_calls++; },
+        [&forget_all_calls]() { forget_all_calls++; },
+        [] { return std::string(R"({"ssid_atual":null,"redes":["A"]})"); });
+    // Guard padrao nega (FW-24 ausente): conservador.
+    service.begin("cafey-001");
+
+    server.client_write(BleService::kWifiManageUuid, R"({"acao":"ESQUECER_REDE","ssid":"A"})");
+    assert(forget_calls == 0);
+    assert(server.read(BleService::kWifiStatusUuid).find("\"state\":\"INVALID_PAYLOAD\"") != std::string::npos);
+    assert(server.read(BleService::kWifiStatusUuid).find("janela de vinculo") != std::string::npos);
+
+    server.client_write(BleService::kWifiManageUuid, R"({"acao":"ESQUECER_TODAS_REDES"})");
+    assert(forget_all_calls == 0);
+    std::cout << "OK: test_wifi_manage_denied_without_bonding_window\n";
+}
+
+static void test_wifi_manage_forget_one_with_guard() {
+    FakeBleServer server;
+    Capture cap;
+    BleService service = make_service(server, cap);
+    std::string forgotten;
+    service.set_wifi_management(
+        [&forgotten](const std::string& ssid) { forgotten = ssid; },
+        nullptr,
+        [&forgotten] {
+            if (forgotten.empty()) return std::string(R"({"ssid_atual":"A","redes":["A","B"]})");
+            return std::string(R"({"ssid_atual":"B","redes":["B"]})");
+        });
+    service.set_destructive_ble_guard([] { return true; });
+    service.begin("cafey-001");
+
+    server.client_write(BleService::kWifiManageUuid, R"({"acao":"ESQUECER_REDE","ssid":"A"})");
+    assert(forgotten == "A");
+    // Resposta coerente: lista atualizada publicada (sem senha).
+    assert(server.read(BleService::kWifiNetworksUuid) == R"({"ssid_atual":"B","redes":["B"]})");
+    std::cout << "OK: test_wifi_manage_forget_one_with_guard\n";
+}
+
+static void test_wifi_manage_forget_all_with_guard() {
+    FakeBleServer server;
+    Capture cap;
+    BleService service = make_service(server, cap);
+    int forget_all_calls = 0;
+    service.set_wifi_management(
+        nullptr,
+        [&forget_all_calls]() { forget_all_calls++; },
+        [&forget_all_calls] {
+            if (forget_all_calls == 0) return std::string(R"({"ssid_atual":"A","redes":["A","B"]})");
+            return std::string(R"({"ssid_atual":null,"redes":[]})");
+        });
+    service.set_destructive_ble_guard([] { return true; });
+    service.begin("cafey-001");
+
+    server.client_write(BleService::kWifiManageUuid, R"({"acao":"ESQUECER_TODAS_REDES"})");
+    assert(forget_all_calls == 1);
+    assert(server.read(BleService::kWifiNetworksUuid) == R"({"ssid_atual":null,"redes":[]})");
+    std::cout << "OK: test_wifi_manage_forget_all_with_guard\n";
+}
+
+static void test_wifi_manage_invalid_payloads() {
+    FakeBleServer server;
+    Capture cap;
+    BleService service = make_service(server, cap);
+    int calls = 0;
+    service.set_wifi_management(
+        [&calls](const std::string&) { calls++; },
+        [&calls]() { calls++; },
+        [] { return std::string(R"({"ssid_atual":null,"redes":[]})"); });
+    service.set_destructive_ble_guard([] { return true; });
+    service.begin("cafey-001");
+
+    server.client_write(BleService::kWifiManageUuid, R"({"foo":"bar"})");
+    assert(calls == 0);
+    assert(server.read(BleService::kWifiStatusUuid).find("\"state\":\"INVALID_PAYLOAD\"") != std::string::npos);
+
+    server.client_write(BleService::kWifiManageUuid, R"({"acao":"NOPE"})");
+    assert(calls == 0);
+
+    server.client_write(BleService::kWifiManageUuid, R"({"acao":"ESQUECER_REDE"})");
+    assert(calls == 0);
+
+    server.client_write(BleService::kWifiManageUuid, R"({"acao":"ESQUECER_REDE","ssid":""})");
+    assert(calls == 0);
+    std::cout << "OK: test_wifi_manage_invalid_payloads\n";
+}
+
 int main() {
     test_registers_characteristics_and_advertises();
     test_command_write_routes_to_domain_handler();
@@ -233,6 +350,11 @@ int main() {
     test_wifi_provision_write_valid_payload();
     test_wifi_provision_write_invalid_payload();
     test_publish_wifi_status_states();
+    test_wifi_networks_published_from_provider();
+    test_wifi_manage_denied_without_bonding_window();
+    test_wifi_manage_forget_one_with_guard();
+    test_wifi_manage_forget_all_with_guard();
+    test_wifi_manage_invalid_payloads();
     test_publish_vinculo_updates_and_clears();
     std::cout << "Todos os testes de BleService passaram.\n";
     return 0;

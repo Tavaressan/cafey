@@ -44,6 +44,7 @@ class ComandoControllerTest @Autowired constructor(
 
     private lateinit var proprietario: Usuario
     private lateinit var estranho: Usuario
+    private lateinit var convidado: Usuario
     private lateinit var dispositivo: Dispositivo
 
     @BeforeEach
@@ -54,11 +55,17 @@ class ComandoControllerTest @Autowired constructor(
         estranho = usuarioRepository.save(
             Usuario(nome = "Sem Vinculo", email = "estranho-${UUID.randomUUID()}@cafey.com", senhaHash = "hash")
         )
+        convidado = usuarioRepository.save(
+            Usuario(nome = "Convidado", email = "convidado-${UUID.randomUUID()}@cafey.com", senhaHash = "hash")
+        )
         dispositivo = dispositivoRepository.save(
             Dispositivo(nome = "Cafeteira Comando", duracaoPreparoS = 300)
         )
         usuarioDispositivoRepository.save(
             UsuarioDispositivo(usuario = proprietario, dispositivo = dispositivo, papel = PapelDispositivo.PROPRIETARIO)
+        )
+        usuarioDispositivoRepository.save(
+            UsuarioDispositivo(usuario = convidado, dispositivo = dispositivo, papel = PapelDispositivo.CONVIDADO)
         )
     }
 
@@ -68,6 +75,7 @@ class ComandoControllerTest @Autowired constructor(
         dispositivoRepository.delete(dispositivo)
         usuarioRepository.delete(proprietario)
         usuarioRepository.delete(estranho)
+        usuarioRepository.delete(convidado)
     }
 
     private fun bearerTokenPara(usuario: Usuario): String =
@@ -168,5 +176,92 @@ class ComandoControllerTest @Autowired constructor(
                 .content("""{"acao":"DESLIGAR"}""")
         )
             .andExpect(status().isServiceUnavailable)
+    }
+
+    @Test
+    fun `proprietario pode esquecer rede wifi`() {
+        `when`(
+            mqttClientService.publish(
+                anyString() ?: "",
+                any() ?: Any(),
+                any() ?: QualityOfService.AT_LEAST_ONCE,
+                anyBoolean()
+            )
+        ).thenReturn(true)
+
+        mockMvc.perform(
+            post("/dispositivos/${dispositivo.id}/comando")
+                .header(HttpHeaders.AUTHORIZATION, bearerTokenPara(proprietario))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"acao":"ESQUECER_REDE","ssid":"MinhaRede"}""")
+        )
+            .andExpect(status().isAccepted)
+            .andExpect(jsonPath("$.acao").value("ESQUECER_REDE"))
+            .andExpect(jsonPath("$.comandoId").isNotEmpty)
+    }
+
+    @Test
+    fun `proprietario pode esquecer todas as redes wifi`() {
+        `when`(
+            mqttClientService.publish(
+                anyString() ?: "",
+                any() ?: Any(),
+                any() ?: QualityOfService.AT_LEAST_ONCE,
+                anyBoolean()
+            )
+        ).thenReturn(true)
+
+        mockMvc.perform(
+            post("/dispositivos/${dispositivo.id}/comando")
+                .header(HttpHeaders.AUTHORIZATION, bearerTokenPara(proprietario))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"acao":"ESQUECER_TODAS_REDES"}""")
+        )
+            .andExpect(status().isAccepted)
+            .andExpect(jsonPath("$.acao").value("ESQUECER_TODAS_REDES"))
+    }
+
+    @Test
+    fun `deve recusar esquecer rede wifi para convidado`() {
+        mockMvc.perform(
+            post("/dispositivos/${dispositivo.id}/comando")
+                .header(HttpHeaders.AUTHORIZATION, bearerTokenPara(convidado))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"acao":"ESQUECER_REDE","ssid":"MinhaRede"}""")
+        )
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `deve recusar esquecer todas as redes wifi para convidado`() {
+        mockMvc.perform(
+            post("/dispositivos/${dispositivo.id}/comando")
+                .header(HttpHeaders.AUTHORIZATION, bearerTokenPara(convidado))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"acao":"ESQUECER_TODAS_REDES"}""")
+        )
+            .andExpect(status().isUnauthorized)
+    }
+
+    @Test
+    fun `deve recusar esquecer rede wifi para usuario sem vinculo com 404`() {
+        mockMvc.perform(
+            post("/dispositivos/${dispositivo.id}/comando")
+                .header(HttpHeaders.AUTHORIZATION, bearerTokenPara(estranho))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"acao":"ESQUECER_REDE","ssid":"MinhaRede"}""")
+        )
+            .andExpect(status().isNotFound)
+    }
+
+    @Test
+    fun `deve recusar esquecer rede wifi sem ssid com 400`() {
+        mockMvc.perform(
+            post("/dispositivos/${dispositivo.id}/comando")
+                .header(HttpHeaders.AUTHORIZATION, bearerTokenPara(proprietario))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""{"acao":"ESQUECER_REDE"}""")
+        )
+            .andExpect(status().isBadRequest)
     }
 }

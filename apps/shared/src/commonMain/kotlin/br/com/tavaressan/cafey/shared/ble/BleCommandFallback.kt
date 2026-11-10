@@ -34,5 +34,8 @@ class BleCommandFallback(
             AcaoComando.LIGAR -> commandApi.ligar(dispositivoId)
             AcaoComando.DESLIGAR -> commandApi.desligar(dispositivoId)
             AcaoComando.CANCELAR -> commandApi.cancelar(dispositivoId)
+            AcaoComando.ESQUECER_REDE,
+            AcaoComando.ESQUECER_TODAS_REDES ->
+                throw ApiError.Network(IllegalArgumentException("Ação $acao não suportada por este canal"))
         }
 }

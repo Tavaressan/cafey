@@ -5,8 +5,15 @@
 
 namespace cafey::app {
 
-/** @brief Acao de operacao da cafeteira (spec-backend §5.1: LIGAR/DESLIGAR/CANCELAR). */
-enum class CoffeeAction : uint8_t { Unknown, Ligar, Desligar, Cancelar };
+/** @brief Acao de operacao da cafeteira (spec-backend §5.1 e FW-30). */
+enum class CoffeeAction : uint8_t {
+    Unknown,
+    Ligar,
+    Desligar,
+    Cancelar,
+    EsquecerRede,       // requer `ssid`; remove rede salva (e desconecta se for a atual)
+    EsquecerTodasRedes, // remove todas as redes; base fica aguardando provisionamento BLE
+};
 
 /**
  * @brief Comando de operacao ja interpretado, independente do transporte
@@ -16,13 +23,14 @@ struct CoffeeCommand {
     CoffeeAction action = CoffeeAction::Unknown;
     uint32_t duracao_s = 0;
     bool has_duracao = false;
+    std::string ssid; // usado por EsquecerRede
 };
 
 /**
  * @brief Faz o parse do payload de comando compartilhado entre o downlink MQTT
- * e a caracteristica BLE (FW-17, spec-backend §6.2). Campo `acao` obrigatorio;
- * `duracaoS` opcional. Acao desconhecida/ausente resulta em
- * CoffeeAction::Unknown (o chamador ignora).
+ * e a caracteristica BLE (FW-17/FW-30, spec-backend §6.2). Campo `acao`
+ * obrigatorio; `duracaoS` e `ssid` opcionais conforme a acao. Acao
+ * desconhecida/ausente resulta em CoffeeAction::Unknown (o chamador ignora).
  */
 CoffeeCommand parse_coffee_command(const std::string& json);
 
