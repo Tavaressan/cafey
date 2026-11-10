@@ -409,16 +409,12 @@ class DeviceFormViewModelBleTest {
 
         val state = viewModel.uiState.value
         assertEquals(DeviceFormStep.CONFIRM_REGISTER, state.step)
-        // Trigger detection
+        // O save pode rodar antes ou depois da pré-detecção (no wasm o MockEngine responde pelo
+        // event loop do JS, fora do tempo virtual): em ambos os casos o nome cadastrado prevalece.
         viewModel.save()
-        advanceUntilIdle()
-        advanceUntilIdle()
-        runCurrent()
-        val stateAfter = viewModel.uiState.value
-        assertEquals("Cozinha", stateAfter.nome)
-
         val finalState = viewModel.uiState.first { it.success || it.errorMessage != null }
         assertTrue(finalState.success)
+        assertEquals("Cozinha", finalState.nome)
         assertEquals(0, postCount)
         assertEquals(0, putCount)
     }
