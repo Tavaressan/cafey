@@ -8,8 +8,11 @@
  * Pinagem (conforme STATUS.md e esquematico KiCad):
  * - SSR (GPIO26): Fotek SSR-40DA, gatilho de nivel ALTO (HIGH = liga), R1 pull-down 10k
  *   externo (HW-27, #305). Polaridade em Cafeteira::kRelayActiveLevel.
- * - Botao (GPIO27): pull-up externo R2 10k + C3 100nF, solto=1, pressionado=0
- * - LED RGB: catodo comum (R=21, G=22, B=23) — cores de estado conforme spec §5.3
+ * - Botao RGB (#308): contato no GPIO27 (pull-up externo R2 10k + C3 100nF,
+ *   solto=1, pressionado=0) e anel RGB catodo comum (R=21, G=22, B=23) — cores
+ *   de estado conforme spec §5.3
+ * - Reservados: buzzer GPIO25 (#311), sensor de temperatura do SSR GPIO33 (#323)
+ * - Fonte unica da pinagem: hardware/README.md §3
  */
 
 #include <string>
