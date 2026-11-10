@@ -134,7 +134,11 @@ class HomeViewModel(
                 val devices = deviceApi.listar()
                 val device = devices.firstOrNull { it.id == targetIdAtStart } ?: devices.firstOrNull()
                 if (device != null) {
-                    selectedDeviceId = device.id
+                    // Só adota o dispositivo se a seleção não mudou durante o listar(); senão um
+                    // refresh obsoleto reverteria a troca feita pelo usuário (com ou sem activeDeviceId).
+                    if (selectedDeviceId == targetIdAtStart || selectedDeviceId == null) {
+                        selectedDeviceId = device.id
+                    }
                     activeDeviceId?.compareAndSet(targetIdAtStart, device.id)
                 }
                 val nowMs = nowProvider()
