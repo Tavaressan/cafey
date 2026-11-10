@@ -4,9 +4,11 @@
 
 #if defined(ESP_PLATFORM)
 #include "driver/gpio.h"
+#include "driver/ledc.h"
 #include "esp_err.h"
 #else
 #include "mock_esp_gpio.hpp"
+#include "mock_esp_ledc.hpp"
 #endif
 
 namespace cafey::drivers {
@@ -20,6 +22,7 @@ enum class CoffeeVisualState : uint8_t {
     Brewing,       // preparando cafe agora
     Ready,         // cafe pronto (alguns minutos apos o preparo)
     Error,         // erro ou falha
+    Binding,       // janela de vinculo aberta pelo toque longo (FW-24, #275)
 };
 
 /**
@@ -43,6 +46,10 @@ enum class LedPattern : uint8_t {
  * Regra mental da especificacao: a *cor* indica o estado da cafeteira; o
  * *piscar* indica problema de rede. LED de catodo comum por padrao (HW-01):
  * nivel alto acende o canal. Para anodo comum, `common_anode = true` inverte.
+ *
+ * O canal azul e controlado por PWM de hardware (LEDC) para que o padrao
+ * "respirando" tenha brilho suave, sem flicker. Os canais R e G usam GPIO
+ * simples (on/off).
  */
 class RgbLed {
 public:
@@ -87,6 +94,9 @@ private:
     static LedColor color_for(CoffeeVisualState state, bool network_ok);
     static LedPattern pattern_for(CoffeeVisualState state, bool network_ok);
     void write(LedColor color);
+    /// Brilho logico do canal azul (0 = apagado, 255 = aceso no maximo), ja
+    /// considerando anodo comum.
+    void write_blue(uint32_t brightness);
 
     gpio_num_t pin_r_;
     gpio_num_t pin_g_;

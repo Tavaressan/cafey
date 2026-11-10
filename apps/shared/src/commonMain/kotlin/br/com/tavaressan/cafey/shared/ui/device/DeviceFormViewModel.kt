@@ -30,6 +30,12 @@ private const val DEFAULT_DESCALING_THRESHOLD = 200
 // e o firmware só desiste da rede após 20 s; sem resposta além disso, a notificação se perdeu.
 private const val WIFI_PROVISION_TIMEOUT_MS = 45_000L
 
+// Mensagem única para janela fechada, código vazio ou falha de leitura: o usuário precisa da
+// mesma ação em todos os casos (FW-24, #275).
+private const val VINCULO_FECHADO_MESSAGE =
+    "A janela de vínculo da cafeteira está fechada. Segure o botão por 5 segundos até o LED azul " +
+        "piscar e conclua o cadastro enquanto ela estiver aberta."
+
 enum class DeviceFormStep {
     MANUAL,
     BLE_SEARCH,
@@ -353,8 +359,24 @@ class DeviceFormViewModel(
                 if (state.deviceId == null) {
                     // Só o cadastro por BLE manda o serial: é ele que liga o registro à thing da placa.
                     val serial = state.deviceInfo?.serial?.takeIf { state.step == DeviceFormStep.CONFIRM_REGISTER }
+                    // O código é lido no momento de gravar: a janela é curta (~2 min) e o backend
+                    // rejeita código expirado. Falha de leitura e janela fechada têm a mesma ação.
+                    val codigoVinculo = if (serial == null) {
+                        null
+                    } else {
+                        val codigo = try {
+                            bleClient?.lerCodigoVinculo(state.selectedDevice?.id ?: serial)
+                        } catch (_: Throwable) {
+                            null
+                        }
+                        if (codigo.isNullOrBlank()) {
+                            _uiState.update { it.copy(saving = false, errorMessage = VINCULO_FECHADO_MESSAGE) }
+                            return@launch
+                        }
+                        codigo
+                    }
                     deviceApi.criar(
-                        CriarDispositivoRequest(state.nome, timezone, duracaoPreparoS, limiarDescalcificacao, serial)
+                        CriarDispositivoRequest(state.nome, timezone, duracaoPreparoS, limiarDescalcificacao, serial, codigoVinculo)
                     )
                 } else {
                     deviceApi.atualizar(

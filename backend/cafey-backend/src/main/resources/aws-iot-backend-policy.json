@@ -27,9 +27,11 @@
         "arn:aws:iot:*:*:topicfilter/dispositivos/+/estado",
         "arn:aws:iot:*:*:topicfilter/dispositivos/+/eventos",
         "arn:aws:iot:*:*:topicfilter/dispositivos/+/saude",
+        "arn:aws:iot:*:*:topicfilter/dispositivos/+/vinculo",
         "arn:aws:iot:*:*:topic/dispositivos/*/estado",
         "arn:aws:iot:*:*:topic/dispositivos/*/eventos",
-        "arn:aws:iot:*:*:topic/dispositivos/*/saude"
+        "arn:aws:iot:*:*:topic/dispositivos/*/saude",
+        "arn:aws:iot:*:*:topic/dispositivos/*/vinculo"
       ]
     }
   ]

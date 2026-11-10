@@ -37,7 +37,7 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
 /** Conta e segurança (issues #183, #261). */
 @Composable
-fun AccountScreen(onLoggedOut: () -> Unit) {
+fun AccountScreen(onLoggedOut: () -> Unit, onViewTutorial: () -> Unit = {}) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<AccountViewModel>(
         factory = viewModelFactory { initializer { AccountViewModel(container.authApi) } },
@@ -55,6 +55,7 @@ fun AccountScreen(onLoggedOut: () -> Unit) {
         onCodigoAtivacaoChange = viewModel::onCodigoAtivacaoChange,
         onConfirmarAtivacao = viewModel::confirmarAtivacao,
         onDispensarDialogo = viewModel::dispensarDialogoConfiguracao,
+        onViewTutorial = onViewTutorial,
     )
 }
 
@@ -66,6 +67,7 @@ internal fun AccountContent(
     onCodigoAtivacaoChange: (String) -> Unit,
     onConfirmarAtivacao: () -> Unit,
     onDispensarDialogo: () -> Unit,
+    onViewTutorial: () -> Unit = {},
 ) {
     val clipboard = LocalClipboardManager.current
     Column(
@@ -126,6 +128,13 @@ internal fun AccountContent(
             modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
         ) {
             Text("Sair", color = CafeyTheme.colors.brandOn)
+        }
+        androidx.compose.material3.OutlinedButton(
+            onClick = onViewTutorial,
+            shape = CafeyTheme.shapes.small,
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        ) {
+            Text("Ver tutorial")
         }
     }
 

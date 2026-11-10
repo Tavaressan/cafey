@@ -192,4 +192,25 @@ class DeviceDtoValidationTest {
         assertEquals(listOf("nome"), campos(validator.validate(criar(nome = nome))))
         assertEquals(listOf("nome"), campos(validator.validate(atualizar(nome = nome))))
     }
+
+    // --- codigoVinculo (FW-24, #275) ---
+
+    @ParameterizedTest
+    @ValueSource(strings = ["000000", "123456", "999999"])
+    fun `should accept codigoVinculo with exactly six digits`(codigo: String) {
+        val request = CriarDispositivoRequest(
+            nome = "Cafeteira",
+            serial = "00000000-0000-0000-0000-000000000000",
+            codigoVinculo = codigo
+        )
+        assertTrue(validator.validate(request).isEmpty())
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["", "12345", "1234567", "12ab56", "abcdef", " 12345", "12345 "])
+    fun `should reject codigoVinculo not made of exactly six digits`(codigo: String) {
+        val request = CriarDispositivoRequest(nome = "Cafeteira", codigoVinculo = codigo)
+        assertEquals(listOf("codigoVinculo"), campos(validator.validate(request)))
+        assertEquals(listOf("Código de vínculo deve ter 6 dígitos"), validator.validate(request).map { it.message })
+    }
 }

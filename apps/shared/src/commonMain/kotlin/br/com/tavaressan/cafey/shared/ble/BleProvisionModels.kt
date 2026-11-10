@@ -15,6 +15,9 @@ object BleUuids {
     const val DEVICE_INFO = "6b3d0007-0b0b-4a3a-9c0e-cafe1a000000"
     const val PENDING_EVENTS = "6b3d0008-0b0b-4a3a-9c0e-cafe1a000000"
     const val CONFIRM_EVENTS = "6b3d0009-0b0b-4a3a-9c0e-cafe1a000000"
+
+    /** Código de uso único da janela de vínculo aberta pelo toque longo (FW-24, #275). */
+    const val VINCULO = "6b3d000a-0b0b-4a3a-9c0e-cafe1a000000"
 }
 
 /**
@@ -57,6 +60,15 @@ data class WifiProvisionStatus(
 data class WifiProvisionPayload(
     val ssid: String,
     val password: String,
+)
+
+/**
+ * Payload da característica kVinculoUuid (FW-24, #275). `codigo` é `null` quando a
+ * janela de vínculo está fechada.
+ */
+@Serializable
+data class CodigoVinculoPayload(
+    val codigo: String? = null,
 )
 
 /**

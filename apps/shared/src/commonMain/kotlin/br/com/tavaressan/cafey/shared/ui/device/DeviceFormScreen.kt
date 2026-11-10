@@ -46,6 +46,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.domain.validation.FieldError
 import br.com.tavaressan.cafey.shared.ui.auth.fieldErrorMessage
+import br.com.tavaressan.cafey.shared.ui.ble.BlePermissionStatus
+import br.com.tavaressan.cafey.shared.ui.ble.BleReadinessGate
+import br.com.tavaressan.cafey.shared.ui.ble.rememberBlePermissionController
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
 /**
@@ -67,6 +70,7 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
         },
     )
     val state by viewModel.uiState.collectAsState()
+    val blePermissionController = rememberBlePermissionController()
     var confirmDelete by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.success) {
@@ -83,9 +87,18 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
         when (state.step) {
             DeviceFormStep.BLE_SEARCH -> BleSearchStep(
                 state = state,
+                blePermissionStatus = blePermissionController.status,
                 onSelectDevice = viewModel::selectDevice,
                 onRefreshScan = viewModel::startBleScan,
                 onSwitchToManual = viewModel::switchToManual,
+                bleReadiness = {
+                    BleReadinessGate(
+                        status = blePermissionController.status,
+                        controller = blePermissionController,
+                        explanation = "Para buscar e parear a cafeteira, o app precisa de permissão de Bluetooth/localização. A permissão é solicitada somente agora, quando você inicia esta ação.",
+                        onReady = { viewModel.startBleScan() },
+                    )
+                },
             )
             DeviceFormStep.WIFI_CREDENTIALS -> WifiCredentialsStep(
                 state = state,
@@ -135,9 +148,11 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
 @Composable
 private fun BleSearchStep(
     state: DeviceFormUiState,
+    blePermissionStatus: BlePermissionStatus,
     onSelectDevice: (br.com.tavaressan.cafey.shared.ble.BleDispositivo) -> Unit,
     onRefreshScan: () -> Unit,
     onSwitchToManual: () -> Unit,
+    bleReadiness: @Composable () -> Unit,
 ) {
     Text("Buscar Cafeteira via Bluetooth", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
     Text(
@@ -146,6 +161,19 @@ private fun BleSearchStep(
         color = CafeyTheme.colors.muted,
         modifier = Modifier.padding(top = 8.dp, bottom = 16.dp),
     )
+
+    if (!blePermissionStatus.ready) {
+        bleReadiness()
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedButton(
+            onClick = onSwitchToManual,
+            modifier = Modifier.fillMaxWidth(),
+            shape = CafeyTheme.shapes.small,
+        ) {
+            Text("Configurar manualmente com serial")
+        }
+        return
+    }
 
     if (state.scanning) {
         Row(
@@ -357,6 +385,14 @@ private fun ConfirmRegisterStep(
             }
         }
     }
+
+    Text(
+        "Antes de concluir, segure o botão da cafeteira por 5 segundos até o LED azul piscar. " +
+            "O app lê o código de vínculo nesse momento; a janela fica aberta por cerca de 2 minutos.",
+        style = CafeyTheme.typography.bodySmall,
+        color = CafeyTheme.colors.muted,
+        modifier = Modifier.padding(top = 12.dp),
+    )
 
     DeviceTextField(
         value = state.nome,

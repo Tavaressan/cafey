@@ -1,0 +1,91 @@
+alias,value,unit,origin
+# --- envelope (decisao do responsavel, 09/11/2026: laterais circulares, base e topo planos) ---
+diametro_externo,250,mm,impressora ~260 mm de mesa (estimativa do responsavel) com ~10 mm de margem
+altura_externa,70,mm,PROVISORIO: cresceu de 53 p/ caber SSR + dissipador; ajustar quando medir o dissipador (#305)
+parede,2.4,mm,3 perimetros de bico 0.4 (mesmo valor da versao retangular)
+tampo,3.0,mm,a cafeteira (3 kgf com agua) apoia no tampo
+fundo,3.0,mm,Peca 2: fundo removivel com pes
+impressora_xy,260,mm,estimativa do responsavel (09/11/2026); conferir na impressora
+impressora_z,250,mm,estimativa; so precisa ser maior que altura_externa
+# --- divisoria impressa (corda): separa rede (tras) de baixa tensao (frente) ---
+divisoria_y,-36.5,mm,eixo da divisoria; y menor = baixa tensao
+divisoria_t,3,mm,PETG impresso junto com o corpo (antes era placa de policarbonato avulsa)
+divisoria_folga_rede,8,mm,distancia minima de qualquer componente de rede ate a face da divisoria
+travessia_x,8,mm,centro da passagem de fios na base da divisoria
+travessia_w,20,mm,passa o plugue micro-USB (~11 x 8) + 2 fios da entrada do SSR
+travessia_h,12,mm,altura da passagem a partir do piso
+# --- fixacao do fundo: insert termico M3 em bosses colados na parede ---
+boss_qtd,6,,
+boss_ang_1,-150,deg,
+boss_ang_2,-90,deg,
+boss_ang_3,-30,deg,
+boss_ang_4,30,deg,
+boss_ang_5,104,deg,
+boss_ang_6,180,deg,
+boss_d,9,mm,>= 2x insert_furo
+insert_furo,4.0,mm,insert termico M3 x 5.7
+insert_prof,6,mm,
+furo_passagem,3.4,mm,folga do parafuso M3 no fundo
+cabeca_d,6.5,mm,rebaixo da cabeca do parafuso no fundo
+cabeca_prof,1.5,mm,
+# --- colunas tampo -> fundo (apoio da carga da cafeteira; sem parafuso: o pe fica logo abaixo) ---
+coluna_d,12,mm,
+coluna_1_x,15,mm,rede: entre o SSR e os bornes
+coluna_1_y,55,mm,
+coluna_2_x,-40,mm,rede: entre a divisoria e o SSR
+coluna_2_y,-15,mm,
+coluna_3_x,90,mm,rede: perto do borne de terra
+coluna_3_y,55,mm,
+coluna_4_x,-27,mm,rede: entre a tomada e o prensa-cabo, atras do SSR
+coluna_4_y,90,mm,
+# --- ventilacao do SSR (rasgos de 3 mm bloqueiam o dedo) ---
+vent_ang_ini,135,deg,rasgos na parede atras do SSR
+vent_ang_fim,170,deg,
+vent_passo,7,deg,
+vent_l,18,mm,comprimento do rasgo (ao longo da parede)
+vent_w,3,mm,altura do rasgo
+vent_z_piso,8,mm,fileira baixa (entrada de ar) acima do piso
+vent_z_teto,8,mm,fileira alta (saida de ar) abaixo do tampo
+vent_fundo_l,40,mm,rasgos no fundo sob o SSR (comprimento)
+vent_fundo_w,3,mm,
+vent_fundo_passo,8,mm,
+# --- pes de borracha: 4 sob as colunas (carga tampo -> coluna -> fundo -> pe) + 2 na frente ---
+pe_1_x,15,mm,sob a coluna 1
+pe_1_y,55,mm,
+pe_2_x,-40,mm,sob a coluna 2
+pe_2_y,-15,mm,
+pe_3_x,90,mm,sob a coluna 3
+pe_3_y,55,mm,
+pe_4_x,-27,mm,sob a coluna 4
+pe_4_y,90,mm,
+pe_5_x,-60,mm,frente esquerda
+pe_5_y,-95,mm,
+pe_6_x,60,mm,frente direita
+pe_6_y,-95,mm,
+pe_d,15,mm,
+pe_rebaixo,0.6,mm,assento raso para o pe adesivo
+# --- marca (#303) ---
+marca_altura_simbolo,22,mm,minimo recomendado em docs/docs_interface/logo/MARCA-NA-PECA.md
+marca_prof,0.8,mm,baixo-relevo (gravado)
+# --- berco da placa base (ESP32 removivel, #309) ---
+berco_trilho_w,4,mm,
+berco_trilho_h,9,mm,
+berco_ranhura_z,5,mm,altura da ranhura onde a placa ilhada corre
+berco_ranhura_h,2.0,mm,placa de 1.6 mm + folga
+berco_ranhura_p,2,mm,profundidade da ranhura
+# --- berco da fonte A1385 ---
+fonte_berco_parede,2,mm,
+fonte_berco_h,15,mm,
+fonte_folga,0.6,mm,
+fonte_corpo_x,28,mm,comprimento do corpo da A1385 sem os pinos (modelo apple-a1385.step)
+# --- carga e criterio do tampo ---
+carga_operacao,3.0,kgf,CP30 1.64 kg + agua (mesmo criterio da versao retangular)
+carga_raio_eq,100,mm,carga espalhada num disco de raio equivalente a base da CP30 (conservador)
+fator_fluencia,4.0,,flecha de longo prazo = elastica x fator (PETG sob carga e calor)
+E_petg,2100,MPa,
+nu_petg,0.38,,
+# --- margens de projeto (viram verificacao) ---
+folga_comp,2,mm,entre volumes de componentes
+folga_teto,2,mm,entre componente e a face inferior do tampo
+margem_abertura_z,5,mm,entre recorte e tampo/piso
+margem_parede,6,mm,arco minimo de parede entre recortes/bosses

@@ -37,6 +37,14 @@ data class AgendamentosPayload(
     val agendamentos: List<AgendamentoItemPayload>
 )
 
+/**
+ * Código de uso único da janela de vínculo aberta pelo toque longo na placa (FW-24, #275).
+ * O firmware publica sem retain e só enquanto a janela está aberta.
+ */
+data class VinculoPayload(
+    val codigo: String? = null
+)
+
 data class EventoPayload(
     val eventoId: String,
     val tipo: String = "PREPARO",

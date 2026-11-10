@@ -21,6 +21,11 @@ class MqttIngestionService(
 ) {
     private val logger = LoggerFactory.getLogger(MqttIngestionService::class.java)
 
+    companion object {
+        /** Mesma duração da janela aberta pelo toque longo no firmware (kBindWindowS). */
+        const val VINCULO_TTL_SEGUNDOS = 120L
+    }
+
     @Transactional
     fun processarEstado(dispositivoId: UUID, payload: EstadoPayload) {
         val dispositivo = dispositivoRepository.findById(dispositivoId).orElse(null)
@@ -54,6 +59,35 @@ class MqttIngestionService(
         if (wasOffline && payload.online) {
             eventPublisher.publishEvent(DispositivoOnlineEvent(dispositivoId))
         }
+    }
+
+    /**
+     * Guarda o código de uso único publicado pela placa na janela de vínculo (FW-24, #275).
+     *
+     * O prazo é calculado no recebimento (e não pelo relógio da placa, que pode não ter NTP),
+     * usando a mesma duração da janela do firmware. Uma nova publicação sobrescreve o código
+     * anterior, o que cobre reabrir a janela antes de a antiga expirar.
+     */
+    @Transactional
+    fun processarVinculo(dispositivoId: UUID, payload: VinculoPayload) {
+        val dispositivo = dispositivoRepository.findById(dispositivoId).orElse(null)
+        if (dispositivo == null) {
+            logger.warn("Recebido código de vínculo para dispositivo inexistente: {}", dispositivoId)
+            return
+        }
+
+        val agora = Instant.now()
+        val codigo = payload.codigo?.trim()
+        if (codigo.isNullOrEmpty()) {
+            logger.warn("Recebido código de vínculo vazio para dispositivo {}", dispositivoId)
+            return
+        }
+
+        dispositivo.codigoVinculo = codigo
+        dispositivo.codigoVinculoExpiraEm = agora.plusSeconds(VINCULO_TTL_SEGUNDOS)
+        dispositivo.atualizadoEm = agora
+        dispositivoRepository.save(dispositivo)
+        logger.info("Código de vínculo do dispositivo {} armazenado (expira em {}s)", dispositivoId, VINCULO_TTL_SEGUNDOS)
     }
 
     fun processarEvento(dispositivoId: UUID, payload: EventoPayload) {
