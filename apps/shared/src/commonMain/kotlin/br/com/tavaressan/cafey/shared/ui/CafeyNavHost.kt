@@ -52,6 +52,7 @@ import br.com.tavaressan.cafey.shared.ui.care.CareScreen
 import br.com.tavaressan.cafey.shared.ui.device.DeviceFormScreen
 import br.com.tavaressan.cafey.shared.ui.history.HistoryScreen
 import br.com.tavaressan.cafey.shared.ui.home.HomeScreen
+import br.com.tavaressan.cafey.shared.ui.onboarding.OnboardingScreen
 import br.com.tavaressan.cafey.shared.ui.schedule.ScheduleScreen
 import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyLogo
@@ -59,6 +60,8 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyWordmark
 
 private const val ROUTE_LOGIN = "login"
+private const val ROUTE_ONBOARDING = "onboarding"
+private const val ROUTE_ONBOARDING_REVISIT = "onboarding_revisit"
 private const val ROUTE_FORGOT_PASSWORD = "forgot_password"
 private const val ROUTE_RESET_PASSWORD = "reset_password"
 private const val ROUTE_REGISTER = "register"
@@ -94,7 +97,14 @@ fun CafeyNavHost() {
     var startRoute by remember { mutableStateOf(ROUTE_LOGIN) }
 
     LaunchedEffect(Unit) {
-        startRoute = if (container.apiClient.isAuthenticated()) ROUTE_HOME else ROUTE_LOGIN
+        container.onboardingPreference.load()
+        val authed = container.apiClient.isAuthenticated()
+        val needsOnboarding = !container.isDemoMode && !container.onboardingPreference.completed.value
+        startRoute = when {
+            authed && needsOnboarding -> ROUTE_ONBOARDING
+            authed -> ROUTE_HOME
+            else -> ROUTE_LOGIN
+        }
         sessionChecked = true
     }
 
@@ -142,7 +152,10 @@ fun CafeyNavHost() {
                 ) {
                     composable(ROUTE_LOGIN) {
                         LoginScreen(
-                            onLoggedIn = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
+                            onLoggedIn = {
+                                val dest = if (!container.isDemoMode && !container.onboardingPreference.completed.value) ROUTE_ONBOARDING else ROUTE_HOME
+                                navController.navigate(dest) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
+                            },
                             onGoToRegister = { navController.navigate(ROUTE_REGISTER) },
                             onForgotPassword = { navController.navigate(ROUTE_FORGOT_PASSWORD) },
                         )
@@ -161,7 +174,10 @@ fun CafeyNavHost() {
                     }
                     composable(ROUTE_REGISTER) {
                         RegisterScreen(
-                            onRegistered = { navController.navigate(ROUTE_HOME) { popUpTo(ROUTE_LOGIN) { inclusive = true } } },
+                            onRegistered = {
+                                val dest = if (!container.isDemoMode && !container.onboardingPreference.completed.value) ROUTE_ONBOARDING else ROUTE_HOME
+                                navController.navigate(dest) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
+                            },
                             onGoToLogin = { navController.popBackStack() },
                         )
                     }
@@ -176,6 +192,7 @@ fun CafeyNavHost() {
                             onGoToAccount = { navController.navigate(ROUTE_ACCOUNT) },
                             onEditDevice = { id -> navController.navigate("$ROUTE_DEVICE_EDIT/$id") },
                             onRegisterDevice = { navController.navigate(ROUTE_DEVICE_REGISTER) },
+                            onViewTutorial = { navController.navigate(ROUTE_ONBOARDING_REVISIT) },
                         )
                     }
                     composable(ROUTE_ACCOUNT) {
@@ -189,6 +206,25 @@ fun CafeyNavHost() {
                                     popUpTo(navController.graph.id) { inclusive = true }
                                 }
                             },
+                            onViewTutorial = { navController.navigate(ROUTE_ONBOARDING_REVISIT) },
+                        )
+                    }
+                    composable(ROUTE_ONBOARDING) {
+                        OnboardingScreen(
+                            revisit = false,
+                            onFinished = {
+                                navController.navigate(ROUTE_HOME) {
+                                    popUpTo(ROUTE_ONBOARDING) { inclusive = true }
+                                }
+                            },
+                            onProvisionWifi = { navController.navigate(ROUTE_DEVICE_REGISTER) },
+                        )
+                    }
+                    composable(ROUTE_ONBOARDING_REVISIT) {
+                        OnboardingScreen(
+                            revisit = true,
+                            onFinished = { navController.popBackStack() },
+                            onProvisionWifi = { navController.navigate(ROUTE_DEVICE_REGISTER) },
                         )
                     }
                     composable(ROUTE_DEVICE_REGISTER) {

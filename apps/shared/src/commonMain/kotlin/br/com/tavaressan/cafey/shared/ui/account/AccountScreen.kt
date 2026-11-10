@@ -24,7 +24,7 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
  * ação "Sair" que faltava para `ApiClient.logout()`. Alcançável a partir de "Base" (não é uma aba
  * do rodapé/trilho/sidebar, para não divergir das 5 abas espelhadas de `nav.js` na issue #182). */
 @Composable
-fun AccountScreen(onLoggedOut: () -> Unit) {
+fun AccountScreen(onLoggedOut: () -> Unit, onViewTutorial: () -> Unit = {}) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<AccountViewModel>(
         factory = viewModelFactory { initializer { AccountViewModel(container.apiClient) } },
@@ -37,13 +37,13 @@ fun AccountScreen(onLoggedOut: () -> Unit) {
         if (state.loggedOut) onLoggedOut()
     }
 
-    AccountContent(onLogout = viewModel::logout)
+    AccountContent(onLogout = viewModel::logout, onViewTutorial = onViewTutorial)
 }
 
 /** Corpo visual, separado de [AccountScreen] para ser testável por composição sem
  * `AppContainer`/rede (mesmo padrão de `BaseContent`, issue #182). */
 @Composable
-internal fun AccountContent(onLogout: () -> Unit) {
+internal fun AccountContent(onLogout: () -> Unit, onViewTutorial: () -> Unit = {}) {
     Column(modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground).padding(22.dp)) {
         Text("Conta", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
 
@@ -54,6 +54,13 @@ internal fun AccountContent(onLogout: () -> Unit) {
             modifier = Modifier.fillMaxWidth().padding(top = 24.dp),
         ) {
             Text("Sair", color = CafeyTheme.colors.brandOn)
+        }
+        androidx.compose.material3.OutlinedButton(
+            onClick = onViewTutorial,
+            shape = CafeyTheme.shapes.small,
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+        ) {
+            Text("Ver tutorial")
         }
     }
 }
