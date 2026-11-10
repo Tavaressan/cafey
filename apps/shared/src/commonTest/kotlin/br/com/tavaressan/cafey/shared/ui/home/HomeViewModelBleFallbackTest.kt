@@ -104,12 +104,12 @@ class HomeViewModelBleFallbackTest {
 
         viewModel.uiState.first { !it.loading }
         viewModel.ligar()
-        viewModel.uiState.first { !it.commandInFlight }
+        val state = viewModel.uiState.first { !it.commandInFlight }
 
         assertEquals(1, fakeBle.comandosEnviados.size)
         assertEquals("dev-1" to AcaoComando.LIGAR, fakeBle.comandosEnviados.first())
-        assertEquals("PREPARANDO", viewModel.uiState.value.device?.estado)
-        assertNull(viewModel.uiState.value.errorMessage)
+        assertEquals("PREPARANDO", state.device?.estado)
+        assertNull(state.errorMessage)
     }
 
     @Test
@@ -119,7 +119,7 @@ class HomeViewModelBleFallbackTest {
 
         viewModel.uiState.first { !it.loading }
         viewModel.ligar()
-        val erroState = viewModel.uiState.first { it.errorMessage != null }
+        val erroState = viewModel.uiState.first { it.errorMessage != null && !it.commandInFlight }
 
         assertTrue(fakeBle.comandosEnviados.isEmpty())
         assertEquals("Nenhuma base BLE encontrada nas proximidades", erroState.errorMessage)
