@@ -6,9 +6,10 @@
 	(paper "A4")
 	(title_block
 		(title "Base IoT — Cafeteira Conectada")
-		(date "2026-11-09")
+		(date "2026-11-11")
 		(rev "B")
 		(comment 1 "Rev. B: SSR-40DA, Apple A1385, disjuntor 10 A, botão RGB, rabicho do buzzer (#304)")
+		(comment 2 "Buzzer passivo com estágio NPN Q1/R6/R7/D1 (#311)")
 	)
 	(lib_symbols
 		(symbol "Connector:Conn_Plug_3P_Protected"
@@ -3931,6 +3932,436 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "Transistor_BJT:S8050"
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "Q"
+				(at 5.08 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "S8050"
+				(at 5.08 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" "Package_TO_SOT_THT:TO-92_Inline"
+				(at 5.08 -1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+						(italic yes)
+					)
+					(justify left)
+				)
+			)
+			(property "Datasheet" "http://www.unisonic.com.tw/datasheet/S8050.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Description" "0.7A Ic, 20V Vce, Low Voltage High Current NPN Transistor, TO-92"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "S8050 NPN Low Voltage High Current Transistor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "TO?92*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Sim.Device" "NPN"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Sim.Pins" "1=E 2=B 3=C"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "S8050_0_1"
+				(polyline
+					(pts
+						(xy -2.54 0) (xy 0.635 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.635 1.905) (xy 0.635 -1.905)
+					)
+					(stroke
+						(width 0.508)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(circle
+					(center 1.27 0)
+					(radius 2.8194)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "S8050_1_1"
+				(polyline
+					(pts
+						(xy 0.635 0.635) (xy 2.54 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0.635 -0.635) (xy 2.54 -2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 -1.778) (xy 1.778 -1.27) (xy 2.286 -2.286) (xy 1.27 -1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type outline)
+					)
+				)
+				(pin passive line
+					(at 2.54 -5.08 90)
+					(length 2.54)
+					(name "E"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -5.08 0 0)
+					(length 2.54)
+					(name "B"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 2.54 5.08 270)
+					(length 2.54)
+					(name "C"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "Diode:1N4148"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "D"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "1N4148"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "Diode_THT:D_DO-35_SOD27_P7.62mm_Horizontal"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://assets.nexperia.com/documents/data-sheet/1N4148_1N4448.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "100V 0.15A standard switching diode, DO-35"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "diode"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "D*DO?35*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Sim.Device" "D"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Sim.Pins" "1=K 2=A"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "1N4148_0_1"
+				(polyline
+					(pts
+						(xy -1.27 1.27) (xy -1.27 -1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 1.27) (xy 1.27 -1.27) (xy -1.27 0) (xy 1.27 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 0) (xy -1.27 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "1N4148_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "K"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 	)
 	(text "em eletrotécnica antes do primeiro uso com carga real."
 		(exclude_from_sim no)
@@ -7600,7 +8031,7 @@
 				(justify left)
 			)
 		)
-		(property "Value" "Rabicho do buzzer (JST-XH 2P)"
+		(property "Value" "Rabicho do buzzer passivo (JST-XH 2P)"
 			(at 218.44 119.38 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7633,7 +8064,7 @@
 				)
 			)
 		)
-		(property "Description" "Conector destacável do buzzer; estágio de acionamento definido em #311"
+		(property "Description" "Conector destacável do buzzer passivo: 1 = +5V (buzzer +), 2 = BZ_NEG (coletor de Q1, buzzer −) (#311)"
 			(at 215.9 116.84 0)
 			(hide yes)
 			(show_name no)
@@ -7669,16 +8100,6 @@
 		)
 		(uuid "08e79595-f431-44dc-953c-be7ed732ccc2")
 	)
-	(label "BUZZER"
-		(at 205.74 116.84 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "9af94e58-e766-4a05-b5ea-94b70c98e553")
-	)
 	(wire
 		(pts
 			(xy 210.82 119.38) (xy 205.74 119.38)
@@ -7689,94 +8110,7 @@
 		)
 		(uuid "b4158b69-a827-453d-b1d9-34ad32f3f7de")
 	)
-	(wire
-		(pts
-			(xy 205.74 119.38) (xy 205.74 121.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "7e104162-cec8-4015-b7c3-9baddb928ab7")
-	)
-	(symbol
-		(lib_id "power:GND")
-		(at 205.74 121.92 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "1db49449-ea5c-45e6-a652-7b6ffa56a5fa")
-		(property "Reference" "#PWR17"
-			(at 205.74 128.27 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 205.74 125.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 205.74 121.92 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 205.74 121.92 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
-			(at 205.74 121.92 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "0f6ba955-4960-400b-a986-85f93680f503")
-		)
-		(instances
-			(project "pi_dsm_26_2"
-				(path "/b44094fb-e67c-4704-b1f1-1092cb00b967"
-					(reference "#PWR17")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(text "J5/BUZZER (GPIO25): buzzer ativo ou passivo a definir; acionamento direto"
+	(text "J5: rabicho do buzzer passivo (1 = +5V, 2 = BZ_NEG). Estágio Q1/R6/R7/D1"
 		(exclude_from_sim no)
 		(at 185.42 104.14 0)
 		(effects
@@ -7787,7 +8121,7 @@
 		)
 		(uuid "61a0fb7c-5301-4183-b9be-fd32009194ef")
 	)
-	(text "ou por transistor conforme a corrente (#311). GPIO33 reservado ao sensor"
+	(text "acima, no GPIO25 (#311). GPIO33 reservado ao sensor"
 		(exclude_from_sim no)
 		(at 185.42 106.68 0)
 		(effects
@@ -7884,6 +8218,114 @@
 		)
 		(uuid "22f2519b-5628-4df2-90f0-b9b95f314c61")
 	)
+	(symbol (lib_id "Transistor_BJT:S8050") (at 248.92 76.2 0) (unit 1) (body_style 1)
+  (exclude_from_sim no) (in_bom yes) (on_board yes) (in_pos_files yes) (dnp no)
+  (uuid "9e70b1a9-8bcb-46e9-a662-f8103f0e3c1d")
+  (property "Reference" "Q1" (at 254.0 74.93 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Value" "S8050 (ou 2N2222 / BC337)" (at 254.0 77.47 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Footprint" "Package_TO_SOT_THT:TO-92_Inline" (at 248.92 76.2 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Datasheet" "http://www.unisonic.com.tw/datasheet/S8050.pdf" (at 248.92 76.2 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Description" "NPN chave do buzzer, Ic >= 500 mA. S8050 e 2N2222 = EBC; BC337 = CBE: conferir a pinagem (#311)" (at 248.92 76.2 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (pin "1" (uuid "1dea7769-f1d0-439a-81e2-e87843449d7e")) (pin "2" (uuid "6271891f-fb64-41bc-b163-972d37f70176")) (pin "3" (uuid "183cdda0-47ec-48b5-aa14-e5853f974252"))
+  (instances (project "pi_dsm_26_2" (path "/b44094fb-e67c-4704-b1f1-1092cb00b967" (reference "Q1") (unit 1))))
+)
+	(symbol (lib_id "Device:R") (at 236.22 76.2 90) (unit 1) (body_style 1)
+  (exclude_from_sim no) (in_bom yes) (on_board yes) (in_pos_files yes) (dnp no)
+  (uuid "92b02ba6-5e11-4522-bb02-4081ef51d17d")
+  (property "Reference" "R6" (at 236.22 71.12 90) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+  (property "Value" "1 kΩ" (at 236.22 73.66 90) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 236.22 76.2 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Datasheet" "" (at 236.22 76.2 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Description" "Resistor de base de Q1 (470 Ω se a bobina tiver menos de 20 Ω)" (at 236.22 76.2 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (pin "1" (uuid "cfd47634-d715-4557-8ebc-ac6b6cf75314")) (pin "2" (uuid "d04f733b-466c-4bd2-92a2-7495780dcd1b"))
+  (instances (project "pi_dsm_26_2" (path "/b44094fb-e67c-4704-b1f1-1092cb00b967" (reference "R6") (unit 1))))
+)
+	(symbol (lib_id "Device:R") (at 241.3 81.28 0) (unit 1) (body_style 1)
+  (exclude_from_sim no) (in_bom yes) (on_board yes) (in_pos_files yes) (dnp no)
+  (uuid "bd57229f-fc0d-4e74-9ae5-81283444b5f6")
+  (property "Reference" "R7" (at 239.268 81.28 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27)) (justify right)))
+  (property "Value" "10 kΩ" (at 239.268 83.82000000000001 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27)) (justify right)))
+  (property "Footprint" "" (at 241.3 81.28 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Datasheet" "" (at 241.3 81.28 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Description" "Pull-down da base: Q1 cortado com o GPIO flutuando no boot" (at 241.3 81.28 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (pin "1" (uuid "b5e04a95-80f8-44a9-96d1-7fab2c787882")) (pin "2" (uuid "2b481a0a-7908-4c81-8356-188850be2bcf"))
+  (instances (project "pi_dsm_26_2" (path "/b44094fb-e67c-4704-b1f1-1092cb00b967" (reference "R7") (unit 1))))
+)
+	(symbol (lib_id "Diode:1N4148") (at 261.62 58.42 270) (unit 1) (body_style 1)
+  (exclude_from_sim no) (in_bom yes) (on_board yes) (in_pos_files yes) (dnp no)
+  (uuid "451a47dd-21aa-4ecd-8ce3-f8716b5d825b")
+  (property "Reference" "D1" (at 264.16 57.15 90) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Value" "1N4148" (at 264.16 59.690000000000005 90) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27)) (justify left)))
+  (property "Footprint" "Diode_THT:D_DO-35_SOD27_P7.62mm_Horizontal" (at 261.62 58.42 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Datasheet" "https://assets.nexperia.com/documents/data-sheet/1N4148_1N4448.pdf" (at 261.62 58.42 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Description" "Roda livre da bobina do buzzer, em antiparalelo com J5" (at 261.62 58.42 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (pin "1" (uuid "bb8e4479-c831-4ae4-a1b0-9d6386d9306a")) (pin "2" (uuid "db420852-4231-4e03-844b-2723626ac260"))
+  (instances (project "pi_dsm_26_2" (path "/b44094fb-e67c-4704-b1f1-1092cb00b967" (reference "D1") (unit 1))))
+)
+	(symbol (lib_id "power:GND") (at 241.3 88.9 0) (unit 1) (body_style 1)
+  (exclude_from_sim no) (in_bom no) (on_board yes) (in_pos_files yes) (dnp no)
+  (uuid "02cff73b-787a-4ce6-a562-0de94f4fc1af")
+  (property "Reference" "#PWR022" (at 241.3 95.25 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Value" "GND" (at 241.3 92.71000000000001 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 241.3 88.9 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Datasheet" "" (at 241.3 88.9 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Description" "Power symbol creates a global label with name \"GND\" , ground" (at 241.3 88.9 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (pin "1" (uuid "15846630-3800-4317-85fa-714fe8864004"))
+  (instances (project "pi_dsm_26_2" (path "/b44094fb-e67c-4704-b1f1-1092cb00b967" (reference "#PWR022") (unit 1))))
+)
+	(symbol (lib_id "power:GND") (at 251.45999999999998 88.9 0) (unit 1) (body_style 1)
+  (exclude_from_sim no) (in_bom no) (on_board yes) (in_pos_files yes) (dnp no)
+  (uuid "eaf2736a-b63c-411d-8c23-55f042de888b")
+  (property "Reference" "#PWR023" (at 251.45999999999998 95.25 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Value" "GND" (at 251.45999999999998 92.71000000000001 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 251.45999999999998 88.9 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Datasheet" "" (at 251.45999999999998 88.9 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Description" "Power symbol creates a global label with name \"GND\" , ground" (at 251.45999999999998 88.9 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (pin "1" (uuid "a5086599-73de-4c01-a1cf-a98f6fc1a07b"))
+  (instances (project "pi_dsm_26_2" (path "/b44094fb-e67c-4704-b1f1-1092cb00b967" (reference "#PWR023") (unit 1))))
+)
+	(symbol (lib_id "power:+5V") (at 261.62 50.8 0) (unit 1) (body_style 1)
+  (exclude_from_sim no) (in_bom no) (on_board yes) (in_pos_files yes) (dnp no)
+  (uuid "7ae97171-4146-4398-b03c-dfb4c2cb6956")
+  (property "Reference" "#PWR024" (at 261.62 54.61 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Value" "+5V" (at 261.62 47.244 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 261.62 50.8 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Datasheet" "" (at 261.62 50.8 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Description" "Power symbol creates a global label with name \"+5V\"" (at 261.62 50.8 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (pin "1" (uuid "6fe66055-8525-4030-a945-2b9adb86f8d0"))
+  (instances (project "pi_dsm_26_2" (path "/b44094fb-e67c-4704-b1f1-1092cb00b967" (reference "#PWR024") (unit 1))))
+)
+	(wire (pts (xy 226.06 76.2) (xy 232.41 76.2)) (stroke (width 0) (type default)) (uuid "7a25898d-f28e-4d78-b0c2-49fc0fcaa2b0"))
+	(label "BUZZER" (at 226.06 76.2 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "cf6cc126-aa68-4a27-b64d-8b64fd16b84c"))
+	(wire (pts (xy 240.03 76.2) (xy 241.3 76.2)) (stroke (width 0) (type default)) (uuid "1f7934eb-5b74-4dff-a45d-a18ac64feb0d"))
+	(wire (pts (xy 241.3 76.2) (xy 243.83999999999997 76.2)) (stroke (width 0) (type default)) (uuid "06380e20-def3-4382-ab18-a887afd60878"))
+	(wire (pts (xy 241.3 76.2) (xy 241.3 77.47)) (stroke (width 0) (type default)) (uuid "51d43a8a-3642-49cb-89db-3e5624c54f42"))
+	(junction (at 241.3 76.2) (diameter 0) (color 0 0 0 0) (uuid "63e828e2-9eb5-4375-8a3a-483fecb9b143"))
+	(wire (pts (xy 241.3 85.09) (xy 241.3 88.9)) (stroke (width 0) (type default)) (uuid "1be6a26d-13ee-4abf-832e-51ed8707459b"))
+	(wire (pts (xy 251.45999999999998 81.28) (xy 251.45999999999998 88.9)) (stroke (width 0) (type default)) (uuid "6fe3e3cf-3a5d-47f6-9205-38d51b4003a4"))
+	(wire (pts (xy 251.45999999999998 71.12) (xy 251.45999999999998 66.04)) (stroke (width 0) (type default)) (uuid "f25c4724-5226-4adb-af8d-5eebb8f46f5f"))
+	(wire (pts (xy 243.84 66.04) (xy 251.45999999999998 66.04)) (stroke (width 0) (type default)) (uuid "3d19d438-e88c-4c77-89c7-57a09617802a"))
+	(wire (pts (xy 251.45999999999998 66.04) (xy 261.62 66.04)) (stroke (width 0) (type default)) (uuid "6a198a88-c987-4008-b43a-47de06232619"))
+	(wire (pts (xy 261.62 66.04) (xy 261.62 62.230000000000004)) (stroke (width 0) (type default)) (uuid "63b2a672-5556-438d-985f-606e5b1aa0c7"))
+	(junction (at 251.45999999999998 66.04) (diameter 0) (color 0 0 0 0) (uuid "bdce6c94-6114-4f34-8600-4bd6a8c83e58"))
+	(label "BZ_NEG" (at 243.84 66.04 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "7df3c66b-e8ae-4ce3-a397-f0db2fc73242"))
+	(wire (pts (xy 261.62 54.61) (xy 261.62 50.8)) (stroke (width 0) (type default)) (uuid "a71bc423-294c-4450-811a-9b598b610130"))
+	(text "Buzzer passivo (#311): Q1 chaveia o lado baixo; tom por LEDC." (exclude_from_sim no) (at 207.01 40.64 0) (effects (font (size 1.27 1.27)) (justify left)) (uuid "6b4b5906-f130-4c35-800c-a0c2f52e3ab3"))
+	(text "+ do buzzer em J5.1 (+5V), − em J5.2 (BZ_NEG); D1 = roda livre." (exclude_from_sim no) (at 207.01 43.18 0) (effects (font (size 1.27 1.27)) (justify left)) (uuid "84468e46-875f-4e75-8373-31029841fb4d"))
+	(text "Q1: S8050/2N2222 = EBC; BC337 = CBE (conferir a pinagem)." (exclude_from_sim no) (at 207.01 96.52 0) (effects (font (size 1.27 1.27)) (justify left)) (uuid "e48e9215-18d0-403d-b4aa-4d776c83a910"))
+	(text "Bobina: acima de ~200 mA, 22–47 Ω em série; abaixo de 20 Ω, R6 = 470 Ω." (exclude_from_sim no) (at 207.01 99.06 0) (effects (font (size 1.27 1.27)) (justify left)) (uuid "14167d53-0189-46bb-bab7-56fe8f23ee9c"))
+	(symbol (lib_id "power:+5V") (at 205.74 116.84 0) (unit 1) (body_style 1)
+  (exclude_from_sim no) (in_bom no) (on_board yes) (in_pos_files yes) (dnp no)
+  (uuid "57966c8f-f7af-4e2c-a621-9ec237b6d51e")
+  (property "Reference" "#PWR025" (at 205.74 120.65 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Value" "+5V" (at 205.74 113.284 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+  (property "Footprint" "" (at 205.74 116.84 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Datasheet" "" (at 205.74 116.84 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (property "Description" "Power symbol creates a global label with name \"+5V\"" (at 205.74 116.84 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+  (pin "1" (uuid "5ccca1ae-e041-4503-8f65-7472334feeba"))
+  (instances (project "pi_dsm_26_2" (path "/b44094fb-e67c-4704-b1f1-1092cb00b967" (reference "#PWR025") (unit 1))))
+)
+	(label "BZ_NEG" (at 205.74 119.38 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "8cb9f76e-b31e-4ccb-b250-13b74932a7d0"))
 	(sheet_instances
 		(path "/"
 			(page "1")
