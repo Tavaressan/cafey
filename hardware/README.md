@@ -2,7 +2,7 @@
 
 Documentação técnica do esquemático elétrico, da pinagem e da arquitetura elétrica do módulo IoT para a cafeteira Britânia CP30.
 
-> **Revisão B (09/11/2026, #304).** Componentes da montagem de 10/11/2026: SSR Fotek SSR-40DA (#305), fonte Apple A1385 (#306), disjuntor de 10 A (#307), botão RGB (#308) e rabicho do buzzer (#311). A revisão A (HL-52S, HLK-PM01, fusível, LED RGB discreto) está resumida na seção 7.
+> **Revisão B (09/11/2026, #304).** Componentes da montagem de 10/11/2026: SSR Fotek SSR-40DA (#305), fonte Apple A1385 (#306), disjuntor de 10 A (#307), botão RGB (#308) e buzzer passivo com estágio NPN (#311, 11/11/2026). A revisão A (HL-52S, HLK-PM01, fusível, LED RGB discreto) está resumida na seção 7.
 >
 > **Este documento é projeto, não instrução de ligação à rede.** Nenhuma montagem em tensão de rede antes das validações de #305, #306 e #307 e da validação por profissional habilitado (#19). Ver a seção 5.
 
@@ -25,7 +25,8 @@ flowchart LR
     U1 -->|"GPIO26 (RELE_IN)"| SSR1
     SW1["SW1<br/>Botão RGB"] -->|"GPIO27 (BOTAO)"| U1
     U1 -->|"GPIO21/22/23 (LED_R/G/B)"| SW1
-    U1 -->|"GPIO25 (BUZZER)"| J5["J5<br/>Rabicho do buzzer"]
+    U1 -->|"GPIO25 (BUZZER)"| Q1["Q1 S8050<br/>+ R6, R7, D1"]
+    Q1 -->|"BZ_NEG (lado baixo)"| J5["J5<br/>Rabicho do buzzer passivo"]
 ```
 
 ### Diagrama de alimentação
@@ -57,9 +58,9 @@ flowchart TB
 ## 2. Esquemático KiCad (`hardware/`)
 
 - Projeto: `hardware/pi_dsm_26_2.kicad_pro` (KiCad 10.0.x; última exportação com 10.0.7)
-- Esquemático: `hardware/pi_dsm_26_2.kicad_sch` (revisão B, 09/11/2026)
+- Esquemático: `hardware/pi_dsm_26_2.kicad_sch` (revisão B, 09/11/2026; estágio do buzzer em 11/11/2026)
 - PDF vetorial: `hardware/pi_dsm_26_2.pdf`
-- Bibliotecas locais: `hardware/libraries/` — `cafey.kicad_sym` traz os símbolos da revisão B (`SSR_DC_AC`, `Apple_A1385`, `Circuit_Breaker_1P`, `Botao_RGB`). `relay_module.kicad_sym` fica como histórico da revisão A.
+- Bibliotecas locais: `hardware/libraries/` — `cafey.kicad_sym` traz os símbolos da revisão B (`SSR_DC_AC`, `Apple_A1385`, `Circuit_Breaker_1P`, `Botao_RGB`). `relay_module.kicad_sym` fica como histórico da revisão A. Q1 (`Transistor_BJT:S8050`) e D1 (`Diode:1N4148`) vêm da biblioteca oficial do KiCad, com footprint e datasheet.
 
 ### Referências dos componentes
 
@@ -70,7 +71,11 @@ flowchart TB
 | **SSR1** | Acionamento da carga | Fotek SSR-40DA: entrada 3–32 V DC (3 = +, 4 = −), saída 24–380 V AC (1, 2), com dissipador aletado. Corpo **63 × 45 × 23 mm** (medido em 09/11/2026) | Em uso; dissipador, capacidade, fuga e ensaio térmico em #305 |
 | **CB1** | Proteção contra sobrecorrente e liga/desliga geral | **Chave disjuntora ST-001**, 10 A, 125/250 V AC, reset/off, com LED vermelho, **3 terminais**, 29 × 14 × 25 mm (C × L × A), 9 g. Acesso pelo tampo | Pino 3 (lâmpada) ligado ao N no esquemático: **confirmar a marcação dos terminais na peça**. Recorte de painel e espessura máxima de painel a medir (#302). Capacidade de interrupção não informada (#307) |
 | **SW1** | Interface física | Botão anti-vandalismo de aço inox, IP65, rosca 16 mm, frente 18 mm, 35 mm de comprimento, com chicote. **Contato 1NA** (fios amarelo e branco) → unidade A, GPIO27. **Anel RGB de cátodo comum** (preto = negativo comum; vermelho, verde e azul = anodos) → unidade B, GPIO21/22/23. **LED especificado para 12–24 V DC** | Acionamento do anel a definir (seção 3.1, #308) |
-| **J5** | Rabicho do buzzer | Conector destacável 2 vias (JST-XH): 1 = BUZZER (GPIO25), 2 = GND | O kit LAFVIN traz um buzzer ativo e um passivo (sem especificação elétrica no manual). Escolha e estágio de acionamento em #311 |
+| **J5** | Rabicho do buzzer | Conector destacável 2 vias (JST-XH): **1 = +5V (buzzer +), 2 = BZ_NEG (coletor de Q1, buzzer −)** | Buzzer **passivo** do kit LAFVIN (decisão de 11/11/2026, #311). O kit não especifica a bobina: medir a resistência antes de ligar |
+| **Q1** | Chave do buzzer (lado baixo) | NPN TO-92 com Ic ≥ 500 mA: **S8050** (EBC), 2N2222 (EBC) ou BC337 (**CBE**: conferir a pinagem). Footprint `TO-92_Inline` | Fora do kit; disponível no local da montagem. Evitar o BC547 (100 mA) se a bobina tiver menos de ~50 Ω |
+| **R6** | Resistor de base de Q1 | 1 kΩ, 1/4 W (~2,6 mA de base). **470 Ω** se a bobina tiver menos de 20 Ω | #311 |
+| **R7** | Pull-down da base de Q1 | 10 kΩ, 1/4 W, da base ao GND: Q1 cortado com o GPIO flutuando no boot | #311 |
+| **D1** | Roda livre da bobina | 1N4148 em antiparalelo com o buzzer (cátodo no +5V, anodo em BZ_NEG). Footprint DO-35 | #311 |
 | **P1** | Entrada de energia | Cabo macho NBR 14136, 3G1,0 mm² (10 A) | Em uso |
 | **J1** | Saída para a cafeteira | Tomada fêmea NBR 14136 de painel (10 A) | Em uso |
 | **J3** | Junção do PE | Borne de aterramento DIN verde-amarelo / WAGO 221-412 | Em uso |
@@ -96,11 +101,11 @@ Esta tabela é a referência para o esquemático, o firmware e a documentação.
 | `LED_R` (SW1 B) | GPIO21 | 26 | Saída (LEDC) | R3 | `RgbLed` |
 | `LED_G` (SW1 B) | GPIO22 | 29 | Saída (LEDC) | R4 | `RgbLed` |
 | `LED_B` (SW1 B) | GPIO23 | 30 | Saída (LEDC) | R5 | `RgbLed` |
-| `BUZZER` (J5.1) | GPIO25 | 8 | Saída (LEDC, se passivo) | Estágio a definir (#311) | Ainda não usado |
+| `BUZZER` | GPIO25 | 8 | Saída (LEDC, tom do buzzer passivo) | R6 → base de Q1; R7 pull-down | `Buzzer` (#311) |
 | Sensor de temperatura do SSR (opcional) | GPIO33 | 9 | Entrada | Reservado, fora do esquemático (#323) | Ainda não usado |
 | `+5V` (barramento 5V/VIN) | VIN | 1 | Alimentação | Vem do USB (PS1). Nada externo neste pino | — |
 | `+3V3` | 3V3 | 16 | Alimentação (`power_out`) | Regulador da placa; alimenta R2 | — |
-| `GND` | GND | 2, 17 | — | Comum DC, SSR1 −, J5.2 | — |
+| `GND` | GND | 2, 17 | — | Comum DC, SSR1 −, emissor de Q1, R7 | — |
 
 ### 3.1 Anel RGB do botão: tensão do LED (pendente, #308)
 
@@ -131,6 +136,8 @@ Saídas possíveis, da mais simples para a mais complexa:
 Os componentes da segunda e da terceira linha **não estão na lista de
 compras**. Se o teste apontar para elas, é compra antes da montagem.
 
+**Buzzer passivo (#311):** o firmware gera o tom por LEDC no GPIO25. Q1 chaveia o buzzer pelo lado baixo, alimentado em +5V (mais volume, útil com o buzzer atrás da parede da carcaça). Antes de ligar, meça a bobina com o multímetro: a corrente de pico é cerca de 5 V ÷ R; acima de ~200 mA, ponha 22–47 Ω em série com o buzzer. O som mais longo (café pronto) dura ~1,3 s, então o impacto na A1385 de 1 A é pequeno. Padrões, prioridades e modo silencioso estão em `firmware/README.md`.
+
 **Por que GPIO25 para o buzzer:** não é pino de strapping (0, 2, 5, 12, 15), não é somente entrada (34–39), não é a UART0 de gravação (1, 3) e não emite sinal no boot (como o GPIO14). Fica no mesmo lado do DevKit que GPIO26 e GPIO27, o que agrupa a fiação.
 
 **Por que GPIO33 para o sensor (opcional):** é canal do ADC1, que continua disponível com o Wi-Fi ativo (o ADC2 não). Serve tanto para um NTC analógico quanto para um sensor 1-Wire (DS18B20). A escolha do sensor é do spike #323.
@@ -141,14 +148,14 @@ compras**. Se o teste apontar para elas, é compra antes da montagem.
 
 ## 4. Validação elétrica e relatório ERC
 
-Verificação com `kicad-cli sch erc` (KiCad 10.0.7, 09/11/2026): **0 erros, 54 avisos**, todos esperados.
+Verificação com `kicad-cli sch erc` (KiCad 10.0.7, 11/11/2026, com as bibliotecas padrão do KiCad instaladas): **0 erros, 22 avisos**, todos esperados.
 
 | Avisos | Tipo | Motivo |
 |---|---|---|
 | 20 | `pin_not_connected` | GPIOs livres do DevKit (eram 21; o GPIO25 passou a ser usado pelo buzzer) |
 | 1 | `pin_to_pin` | U1.GND (bidirecional) × PS1.GND (saída de alimentação). Mesmo caso da rev. A com U2.−Vout: a fonte define a referência zero |
 | 1 | `same_local_global_label` | Rótulo local `Earth_Protective` × símbolo de alimentação de mesmo nome. Herdado da rev. A, intencional (nó do PE) |
-| 32 | `lib_symbol_issues` | Só em máquina sem as bibliotecas padrão do KiCad configuradas (`power`, `Device`, `Connector`, `Connector_Generic`). Os símbolos estão embutidos no esquemático; com as bibliotecas instaladas, o aviso some |
+| — | `lib_symbol_issues` | Aparece só em máquina sem as bibliotecas padrão do KiCad (`power`, `Device`, `Diode`, `Transistor_BJT`, `Connector`, `Connector_Generic`): um aviso por símbolo. Os símbolos estão embutidos no esquemático e a netlist sai igual |
 
 Netlist conferida nó a nó (`kicad-cli sch export netlist`):
 
@@ -160,12 +167,14 @@ Netlist conferida nó a nó (`kicad-cli sch export netlist`):
 | `N` | P1.N, PS1.AC/N, J1.N, CB1.3 (lâmpada) |
 | `Earth_Protective` | P1.PE, J1.PE, J3 |
 | `RELE_IN` | U1.GPIO26, SSR1.3 (+), R1 |
-| `GND` | U1.GND (2, 17), PS1.GND, SSR1.4 (−), R1, SW1.2, SW1.K, C1, C2, C3, J5.2 |
-| `+5V` | U1.VIN, PS1.VBUS, C1, C2 |
+| `GND` | U1.GND (2, 17), PS1.GND, SSR1.4 (−), R1, SW1.2, SW1.K, C1, C2, C3, Q1.E, R7 |
+| `+5V` | U1.VIN, PS1.VBUS, C1, C2, J5.1, D1.K |
 | `+3V3` | U1.3V3, R2 |
 | `BOTAO` | U1.GPIO27, SW1.1, R2, C3 |
 | `LED_R/G/B` | U1.GPIO21/22/23 → R3/R4/R5 → SW1.RA/GA/BA |
-| `BUZZER` | U1.GPIO25, J5.1 |
+| `BUZZER` | U1.GPIO25, R6 |
+| `Net-(Q1-B)` | R6, R7, Q1.B |
+| `BZ_NEG` | Q1.C, D1.A, J5.2 |
 
 ### Comandos
 
