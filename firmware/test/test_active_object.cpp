@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 
+#include "mock_esp_task_wdt.hpp"
 #include "core/active_object.hpp"
 
 #define TEST_ASSERT(cond, msg)                                                  \
@@ -19,11 +20,14 @@ using cafey::core::MessageType;
 // AO de teste: registra toda mensagem recebida no dispatch.
 class CountingAO : public ActiveObject {
 public:
-    CountingAO() : ActiveObject("counting", 4) {}
+    explicit CountingAO(uint32_t tick_period_ms = 0)
+        : ActiveObject("counting", 4, 4096, 5, tick_period_ms) {}
 
     std::vector<Message> received;
     int start_calls = 0;
     int tick_calls = 0;
+
+    using ActiveObject::wait_and_handle_once;
 
 protected:
     void dispatch(const Message& msg) override { received.push_back(msg); }
@@ -88,12 +92,43 @@ int test_post_before_init_fails() {
     return 0;
 }
 
+int test_no_tick_feeds_wdt_without_calling_on_tick() {
+    MockTaskWdt::reset();
+    CountingAO ao(0);
+    TEST_ASSERT(ao.init(), "init sem tick");
+    // Simula fatias de espera sem mensagens: deve alimentar WDT e nunca on_tick.
+    for (int i = 0; i < 5; ++i) {
+        ao.wait_and_handle_once();
+    }
+    TEST_ASSERT(ao.tick_calls == 0, "AO sem tick nunca chama on_tick");
+    TEST_ASSERT(MockTaskWdt::reset_calls == 5, "AO sem tick alimenta WDT a cada fatia");
+    TEST_ASSERT(ao.received.empty(), "sem mensagens despachadas");
+    std::cout << "[PASS] test_no_tick_feeds_wdt_without_calling_on_tick" << std::endl;
+    return 0;
+}
+
+int test_with_tick_calls_on_tick() {
+    MockTaskWdt::reset();
+    CountingAO ao(10);
+    TEST_ASSERT(ao.init(), "init com tick");
+    // Fila vazia: timeout de tick dispara on_tick em cada iteracao.
+    for (int i = 0; i < 3; ++i) {
+        ao.wait_and_handle_once();
+    }
+    TEST_ASSERT(ao.tick_calls == 3, "AO com tick chama on_tick a cada timeout");
+    TEST_ASSERT(MockTaskWdt::reset_calls == 3, "AO com tick alimenta WDT a cada iteracao");
+    std::cout << "[PASS] test_with_tick_calls_on_tick" << std::endl;
+    return 0;
+}
+
 int main() {
     std::cout << "Running Cafey ActiveObject Unit Tests..." << std::endl;
     if (test_queue_lifecycle()) return 1;
     if (test_post_and_dispatch_fifo()) return 1;
     if (test_queue_full_rejects()) return 1;
     if (test_post_before_init_fails()) return 1;
+    if (test_no_tick_feeds_wdt_without_calling_on_tick()) return 1;
+    if (test_with_tick_calls_on_tick()) return 1;
     std::cout << "All ActiveObject tests PASSED!" << std::endl;
     return 0;
 }

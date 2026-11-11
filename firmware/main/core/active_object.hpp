@@ -57,18 +57,27 @@ protected:
     /** Chamado quando o receive expira sem mensagem (polling periodico). */
     virtual void on_tick() {}
 
-private:
-    static void task_entry(void* self);
+    /** Uma iteracao de espera+despacho/tick (exposta para testes de host). */
+    void wait_and_handle_once();
+    /** Laco principal (exposto para testes de host). */
     void run();
+    volatile bool running_ = false;
+
+private:
+    // AO sem tick espera em fatias para alimentar o Task WDT sem chamar on_tick
+    // (FW-31): bem abaixo do timeout de 10 s do TWDT.
+    static constexpr uint32_t kNoTickWaitMs = 2000;
+
+    static void task_entry(void* self);
 
     const char* name_;
     uint32_t queue_length_;
     uint32_t stack_size_;
     uint32_t priority_;
     TickType_t tick_ticks_;
+    bool has_tick_ = false;
     QueueHandle_t queue_ = nullptr;
     TaskHandle_t task_ = nullptr;
-    volatile bool running_ = false;
 };
 
 } // namespace cafey::core
