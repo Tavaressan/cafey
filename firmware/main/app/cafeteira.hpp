@@ -6,18 +6,21 @@
 
 #include "core/active_object.hpp"
 #include "core/clock.hpp"
+#include "drivers/buzzer.hpp"
 #include "drivers/relay.hpp"
 #include "drivers/rgb_led.hpp"
 #include "storage/event.hpp"
 #include "storage/event_id_generator.hpp"
 #include "storage/event_queue_store.hpp"
+#include "storage/sound_settings_store.hpp"
 
 namespace cafey::app {
 
 /**
  * @brief Active Object da Cafeteira: maquina de estados do preparo,
- * acionamento do rele, LED RGB com cores de estado (spec §5.3),
- * leitura do botao fisico e enfileiramento de eventos (FW-22).
+ * acionamento do rele, LED RGB com cores de estado (spec §5.3), buzzer
+ * passivo com padroes sonoros (#311), leitura do botao fisico e
+ * enfileiramento de eventos (FW-22).
  */
 class Cafeteira : public cafey::core::ActiveObject {
 public:
@@ -46,11 +49,16 @@ public:
     static constexpr uint32_t kLongPressMs = 5000;
     static constexpr uint32_t kBindWindowS = 120;
 
+    // Intervalo minimo entre sons de rede (#311): Wi-Fi ou MQTT instavel nao
+    // vira uma sequencia de bipes.
+    static constexpr uint32_t kNetworkSoundCooldownS = 60;
+
     explicit Cafeteira(gpio_num_t relay_pin = GPIO_NUM_26,
                        gpio_num_t button_pin = GPIO_NUM_27,
                        gpio_num_t led_r = GPIO_NUM_21,
                        gpio_num_t led_g = GPIO_NUM_22,
-                       gpio_num_t led_b = GPIO_NUM_23);
+                       gpio_num_t led_b = GPIO_NUM_23,
+                       gpio_num_t buzzer_pin = GPIO_NUM_25);
 
     [[nodiscard]] State state() const noexcept { return state_; }
     [[nodiscard]] bool relay_on() const noexcept { return relay_.is_on(); }
@@ -60,6 +68,7 @@ public:
     }
     [[nodiscard]] drivers::CoffeeVisualState visual_state() const noexcept { return visual_state_; }
     [[nodiscard]] const drivers::RgbLed& led() const noexcept { return led_; }
+    [[nodiscard]] const drivers::Buzzer& buzzer() const noexcept { return buzzer_; }
 
     /** @brief Janela de vinculo aberta pelo toque longo (FW-24, #275). */
     [[nodiscard]] bool bind_window_open() const noexcept { return bind_ticks_left_ > 0; }
@@ -80,6 +89,14 @@ public:
         event_queue_ = store;
         event_id_gen_ = id_gen;
         if (clock != nullptr) clock_ = clock;
+    }
+
+    /**
+     * @brief Anexa a preferencia de som persistida (#311). Lida em on_start()
+     * e regravada a cada `SetMuted`. Definir antes de start().
+     */
+    void attach_sound_settings(cafey::storage::SoundSettingsStore* settings) {
+        sound_settings_ = settings;
     }
 
     /**
@@ -141,6 +158,7 @@ private:
     static constexpr uint32_t kLongPressTicks = kLongPressMs / 10;
 
     void apply_state();
+    void set_muted(bool muted);
     void open_bind_window();
     void close_bind_window();
     static std::string generate_bind_code();
@@ -152,7 +170,11 @@ private:
 
     cafey::drivers::Relay relay_;
     cafey::drivers::RgbLed led_;
+    cafey::drivers::Buzzer buzzer_;
     gpio_num_t button_pin_;
+    cafey::storage::SoundSettingsStore* sound_settings_ = nullptr;
+    // Ticks desde o ultimo som de rede; comeca saturado para o primeiro tocar.
+    uint32_t ticks_since_network_sound_ = kNetworkSoundCooldownS * kTicksPerSecond;
 
     State state_ = State::Off;
     drivers::CoffeeVisualState visual_state_ = drivers::CoffeeVisualState::Idle;

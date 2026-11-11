@@ -27,6 +27,20 @@ add_executable(test_rgb_led
 )
 add_test(NAME RgbLedDriverTest COMMAND test_rgb_led)
 
+add_executable(test_buzzer
+    test_buzzer.cpp
+    ../main/drivers/buzzer.cpp
+)
+add_test(NAME BuzzerDriverTest COMMAND test_buzzer)
+
+add_executable(test_sound_settings_store
+    test_sound_settings_store.cpp
+    ../main/storage/sound_settings_store.cpp
+    ../main/storage/nvs_store.cpp
+    ../main/core/mutex_lock.cpp
+)
+add_test(NAME SoundSettingsStoreTest COMMAND test_sound_settings_store)
+
 add_executable(test_active_object
     test_active_object.cpp
     ../main/core/active_object.cpp
@@ -41,6 +55,8 @@ add_executable(test_cafeteira
     ../main/app/agendador.cpp
     ../main/drivers/relay.cpp
     ../main/drivers/rgb_led.cpp
+    ../main/drivers/buzzer.cpp
+    ../main/storage/sound_settings_store.cpp
     ../main/storage/event_queue_store.cpp
     ../main/storage/event_id_generator.cpp
     ../main/storage/nvs_store.cpp
@@ -54,6 +70,8 @@ add_executable(test_boot_schedules_issue334
     ../main/app/cafeteira.cpp
     ../main/drivers/relay.cpp
     ../main/drivers/rgb_led.cpp
+    ../main/drivers/buzzer.cpp
+    ../main/storage/sound_settings_store.cpp
     ../main/storage/schedule_store.cpp
     ../main/storage/event_queue_store.cpp
     ../main/storage/event_id_generator.cpp

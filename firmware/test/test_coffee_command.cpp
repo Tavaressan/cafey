@@ -45,11 +45,18 @@ static void test_parses_wifi_actions_fw30() {
     std::cout << "OK: test_parses_wifi_actions_fw30\n";
 }
 
+static void test_parses_sound_actions_311() {
+    assert(parse_coffee_command(R"({"acao":"SILENCIAR"})").action == CoffeeAction::Silenciar);
+    assert(parse_coffee_command(R"({"acao":"ATIVAR_SOM"})").action == CoffeeAction::AtivarSom);
+    std::cout << "OK: test_parses_sound_actions_311\n";
+}
+
 int main() {
     test_parses_each_action();
     test_parses_optional_duration();
     test_unknown_or_missing_action_is_unknown();
     test_parses_wifi_actions_fw30();
+    test_parses_sound_actions_311();
     std::cout << "Todos os testes de parse_coffee_command passaram.\n";
     return 0;
 }

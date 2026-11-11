@@ -33,6 +33,7 @@ typedef enum {
 
 typedef enum {
     LEDC_TIMER_8_BIT = 8,
+    LEDC_TIMER_10_BIT = 10,
 } ledc_timer_bit_t;
 
 typedef enum {
@@ -70,7 +71,13 @@ public:
     static void reset() {
         duty_by_channel.clear();
         pin_by_channel.clear();
+        freq_by_timer.clear();
         timer_freq_hz = 0;
+    }
+
+    static uint32_t get_freq(ledc_timer_t timer) {
+        auto it = freq_by_timer.find(timer);
+        return it == freq_by_timer.end() ? 0 : it->second;
     }
 
     static uint32_t get_duty(ledc_channel_t channel) {
@@ -85,16 +92,28 @@ public:
 
     static std::unordered_map<int, uint32_t> duty_by_channel;
     static std::unordered_map<int, int> pin_by_channel;
+    // Frequencia corrente de cada timer (o buzzer passivo troca a frequencia
+    // a cada nota; o LED fica fixo em 5 kHz no timer 0).
+    static std::unordered_map<int, uint32_t> freq_by_timer;
+    // Frequencia do ultimo ledc_timer_config (compatibilidade com os testes do LED).
     static uint32_t timer_freq_hz;
 };
 
 inline std::unordered_map<int, uint32_t> MockLedc::duty_by_channel;
 inline std::unordered_map<int, int> MockLedc::pin_by_channel;
+inline std::unordered_map<int, uint32_t> MockLedc::freq_by_timer;
 inline uint32_t MockLedc::timer_freq_hz = 0;
 
 inline esp_err_t ledc_timer_config(const ledc_timer_config_t *cfg) {
     if (!cfg) return ESP_ERR_INVALID_ARG;
     MockLedc::timer_freq_hz = cfg->freq_hz;
+    MockLedc::freq_by_timer[cfg->timer_num] = cfg->freq_hz;
+    return ESP_OK;
+}
+
+inline esp_err_t ledc_set_freq(ledc_mode_t, ledc_timer_t timer, uint32_t freq_hz) {
+    if (freq_hz == 0) return ESP_ERR_INVALID_ARG;
+    MockLedc::freq_by_timer[timer] = freq_hz;
     return ESP_OK;
 }
 

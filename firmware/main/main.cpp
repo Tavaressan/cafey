@@ -9,6 +9,8 @@
  * - Rele (GPIO26): gatilho de nivel BAIXO (HL-52S, LOW = liga), R1 pull-up 10k externo
  * - Botao (GPIO27): pull-up externo R2 10k + C3 100nF, solto=1, pressionado=0
  * - LED RGB: catodo comum (R=21, G=22, B=23) — cores de estado conforme spec §5.3
+ * - Buzzer passivo (GPIO25): tom por LEDC na base de um NPN; buzzer entre +5 V
+ *   e o coletor (#311)
  */
 
 #include <string>
@@ -23,6 +25,7 @@
 #include "storage/schedule_store.hpp"
 #include "storage/event_id_generator.hpp"
 #include "storage/event_queue_store.hpp"
+#include "storage/sound_settings_store.hpp"
 
 #include "app/agendador.hpp"
 #include "app/ble_event_proxy.hpp"
@@ -89,6 +92,17 @@ extern "C" void app_main(void) {
         g_conectividade.post(Message{MessageType::EventQueued, 0});
     });
     g_conectividade.attach_event_queue(&event_queue_store);
+
+    // Modo silencioso do buzzer persistido em NVS (#311). Sem NVS, o som
+    // fica ligado (default) e as mudancas nao sobrevivem a reboot.
+    static cafey::storage::SoundSettingsStore sound_settings;
+    err = sound_settings.init();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Falha ao carregar preferencia de som de NVS: %d", err);
+    } else {
+        ESP_LOGI(TAG, "som %s", sound_settings.muted() ? "silenciado" : "ativado");
+        g_cafeteira.attach_sound_settings(&sound_settings);
+    }
 
     static cafey::core::MqttConfigStore mqtt_config_store;
     static cafey::core::MqttConfig mqtt_config;
@@ -183,7 +197,7 @@ extern "C" void app_main(void) {
         g_cafeteira.post(cafey::core::Message{cafey::core::MessageType::TimeSynced, 0});
     });
 
-    // Handler de preparo (BLE comando 0002 e uso interno): apenas acoes de preparo.
+    // Handler do BLE (comando 0002 e uso interno): preparo e modo silencioso (#311).
     static const auto handle_brew_command = [](const cafey::app::CoffeeCommand& cmd) {
         switch (cmd.action) {
             case cafey::app::CoffeeAction::Ligar:
@@ -194,6 +208,11 @@ extern "C" void app_main(void) {
             case cafey::app::CoffeeAction::Desligar:
             case cafey::app::CoffeeAction::Cancelar:
                 g_cafeteira.post(Message{MessageType::StopBrew, 0});
+                break;
+            case cafey::app::CoffeeAction::Silenciar:
+            case cafey::app::CoffeeAction::AtivarSom:
+                g_cafeteira.post(Message{MessageType::SetMuted,
+                                         cmd.action == cafey::app::CoffeeAction::Silenciar ? 1 : 0});
                 break;
             default:
                 // Acoes destrutivas de Wi-Fi via BLE usam a caracteristica de gerenciamento
@@ -225,6 +244,11 @@ extern "C" void app_main(void) {
                 ESP_LOGI(TAG, "comando mqtt: esquecer todas as redes Wi-Fi");
                 wifi_manager.forget_all_networks();
                 if (g_ble_service != nullptr) g_ble_service->publish_wifi_networks();
+                break;
+            case cafey::app::CoffeeAction::Silenciar:
+            case cafey::app::CoffeeAction::AtivarSom:
+                g_cafeteira.post(Message{MessageType::SetMuted,
+                                         cmd.action == cafey::app::CoffeeAction::Silenciar ? 1 : 0});
                 break;
             case cafey::app::CoffeeAction::Unknown:
                 break;

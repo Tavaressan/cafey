@@ -21,6 +21,10 @@ CoffeeCommand parse_coffee_command(const std::string& json) {
             cmd.action = CoffeeAction::EsquecerRede;
         } else if (acao == "ESQUECER_TODAS_REDES") {
             cmd.action = CoffeeAction::EsquecerTodasRedes;
+        } else if (acao == "SILENCIAR") {
+            cmd.action = CoffeeAction::Silenciar;
+        } else if (acao == "ATIVAR_SOM") {
+            cmd.action = CoffeeAction::AtivarSom;
         }
     }
 
