@@ -11,6 +11,7 @@
  * - LED RGB: catodo comum (R=21, G=22, B=23) — cores de estado conforme spec §5.3
  */
 
+#include <cstdio>
 #include <string>
 
 #include "esp_log.h"
@@ -19,6 +20,8 @@
 #include "core/mqtt_config_store.hpp"
 #include "core/mqtt_topics.hpp"
 #include "core/ntp_sync.hpp"
+#include "core/reset_guard.hpp"
+#include "core/task_wdt.hpp"
 #include "core/wifi_manager.hpp"
 #include "storage/schedule_store.hpp"
 #include "storage/event_id_generator.hpp"
@@ -48,10 +51,35 @@ extern "C" void app_main(void) {
     using cafey::core::Message;
     using cafey::core::MessageType;
 
-    ESP_LOGI(TAG, "boot - Cafey IoT (Active Objects)");
+    const esp_reset_reason_t reset_reason = cafey::core::system_reset_reason();
+    const cafey::core::ResetAssessment reset_assessment =
+        cafey::core::assess_reset_reason(reset_reason);
+
+    ESP_LOGI(TAG, "boot - Cafey IoT (Active Objects), reset=%d (%s)",
+             static_cast<int>(reset_reason), reset_assessment.code);
+
+    // Rastreia resets anormais consecutivos e determina modo seguro (FW-31).
+    static cafey::core::ResetGuard reset_guard;
+    if (reset_guard.init() == ESP_OK) {
+        reset_guard.record_boot(reset_reason);
+    } else {
+        ESP_LOGE(TAG, "falha ao inicializar ResetGuard");
+    }
+    if (reset_assessment.abnormal) {
+        ESP_LOGW(TAG, "reset anormal detectado: %s (consecutivos=%u)",
+                 reset_assessment.code,
+                 static_cast<unsigned>(reset_guard.abnormal_count()));
+    }
+    if (reset_guard.safe_mode()) {
+        ESP_LOGW(TAG, "modo seguro ativo: rele bloqueado em desligado (FW-31)");
+    }
 
     // Inicia status de rede da Cafeteira como desconectado (Amarelo piscando se ocioso, spec §5.3)
     g_cafeteira.set_network_ok(false);
+    if (reset_guard.safe_mode()) {
+        g_cafeteira.set_error(true);
+        g_cafeteira.set_safe_mode(true);
+    }
 
     // Filas dos AOs antes de qualquer produtor (Wi-Fi, MQTT, BLE, boot): post()
     // em fila inexistente descarta a mensagem (#334).
@@ -84,11 +112,56 @@ extern "C" void app_main(void) {
         ESP_LOGE(TAG, "Falha ao inicializar gerador de ID de evento: %d", err);
     }
 
+    // Boot apos reset anormal: registra evento ERRO com detalhe do motivo na
+    // fila persistida (FW-31). Nao retoma preparo interrompido.
+    if (reset_assessment.abnormal) {
+        char evt_id[cafey::storage::EventIdGenerator::kMaxIdLen]{};
+        if (event_id_gen.next(evt_id, sizeof(evt_id)) == ESP_OK) {
+            cafey::storage::Event evt{};
+            if (std::snprintf(evt.evento_id, sizeof(evt.evento_id), "%s", evt_id) < 0) {
+                evt.evento_id[0] = '\0';
+            }
+            evt.origem = cafey::storage::EventOrigin::APP;
+            evt.resultado = cafey::storage::EventResult::ERRO;
+            evt.duracao_s = 0;
+            evt.timestamp_inicio = 0;
+            evt.timestamp_fim = 0;
+            evt.horario_provisorio = true;
+            switch (reset_assessment.kind) {
+                case cafey::core::ResetKind::Watchdog:
+                    evt.reserved = static_cast<uint8_t>(cafey::storage::EventErrorDetail::ResetWatchdog);
+                    break;
+                case cafey::core::ResetKind::Panic:
+                    evt.reserved = static_cast<uint8_t>(cafey::storage::EventErrorDetail::ResetPanic);
+                    break;
+                case cafey::core::ResetKind::Brownout:
+                    evt.reserved = static_cast<uint8_t>(cafey::storage::EventErrorDetail::ResetBrownout);
+                    break;
+                default:
+                    evt.reserved = static_cast<uint8_t>(cafey::storage::EventErrorDetail::None);
+                    break;
+            }
+            esp_err_t perr = event_queue_store.push(evt);
+            if (perr == ESP_OK) {
+                ESP_LOGI(TAG, "evento de reset anormal enfileirado: %s", reset_assessment.code);
+            } else {
+                ESP_LOGE(TAG, "falha ao enfileirar evento de reset anormal: %d", perr);
+            }
+        }
+    }
+
     g_cafeteira.attach_event_queue(&event_queue_store, &event_id_gen);
     g_cafeteira.set_on_event_queued([] {
         g_conectividade.post(Message{MessageType::EventQueued, 0});
     });
+    // FW-31: periodo estavel zera contador de resets anormais em NVS.
+    g_cafeteira.set_on_stable_period([] {
+        if (reset_guard.mark_stable() == ESP_OK) {
+            ESP_LOGI(TAG, "periodo estavel: contador de resets anormais zerado");
+        }
+    });
     g_conectividade.attach_event_queue(&event_queue_store);
+    g_conectividade.set_reset_info(reset_assessment.code, reset_guard.abnormal_count());
 
     static cafey::core::MqttConfigStore mqtt_config_store;
     static cafey::core::MqttConfig mqtt_config;

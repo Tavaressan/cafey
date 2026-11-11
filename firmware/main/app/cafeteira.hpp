@@ -112,6 +112,13 @@ public:
     void set_error(bool error);
 
     /**
+     * @brief Modo seguro apos resets anormais consecutivos (FW-31): rele
+     * bloqueado em desligado e comandos/botao/agendamento de preparo recusados.
+     */
+    void set_safe_mode(bool safe);
+    [[nodiscard]] bool safe_mode() const noexcept { return safe_mode_; }
+
+    /**
      * @brief Callback chamado a cada aplicacao de estado (rele + LED), inclusive
      * no boot, com true = preparando. Usado para publicar `estado` (FW-21).
      * Definir antes de start().
@@ -127,6 +134,14 @@ public:
      */
     void set_on_bind_window_change(std::function<void(bool, const std::string&)> on_change) {
         on_bind_window_change_ = std::move(on_change);
+    }
+
+    /**
+     * @brief Disparado uma unica vez apos periodo estavel continuo (FW-31,
+     * 5 min sem reset), para zerar contador de resets anormais.
+     */
+    void set_on_stable_period(std::function<void()> on_stable) {
+        on_stable_period_ = std::move(on_stable);
     }
 
 protected:
@@ -159,6 +174,7 @@ private:
     bool network_ok_ = true; // Por default assume conectado em testes locais
     bool has_armed_schedules_ = false;
     bool has_error_ = false;
+    bool safe_mode_ = false;
     uint32_t ready_ticks_left_ = 0;
 
     uint32_t brew_ticks_total_ = 0;
@@ -184,6 +200,12 @@ private:
     uint32_t bind_ticks_left_ = 0;
     std::string bind_code_;
     std::function<void(bool, const std::string&)> on_bind_window_change_;
+
+    // FW-31: marca periodo estavel (5 min) para limpar contador de resets.
+    static constexpr uint32_t kStablePeriodTicks = 5u * 60u * kTicksPerSecond;
+    uint32_t stable_ticks_ = 0;
+    bool stable_marked_ = false;
+    std::function<void()> on_stable_period_;
 };
 
 } // namespace cafey::app

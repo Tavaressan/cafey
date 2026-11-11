@@ -24,6 +24,18 @@ CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
 # Log Configuration
 CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 
+# Task Watchdog (FW-31): detecta travamento de Active Objects e reinicia
+# em estado seguro, registrando o motivo do reset.
+CONFIG_ESP_TASK_WDT_EN=y
+CONFIG_ESP_TASK_WDT_INIT=y
+CONFIG_ESP_TASK_WDT_PANIC=y
+CONFIG_ESP_TASK_WDT_TIMEOUT_S=10
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU0=y
+CONFIG_ESP_TASK_WDT_CHECK_IDLE_TASK_CPU1=n
+
+# Panic handler: imprime o motivo e reinicia (nao trava em loop de halt).
+CONFIG_ESP_SYSTEM_PANIC_PRINT_REBOOT=y
+
 # Bluetooth LE — serviço GATT de fallback/proxy (FW-17/FW-18, spec §6.4/§6.5)
 CONFIG_BT_ENABLED=y
 CONFIG_BT_NIMBLE_ENABLED=y

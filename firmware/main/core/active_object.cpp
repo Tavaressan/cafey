@@ -1,5 +1,7 @@
 #include "active_object.hpp"
 
+#include "task_wdt.hpp"
+
 namespace cafey::core {
 
 ActiveObject::ActiveObject(const char* name, uint32_t queue_length,
@@ -75,7 +77,12 @@ void ActiveObject::task_entry(void* self) {
 }
 
 void ActiveObject::run() {
+    // FW-31: inscreve esta task do Active Object no Task WDT e alimenta a cada
+    // volta do laco (mensagem ou tick periodico). Tasks de terceiros (esp-mqtt,
+    // NimBLE, Wi-Fi) nao passam por aqui e nao sao inscritas.
+    task_wdt_subscribe_current();
     on_start();
+    task_wdt_feed();
     Message msg;
     while (running_) {
         if (xQueueReceive(queue_, &msg, tick_ticks_) == pdTRUE) {
@@ -83,7 +90,9 @@ void ActiveObject::run() {
         } else {
             on_tick();
         }
+        task_wdt_feed();
     }
+    task_wdt_unsubscribe_current();
     vTaskDelete(nullptr);
 }
 
