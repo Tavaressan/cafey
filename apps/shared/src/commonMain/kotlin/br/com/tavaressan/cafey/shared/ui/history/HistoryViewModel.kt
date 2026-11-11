@@ -102,6 +102,7 @@ class HistoryViewModel(
             }
 
             val estatisticas = eventApi.obterEstatisticas(deviceId)
+            val deveCarregarEventos = _uiState.value.historicoExpandido
             _uiState.update {
                 it.copy(
                     loading = false,
@@ -114,6 +115,9 @@ class HistoryViewModel(
                     loadingEventos = false,
                     errorMessage = null,
                 )
+            }
+            if (deveCarregarEventos) {
+                carregarPrimeiraPaginaEventos()
             }
         } catch (e: ApiError) {
             _uiState.update { it.copy(loading = false, errorMessage = e.message) }
@@ -135,8 +139,9 @@ class HistoryViewModel(
         scope.launch {
             try {
                 val primeiraPagina = eventApi.listarEventos(deviceId, page = 0, size = PAGE_SIZE)
-                _uiState.update {
-                    it.copy(
+                _uiState.update { state ->
+                    if (state.deviceId != deviceId) return@update state
+                    state.copy(
                         eventos = primeiraPagina.content,
                         page = primeiraPagina.number,
                         hasMore = !primeiraPagina.last,
@@ -145,9 +150,15 @@ class HistoryViewModel(
                     )
                 }
             } catch (e: ApiError) {
-                _uiState.update { it.copy(errorMessage = e.message) }
+                _uiState.update { state ->
+                    if (state.deviceId != deviceId) return@update state
+                    state.copy(errorMessage = e.message)
+                }
             } finally {
-                _uiState.update { it.copy(loadingEventos = false) }
+                _uiState.update { state ->
+                    if (state.deviceId != deviceId) return@update state
+                    state.copy(loadingEventos = false)
+                }
             }
         }
     }
