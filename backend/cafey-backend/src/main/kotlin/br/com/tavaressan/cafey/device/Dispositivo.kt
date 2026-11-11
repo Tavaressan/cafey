@@ -51,6 +51,14 @@ class Dispositivo(
     @Column(name = "firmware", length = 100)
     var firmware: String? = null,
 
+    /** Motivo do último reset reportado pelo firmware (ex.: RESET_NORMAL, RESET_WATCHDOG). */
+    @Column(name = "ultimo_reset", length = 50)
+    var ultimoReset: String? = null,
+
+    /** Resets anormais consecutivos; 3 ou mais indicam modo seguro. */
+    @Column(name = "resets_anormais")
+    var resetsAnormais: Int? = null,
+
     /** Código de uso único publicado pela placa na janela de vínculo (FW-24, #275). */
     @Column(name = "codigo_vinculo", length = 16)
     var codigoVinculo: String? = null,

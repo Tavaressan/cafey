@@ -11,7 +11,9 @@ data class EstadoPayload(
 data class SaudePayload(
     val online: Boolean,
     val uptimeS: Long? = null,
-    val rssi: Int? = null
+    val rssi: Int? = null,
+    val ultimoReset: String? = null,
+    val resetsAnormais: Int? = null
 )
 
 data class ComandoPayload(

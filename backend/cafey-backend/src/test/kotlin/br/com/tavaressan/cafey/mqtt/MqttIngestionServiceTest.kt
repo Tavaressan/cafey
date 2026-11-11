@@ -117,6 +117,54 @@ class MqttIngestionServiceTest {
     }
 
     @Test
+    fun `should persist reset info when present in saude payload`() {
+        val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira")
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarSaude(
+            dispositivoId,
+            SaudePayload(online = true, ultimoReset = "RESET_WATCHDOG", resetsAnormais = 2)
+        )
+
+        assertEquals("RESET_WATCHDOG", disp.ultimoReset)
+        assertEquals(2, disp.resetsAnormais)
+    }
+
+    @Test
+    fun `should keep previous reset info when saude payload omits fields`() {
+        val disp = Dispositivo(
+            id = dispositivoId,
+            nome = "Cafeteira",
+            ultimoReset = "RESET_PANIC",
+            resetsAnormais = 4
+        )
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarSaude(dispositivoId, SaudePayload(online = true, rssi = -50))
+
+        assertEquals("RESET_PANIC", disp.ultimoReset)
+        assertEquals(4, disp.resetsAnormais)
+        assertEquals(-50, disp.rssi)
+    }
+
+    @Test
+    fun `should accept unknown ultimoReset as text`() {
+        val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira")
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarSaude(
+            dispositivoId,
+            SaudePayload(online = true, ultimoReset = "RESET_DESCONHECIDO", resetsAnormais = 1)
+        )
+
+        assertEquals("RESET_DESCONHECIDO", disp.ultimoReset)
+        assertEquals(1, disp.resetsAnormais)
+    }
+
+    @Test
     fun `should store vinculo code with backend calculated expiration`() {
         val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira")
         `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))

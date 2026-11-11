@@ -64,6 +64,8 @@ class MqttIngestionService(
         dispositivo.ultimoVisto = Instant.now()
         payload.rssi?.let { dispositivo.rssi = it }
         payload.uptimeS?.let { dispositivo.uptimeS = it }
+        payload.ultimoReset?.let { dispositivo.ultimoReset = it }
+        payload.resetsAnormais?.let { dispositivo.resetsAnormais = it }
         dispositivo.atualizadoEm = Instant.now()
         dispositivoRepository.save(dispositivo)
         logger.info("Saúde do dispositivo {} atualizada: online={}", dispositivoId, payload.online)

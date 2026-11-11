@@ -119,6 +119,8 @@ data class DiagnosticoDispositivoResponse(
     val versaoAgendamentos: Int,
     /** Estado do relé publicado pelo firmware; `null` quando indisponível (issue #321). */
     val estadoRele: String?,
+    val ultimoReset: String?,
+    val resetsAnormais: Int?,
     val errosRecentes: List<ErroRecenteDiagnosticoResponse>,
     val atualizadoEm: Instant
 )
