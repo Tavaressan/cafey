@@ -25,7 +25,7 @@ import kotlin.test.assertTrue
 class HistoryViewModelBleProxyTest {
 
     @Test
-    fun init_quandoHaEventosPendentes_sincronizaViaBleAntesDeListar() = runTest {
+    fun aoExpandirHistorico_quandoHaEventosPendentes_sincronizaViaBleAntesDeListar() = runTest {
         var proxyBleChamado = false
         val pendente = BleEvento(
             eventoId = "evt-offline-1",
@@ -55,7 +55,7 @@ class HistoryViewModelBleProxyTest {
                 }
                 path == "/dispositivos/dev-1/estatisticas" -> {
                     respond(
-                        content = """{"totalPreparosConcluidos":1,"porOrigem":{"BOTAO":1},"tempoTotalPreparoSegundos":30,"sequenciaManhasDias":1}""",
+                        content = """{"totalPreparosConcluidos":1,"porOrigem":{"BOTAO":1},"tempoTotalPreparoSegundos":30,"sequenciaManhasDias":1,"porDiaDaSemana":[0,0,0,1,0,0,0]}""",
                         status = HttpStatusCode.OK,
                         headers = headersOf(HttpHeaders.ContentType, "application/json"),
                     )
@@ -84,7 +84,9 @@ class HistoryViewModelBleProxyTest {
             coroutineScope = backgroundScope,
         )
 
-        val state = viewModel.uiState.first { !it.loading }
+        viewModel.uiState.first { !it.loading }
+        viewModel.alternarHistorico()
+        val state = viewModel.uiState.first { it.eventosCarregados }
 
         assertTrue(proxyBleChamado, "Deveria ter enviado os eventos pendentes para /proxy-ble")
         assertEquals(listOf("dev-1" to listOf("evt-offline-1")), fakeBle.confirmacoes)
@@ -94,7 +96,7 @@ class HistoryViewModelBleProxyTest {
     }
 
     @Test
-    fun init_quandoBleFalha_carregaEventosDaNuvemSemTravar() = runTest {
+    fun aoExpandirHistorico_quandoBleFalha_carregaEventosDaNuvemSemTravar() = runTest {
         val engine = MockEngine { request ->
             val path = request.url.encodedPath
             when {
@@ -107,7 +109,7 @@ class HistoryViewModelBleProxyTest {
                 }
                 path == "/dispositivos/dev-1/estatisticas" -> {
                     respond(
-                        content = """{"totalPreparosConcluidos":0,"porOrigem":{},"tempoTotalPreparoSegundos":0,"sequenciaManhasDias":0}""",
+                        content = """{"totalPreparosConcluidos":0,"porOrigem":{},"tempoTotalPreparoSegundos":0,"sequenciaManhasDias":0,"porDiaDaSemana":[]}""",
                         status = HttpStatusCode.OK,
                         headers = headersOf(HttpHeaders.ContentType, "application/json"),
                     )
@@ -136,7 +138,9 @@ class HistoryViewModelBleProxyTest {
             coroutineScope = backgroundScope,
         )
 
-        val state = viewModel.uiState.first { !it.loading }
+        viewModel.uiState.first { !it.loading }
+        viewModel.alternarHistorico()
+        val state = viewModel.uiState.first { it.eventosCarregados }
 
         assertEquals(0, state.eventos.size)
         assertNull(state.errorMessage)

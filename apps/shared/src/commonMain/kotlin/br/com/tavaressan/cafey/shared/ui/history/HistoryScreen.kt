@@ -2,17 +2,21 @@ package br.com.tavaressan.cafey.shared.ui.history
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
@@ -22,6 +26,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -36,13 +44,12 @@ import br.com.tavaressan.cafey.shared.domain.model.origemLabel
 import br.com.tavaressan.cafey.shared.domain.model.resultadoLabel
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
+private val DIAS_SEMANA_LABEL = listOf("S", "T", "Q", "Q", "S", "S", "D")
+private val DIAS_SEMANA_NOME = listOf("Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo")
+
 /**
- * UC-14/15 — histórico de preparos em lista, estatísticas de consumo (APP-06) e gráfico de
- * distribuição por origem (APP-10). Espelha `docs/docs_interface/prototype/rhythm.html` no
- * essencial (resumo + gráfico + lista), simplificado por escopo:
- * - O gráfico de distribuição por horário e a "sequência de manhãs" (streak) do protótipo não têm
- *   endpoint correspondente — só `EstatisticasConsumoResponse` (totais e por origem) e a lista
- *   paginada de eventos existem hoje. Omitidos em vez de inventados.
+ * UC-14/15 — histórico de preparos, estatísticas de consumo (APP-06), distribuição por origem
+ * (APP-10) e ritmo semanal por dia da semana (APP-31). A tela inteira rola com o histórico aberto.
  */
 @Composable
 fun HistoryScreen() {
@@ -60,59 +67,85 @@ fun HistoryScreen() {
     )
     val state by viewModel.uiState.collectAsState()
 
-    Column(modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground).padding(22.dp)) {
-        Text("Seu ritmo", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink)
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground).padding(horizontal = 22.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item { Spacer(Modifier.height(12.dp)) }
+        item { Text("Seu ritmo", style = CafeyTheme.typography.screenTitle, color = CafeyTheme.colors.ink) }
 
         if (state.loading) {
-            Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = CafeyTheme.colors.brand)
+            item {
+                Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = CafeyTheme.colors.brand)
+                }
             }
-            return@Column
-        }
-
-        state.errorMessage?.let {
-            Text(it, color = CafeyTheme.colors.brandDeep, style = CafeyTheme.typography.bodySmall, modifier = Modifier.padding(top = 12.dp))
-        }
-
-        state.estatisticas?.let { EstatisticasCard(it) }
-
-        Text("Histórico de preparos", style = CafeyTheme.typography.cardTitle, color = CafeyTheme.colors.ink, modifier = Modifier.padding(top = 20.dp))
-
-        if (state.eventos.isEmpty()) {
-            Text(
-                "Nenhum preparo registrado ainda.",
-                style = CafeyTheme.typography.body,
-                color = CafeyTheme.colors.muted,
-                modifier = Modifier.padding(top = 12.dp),
-            )
         } else {
-            LazyColumn(modifier = Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(state.eventos, key = { it.id }) { evento -> EventoRow(evento) }
+            state.errorMessage?.let { msg ->
                 item {
-                    if (state.hasMore) {
+                    Text(
+                        msg,
+                        color = CafeyTheme.colors.brandDeep,
+                        style = CafeyTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+            }
+
+            state.estatisticas?.let { estatisticas ->
+                item { EstatisticasCard(estatisticas) }
+            }
+
+            item {
+                HistoricoHeader(
+                    total = state.estatisticas?.totalPreparosConcluidos ?: 0,
+                    expandido = state.historicoExpandido,
+                    onToggle = viewModel::alternarHistorico,
+                )
+            }
+
+            if (state.historicoExpandido) {
+                if (state.loadingEventos && state.eventos.isEmpty()) {
+                    item {
                         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
-                            if (state.loadingMore) {
-                                CircularProgressIndicator(modifier = Modifier.padding(4.dp), color = CafeyTheme.colors.brand)
-                            } else {
-                                Text(
-                                    "Carregar mais",
-                                    style = CafeyTheme.typography.bodySmall,
-                                    color = CafeyTheme.colors.blueDeep,
-                                    modifier = Modifier.padding(4.dp),
-                                )
-                            }
+                            CircularProgressIndicator(color = CafeyTheme.colors.brand)
                         }
-                        // Carrega a próxima página assim que este item aparece — simples "load more"
-                        // sem depender de um listener de scroll dedicado (fora de escopo aqui).
-                        // A chave é Unit, e não state.page: loadMore() avança page, então usar page
-                        // como chave relançava o efeito a cada sucesso e encadeava todas as páginas
-                        // de uma vez enquanto o sentinela seguisse composto. Com Unit, dispara uma
-                        // vez por entrada em composição — a LazyColumn recompõe o item ao reaparecer.
-                        LaunchedEffect(Unit) { viewModel.loadMore() }
+                    }
+                } else if (state.eventos.isEmpty()) {
+                    item {
+                        Text(
+                            "Nenhum preparo registrado ainda.",
+                            style = CafeyTheme.typography.body,
+                            color = CafeyTheme.colors.muted,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                } else {
+                    items(state.eventos, key = { it.id }) { evento -> EventoRow(evento) }
+                    item {
+                        if (state.hasMore) {
+                            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
+                                if (state.loadingMore) {
+                                    CircularProgressIndicator(modifier = Modifier.padding(4.dp), color = CafeyTheme.colors.brand)
+                                } else {
+                                    Text(
+                                        "Carregar mais",
+                                        style = CafeyTheme.typography.bodySmall,
+                                        color = CafeyTheme.colors.blueDeep,
+                                        modifier = Modifier.padding(4.dp),
+                                    )
+                                }
+                            }
+                            // Carrega a próxima página assim que este sentinela aparece, uma vez por
+                            // entrada em composição (chave Unit). loadMore() ignora chamadas enquanto
+                            // o histórico não estiver aberto/carregado.
+                            LaunchedEffect(Unit) { viewModel.loadMore() }
+                        }
                     }
                 }
             }
         }
+        item { Spacer(Modifier.height(12.dp)) }
     }
 }
 
@@ -135,10 +168,99 @@ private fun EstatisticasCard(estatisticas: EstatisticasConsumoResponse) {
             color = CafeyTheme.colors.muted,
             modifier = Modifier.padding(top = 6.dp),
         )
+
+        RitmoSemanalSection(estatisticas.porDiaDaSemana, modifier = Modifier.padding(top = 14.dp))
+
         val barras = estatisticas.barrasPorOrigem()
         if (barras.isNotEmpty()) {
             OrigemBarChart(barras, modifier = Modifier.padding(top = 14.dp))
         }
+    }
+}
+
+@Composable
+private fun RitmoSemanalSection(porDiaDaSemana: List<Int>, modifier: Modifier = Modifier) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Text(
+            "Ritmo semanal",
+            style = CafeyTheme.typography.caption,
+            color = CafeyTheme.colors.ink3,
+            modifier = Modifier.padding(bottom = 8.dp),
+        )
+        if (porDiaDaSemana.size == 7) {
+            RitmoSemanalChart(porDiaDaSemana)
+        } else {
+            val mensagem = "Ainda não há dados suficientes para mostrar o ritmo semanal."
+            Text(mensagem, style = CafeyTheme.typography.bodySmall, color = CafeyTheme.colors.muted)
+        }
+    }
+}
+
+@Composable
+private fun RitmoSemanalChart(porDiaDaSemana: List<Int>) {
+    val maximo = porDiaDaSemana.maxOrNull() ?: 0
+    val chartHeight = 96.dp
+    Row(
+        modifier = Modifier.fillMaxWidth().height(chartHeight + 28.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        porDiaDaSemana.forEachIndexed { index, valor ->
+            val destaque = maximo > 0 && valor == maximo
+            val fracao = if (maximo > 0) valor.toFloat() / maximo.toFloat() else 0f
+            val barraAltura = if (fracao > 0f) (chartHeight * fracao).coerceAtLeast(6.dp) else 4.dp
+            val descricao = "${DIAS_SEMANA_NOME[index]}: $valor ${if (valor == 1) "preparo" else "preparos"}"
+            Column(
+                modifier = Modifier.weight(1f).semantics { contentDescription = descricao },
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .height(chartHeight)
+                        .width(18.dp),
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(barraAltura)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (destaque) CafeyTheme.colors.brand else CafeyTheme.colors.sunken),
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    DIAS_SEMANA_LABEL[index],
+                    style = CafeyTheme.typography.caption,
+                    color = if (destaque) CafeyTheme.colors.brandDeep else CafeyTheme.colors.muted,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoricoHeader(total: Long, expandido: Boolean, onToggle: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 20.dp)
+            .clickable(onClick = onToggle)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            "▼",
+            modifier = Modifier.rotate(if (expandido) 0f else -90f),
+            style = CafeyTheme.typography.body,
+            color = CafeyTheme.colors.ink3,
+        )
+        Text(
+            "Histórico de preparos · $total",
+            style = CafeyTheme.typography.cardTitle,
+            color = CafeyTheme.colors.ink,
+            modifier = Modifier.padding(start = 8.dp),
+        )
     }
 }
 

@@ -306,7 +306,8 @@ fun createDemoMockEngine(): MockEngine = MockEngine { request ->
                             "BOTAO": 6
                         },
                         "tempoTotalPreparoSegundos": 20160,
-                        "sequenciaManhasDias": 5
+                        "sequenciaManhasDias": 5,
+                        "porDiaDaSemana": [8, 5, 7, 6, 9, 4, 3]
                     }
                 """.trimIndent(),
                 status = HttpStatusCode.OK,
