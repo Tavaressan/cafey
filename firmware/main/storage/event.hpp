@@ -30,6 +30,15 @@ enum class EventResult : uint8_t {
  *
  * Layout de 40 bytes persistido na EventQueueStore com schema v2 (FW-22).
  */
+// Codigos de detalhe para eventos de erro persistidos em `reserved` (FW-31).
+// 0 = sem detalhe (compatibilidade com eventos existentes).
+enum class EventErrorDetail : uint8_t {
+    None = 0,
+    ResetWatchdog = 1,
+    ResetPanic = 2,
+    ResetBrownout = 3,
+};
+
 struct Event {
     static constexpr size_t kMaxEventoIdLen = 24;
 
@@ -39,11 +48,20 @@ struct Event {
     EventOrigin origem = EventOrigin::APP;
     EventResult resultado = EventResult::CONCLUIDO;
     bool horario_provisorio = false;
-    uint8_t reserved = 0;
+    uint8_t reserved = 0; // EventErrorDetail para resultado ERRO (FW-31)
     char evento_id[kMaxEventoIdLen] = {};
 };
 
 static_assert(sizeof(Event) == 40, "Event struct must be exactly 40 bytes");
+
+inline const char* event_error_detail_code(uint8_t detail) {
+    switch (static_cast<EventErrorDetail>(detail)) {
+        case EventErrorDetail::ResetWatchdog: return "RESET_WATCHDOG";
+        case EventErrorDetail::ResetPanic:    return "RESET_PANIC";
+        case EventErrorDetail::ResetBrownout: return "RESET_BROWNOUT";
+        default: return nullptr;
+    }
+}
 
 /**
  * @brief Monta um evento de preparo completo (FW-22).

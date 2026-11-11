@@ -84,6 +84,12 @@ public:
         if (event.horario_provisorio) {
             json += ",\"relogioProvisorio\":true";
         }
+        const char* detalhe = cafey::storage::event_error_detail_code(event.reserved);
+        if (detalhe != nullptr) {
+            json += ",\"detalheErro\":\"";
+            json += detalhe;
+            json += "\"";
+        }
         json += "}";
         return json;
     }
