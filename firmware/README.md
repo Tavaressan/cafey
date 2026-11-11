@@ -111,6 +111,15 @@ cd firmware
 wokwi-cli --serial-log-file /tmp/serial.log .            # lê wokwi.toml automaticamente
 ```
 
+## Watchdog e modo seguro (FW-31)
+
+- **Task WDT**: ativo com `CONFIG_ESP_TASK_WDT_PANIC=y` e timeout de 10 s (`sdkconfig.defaults`). Cada Active Object (Cafeteira, Conectividade, Agendador) se inscreve no TWDT e alimenta o watchdog a cada volta do laço/tick; tasks de terceiros (esp-mqtt, NimBLE, Wi-Fi) não são inscritas.
+- **Estado seguro no boot**: o relé nasce desligado pelo driver (anti-glitch). Após qualquer reset, nenhum preparo é retomado automaticamente.
+- **Motivo do reset**: no boot, `esp_reset_reason()` mapeia watchdog/pânico/brownout para `RESET_WATCHDOG`, `RESET_PANIC` ou `RESET_BROWNOUT`. Resets anormais enfileiram um evento `ERRO` persistido (com `detalheErro`) e incrementam um contador de resets anormais consecutivos em NVS (`cafey_reset`).
+- **Modo seguro**: com 3 ou mais resets anormais consecutivos, o relé fica bloqueado em desligado e comandos de preparo (botão, app/MQTT, BLE e agendamento) são recusados com log; BLE e MQTT permanecem ativos para diagnóstico. O último motivo e o contador são publicados no tópico `saude` quando há conexão MQTT.
+- **Como sair**: o contador é zerado após 5 minutos contínuos de execução estável. O modo seguro sai em um **boot limpo** após esse período estável (ou por intervenção futura do proprietário, se implementada).
+- **Teste em bancada (não implementado em produção)**: para validar, use um gatilho exclusivo de build de debug que trave deliberadamente uma task inscrita com o relé ligado e observe reboot em ~10 s, relé desligado no boot e evento `ERRO` com detalhe registrado na fila. Não adicionar gatilhos de travamento em builds de produção.
+
 ## Compilação Local com ESP-IDF (≥ 5.x)
 
 > **Gravação na placa montada (revisão B, #309):** a carcaça não tem USB externo.

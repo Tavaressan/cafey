@@ -116,6 +116,20 @@ add_executable(test_wifi_credentials
 )
 add_test(NAME WifiCredentialsStoreTest COMMAND test_wifi_credentials)
 
+add_executable(test_reset_guard
+    test_reset_guard.cpp
+    ../main/core/reset_guard.cpp
+    ../main/core/active_object.cpp
+    ../main/app/cafeteira.cpp
+    ../main/drivers/relay.cpp
+    ../main/drivers/rgb_led.cpp
+    ../main/storage/event_queue_store.cpp
+    ../main/storage/event_id_generator.cpp
+    ../main/storage/nvs_store.cpp
+    ../main/core/mutex_lock.cpp
+)
+add_test(NAME ResetGuardTest COMMAND test_reset_guard)
+
 add_executable(test_mqtt_config_store
     test_mqtt_config_store.cpp
     ../main/core/mqtt_config_store.cpp

@@ -68,7 +68,9 @@ int test_mqtt_connected_subscribes_and_publishes() {
 
     TEST_ASSERT(mqtt.publishes.size() == 2, "publica saude e estado");
     TEST_ASSERT(mqtt.publishes[0].topic == kTopics.saude, "saude primeiro");
-    TEST_ASSERT(mqtt.publishes[0].payload == "{\"online\":true}", "saude online");
+    TEST_ASSERT(mqtt.publishes[0].payload ==
+                    "{\"online\":true,\"ultimoReset\":\"RESET_NORMAL\",\"resetsAnormais\":0}",
+                "saude online com info de reset (FW-31)");
     TEST_ASSERT(!mqtt.publishes[0].retain, "saude periodica sem retain");
     TEST_ASSERT(mqtt.publishes[1].topic == kTopics.estado, "estado depois");
     TEST_ASSERT(mqtt.publishes[1].payload == "{\"estado\":\"DESLIGADO\"}", "estado inicial");
