@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional
 import java.time.Duration
 import java.time.Instant
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 @Service
@@ -151,19 +152,37 @@ class EventoService(
         val dispositivo = dispositivoRepository.findById(dispositivoId).orElseThrow {
             ResourceNotFoundException("Dispositivo não encontrado")
         }
+        val zoneId = ZoneId.of(dispositivo.timezone)
+        val agora = Instant.now()
         val timestampsPreparos = eventoPreparoRepository.findTimestampsPreparosConcluidos(dispositivoId)
-        val sequenciaManhas = SequenciaManhas.calcular(
-            timestampsPreparos,
-            ZoneId.of(dispositivo.timezone),
-            Instant.now()
-        )
+        val sequenciaManhas = SequenciaManhas.calcular(timestampsPreparos, zoneId, agora)
+
+        val porDiaDaSemana = calcularPorDiaDaSemana(dispositivoId, zoneId, agora)
 
         return EstatisticasConsumoResponse(
             totalPreparosConcluidos = total,
             porOrigem = porOrigem,
             tempoTotalPreparoSegundos = tempoTotal,
-            sequenciaManhasDias = sequenciaManhas
+            sequenciaManhasDias = sequenciaManhas,
+            porDiaDaSemana = porDiaDaSemana
         )
+    }
+
+    private fun calcularPorDiaDaSemana(dispositivoId: UUID, zoneId: ZoneId, agora: Instant): List<Int> {
+        val inicioJanela = agora.minus(Duration.ofDays(56))
+        val timestampsJanela = eventoPreparoRepository.findTimestampsPreparosConcluidosDesde(dispositivoId, inicioJanela)
+        if (timestampsJanela.isEmpty()) return emptyList()
+
+        val primeiroLocal = timestampsJanela.minOf { it.atZone(zoneId).toLocalDate() }
+        val hojeLocal = agora.atZone(zoneId).toLocalDate()
+        if (ChronoUnit.DAYS.between(primeiroLocal, hojeLocal) < 7) return emptyList()
+
+        val contagem = IntArray(7)
+        for (ts in timestampsJanela) {
+            val dia = ts.atZone(zoneId).dayOfWeek.value // 1=segunda ... 7=domingo
+            contagem[dia - 1] += 1
+        }
+        return contagem.toList()
     }
 
     @Transactional(readOnly = true)

@@ -15,6 +15,7 @@ import org.junit.jupiter.api.assertThrows
 import org.junit.jupiter.api.extension.ExtendWith
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.any
+import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
@@ -352,5 +353,61 @@ class EventoServiceTest {
         assertThrows<ResourceNotFoundException> {
             service.exportarCsv(dispositivoId, usuarioId)
         }
+    }
+
+    @Test
+    fun `should aggregate porDiaDaSemana in device timezone with UTC midnight boundary`() {
+        device.timezone = "America/Sao_Paulo"
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(ownerLink)
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(device))
+        `when`(eventoPreparoRepository.countPorOrigem(dispositivoId)).thenReturn(listOf(arrayOf<Any>("APP", 2L)))
+        `when`(eventoPreparoRepository.sumDuracaoConcluidos(dispositivoId)).thenReturn(600L)
+        `when`(eventoPreparoRepository.findTimestampsPreparosConcluidos(dispositivoId)).thenReturn(emptyList())
+
+        // 2026-10-20T01:30:00Z = 2026-10-19 22:30 em America/Sao_Paulo (segunda-feira, índice 0).
+        // Em UTC cairia em terça-feira; a agregação deve usar o fuso do dispositivo.
+        val segundaNoFuso = Instant.parse("2026-10-20T01:30:00Z")
+        // 2026-10-22T12:00:00Z = 2026-10-22 09:00 em America/Sao_Paulo (quinta-feira, índice 3).
+        val quintaNoFuso = Instant.parse("2026-10-22T12:00:00Z")
+        `when`(eventoPreparoRepository.findTimestampsPreparosConcluidosDesde(eq(dispositivoId) ?: dispositivoId, any(Instant::class.java) ?: Instant.EPOCH))
+            .thenReturn(listOf(segundaNoFuso, quintaNoFuso))
+
+        val estatisticas = service.obterEstatisticas(dispositivoId, usuarioId)
+
+        assertEquals(listOf(1, 0, 0, 1, 0, 0, 0), estatisticas.porDiaDaSemana)
+    }
+
+    @Test
+    fun `should return empty porDiaDaSemana when there are fewer than 7 days since first prep in window`() {
+        device.timezone = "America/Sao_Paulo"
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(ownerLink)
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(device))
+        `when`(eventoPreparoRepository.countPorOrigem(dispositivoId)).thenReturn(listOf(arrayOf<Any>("APP", 1L)))
+        `when`(eventoPreparoRepository.sumDuracaoConcluidos(dispositivoId)).thenReturn(300L)
+        `when`(eventoPreparoRepository.findTimestampsPreparosConcluidos(dispositivoId)).thenReturn(emptyList())
+
+        val agora = Instant.now()
+        val recente = agora.minus(Duration.ofDays(2))
+        `when`(eventoPreparoRepository.findTimestampsPreparosConcluidosDesde(eq(dispositivoId) ?: dispositivoId, any(Instant::class.java) ?: Instant.EPOCH))
+            .thenReturn(listOf(recente))
+
+        val estatisticas = service.obterEstatisticas(dispositivoId, usuarioId)
+
+        assertEquals(emptyList<Int>(), estatisticas.porDiaDaSemana)
+    }
+
+    @Test
+    fun `should return empty porDiaDaSemana when there are no preps in window`() {
+        `when`(usuarioDispositivoRepository.findByUsuarioIdAndDispositivoId(usuarioId, dispositivoId)).thenReturn(ownerLink)
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(device))
+        `when`(eventoPreparoRepository.countPorOrigem(dispositivoId)).thenReturn(emptyList())
+        `when`(eventoPreparoRepository.sumDuracaoConcluidos(dispositivoId)).thenReturn(0L)
+        `when`(eventoPreparoRepository.findTimestampsPreparosConcluidos(dispositivoId)).thenReturn(emptyList())
+        `when`(eventoPreparoRepository.findTimestampsPreparosConcluidosDesde(eq(dispositivoId) ?: dispositivoId, any(Instant::class.java) ?: Instant.EPOCH))
+            .thenReturn(emptyList())
+
+        val estatisticas = service.obterEstatisticas(dispositivoId, usuarioId)
+
+        assertEquals(emptyList<Int>(), estatisticas.porDiaDaSemana)
     }
 }
