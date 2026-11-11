@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -25,8 +26,9 @@ import kotlin.test.assertTrue
 class HistoryViewModelBleProxyTest {
 
     @Test
-    fun aoExpandirHistorico_quandoHaEventosPendentes_sincronizaViaBleAntesDeListar() = runTest {
+    fun init_quandoHaEventosPendentes_sincronizaViaBleSemExpandirEListaSoAoExpandir() = runTest {
         var proxyBleChamado = false
+        var eventosListados = false
         val pendente = BleEvento(
             eventoId = "evt-offline-1",
             resultado = "CONCLUIDO",
@@ -61,6 +63,7 @@ class HistoryViewModelBleProxyTest {
                     )
                 }
                 path == "/dispositivos/dev-1/eventos" -> {
+                    eventosListados = true
                     respond(
                         content = """{"content":[{"id":"evt-server-1","eventoId":"evt-offline-1","tipo":"PREPARO","resultado":"CONCLUIDO","origem":"BOTAO","duracaoS":30,"timestamp":"2026-10-22T10:00:00Z","criadoEm":"2026-10-22T10:01:00Z"}],"totalElements":1,"totalPages":1,"size":20,"number":0,"first":true,"last":true,"empty":false}""",
                         status = HttpStatusCode.OK,
@@ -84,19 +87,25 @@ class HistoryViewModelBleProxyTest {
             coroutineScope = backgroundScope,
         )
 
-        viewModel.uiState.first { !it.loading }
-        viewModel.alternarHistorico()
-        val state = viewModel.uiState.first { it.eventosCarregados }
+        val carregado = viewModel.uiState.first { !it.loading }
 
-        assertTrue(proxyBleChamado, "Deveria ter enviado os eventos pendentes para /proxy-ble")
+        assertTrue(proxyBleChamado, "Deveria sincronizar eventos pendentes no carregamento inicial")
         assertEquals(listOf("dev-1" to listOf("evt-offline-1")), fakeBle.confirmacoes)
-        assertEquals(1, state.eventos.size)
-        assertEquals("evt-offline-1", state.eventos.first().eventoId)
-        assertNull(state.errorMessage)
+        assertFalse(eventosListados, "Não deve listar eventos antes de expandir o histórico")
+        assertFalse(carregado.eventosCarregados)
+        assertTrue(carregado.eventos.isEmpty())
+
+        viewModel.alternarHistorico()
+        val expandido = viewModel.uiState.first { it.eventosCarregados }
+
+        assertTrue(eventosListados, "Deveria listar eventos ao expandir o histórico")
+        assertEquals(1, expandido.eventos.size)
+        assertEquals("evt-offline-1", expandido.eventos.first().eventoId)
+        assertNull(expandido.errorMessage)
     }
 
     @Test
-    fun aoExpandirHistorico_quandoBleFalha_carregaEventosDaNuvemSemTravar() = runTest {
+    fun init_quandoBleFalha_carregaEstatisticasESegueComListaAoExpandir() = runTest {
         val engine = MockEngine { request ->
             val path = request.url.encodedPath
             when {
@@ -144,5 +153,71 @@ class HistoryViewModelBleProxyTest {
 
         assertEquals(0, state.eventos.size)
         assertNull(state.errorMessage)
+    }
+
+    @Test
+    fun init_obtemEstatisticasDepoisDoProxyBle() = runTest {
+        val ordem = mutableListOf<String>()
+        val pendente = BleEvento(
+            eventoId = "evt-offline-2",
+            resultado = "CONCLUIDO",
+            origem = "APP",
+            duracaoS = 45,
+            timestamp = "2026-10-22T11:00:00Z",
+        )
+
+        val engine = MockEngine { request ->
+            val path = request.url.encodedPath
+            when {
+                path == "/dispositivos" -> {
+                    respond(
+                        content = """[{"id":"dev-1","nome":"Caféy","timezone":"America/Sao_Paulo","estado":"PRONTO","online":true,"versaoAgendamentos":1,"duracaoPreparoS":480,"limiarDescalcificacao":100,"contadorPreparos":10,"papel":"PROPRIETARIO","criadoEm":"2026-10-15T10:00:00Z","atualizadoEm":"2026-10-15T10:00:00Z"}]""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+                path == "/dispositivos/dev-1/eventos/proxy-ble" -> {
+                    ordem.add("proxy")
+                    respond(
+                        content = """[{"id":"evt-server-2","eventoId":"evt-offline-2","tipo":"PREPARO","resultado":"CONCLUIDO","origem":"APP","duracaoS":45,"timestamp":"2026-10-22T11:00:00Z","criadoEm":"2026-10-22T11:01:00Z"}]""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+                path == "/dispositivos/dev-1/estatisticas" -> {
+                    ordem.add("estatisticas")
+                    respond(
+                        content = """{"totalPreparosConcluidos":1,"porOrigem":{"APP":1},"tempoTotalPreparoSegundos":45,"sequenciaManhasDias":1,"porDiaDaSemana":[0,0,0,1,0,0,0]}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+                path == "/dispositivos/dev-1/eventos" -> {
+                    respond(
+                        content = """{"content":[],"totalElements":0,"totalPages":0,"size":20,"number":0,"first":true,"last":true,"empty":true}""",
+                        status = HttpStatusCode.OK,
+                        headers = headersOf(HttpHeaders.ContentType, "application/json"),
+                    )
+                }
+                else -> respond(content = "{}", status = HttpStatusCode.OK)
+            }
+        }
+
+        val tokenStorage = FakeTokenStorage()
+        val client = HttpClient(engine, sharedHttpClientConfig("https://api.cafey.test", tokenStorage))
+        val apiClient = ApiClient("https://api.cafey.test", tokenStorage, client)
+
+        val fakeBle = FakeBleClient(eventosPendentes = listOf(pendente))
+
+        val viewModel = HistoryViewModel(
+            deviceApi = DeviceApi(apiClient),
+            eventApi = EventApi(apiClient),
+            bleClient = fakeBle,
+            coroutineScope = backgroundScope,
+        )
+
+        viewModel.uiState.first { !it.loading }
+
+        assertEquals(listOf("proxy", "estatisticas"), ordem)
     }
 }

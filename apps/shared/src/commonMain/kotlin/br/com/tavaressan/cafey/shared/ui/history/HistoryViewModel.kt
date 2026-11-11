@@ -93,6 +93,14 @@ class HistoryViewModel(
                 return
             }
 
+            if (eventProxy != null) {
+                try {
+                    eventProxy.sincronizar(deviceId)
+                } catch (_: Exception) {
+                    // BLE desconectado ou indisponível: segue fluxo normal via nuvem
+                }
+            }
+
             val estatisticas = eventApi.obterEstatisticas(deviceId)
             _uiState.update {
                 it.copy(
@@ -126,13 +134,6 @@ class HistoryViewModel(
         _uiState.update { it.copy(loadingEventos = true) }
         scope.launch {
             try {
-                if (eventProxy != null) {
-                    try {
-                        eventProxy.sincronizar(deviceId)
-                    } catch (_: Exception) {
-                        // BLE desconectado ou indisponível: segue fluxo normal via nuvem
-                    }
-                }
                 val primeiraPagina = eventApi.listarEventos(deviceId, page = 0, size = PAGE_SIZE)
                 _uiState.update {
                     it.copy(
