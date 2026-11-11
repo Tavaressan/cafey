@@ -64,7 +64,7 @@ class MqttIngestionService(
         dispositivo.ultimoVisto = Instant.now()
         payload.rssi?.let { dispositivo.rssi = it }
         payload.uptimeS?.let { dispositivo.uptimeS = it }
-        payload.ultimoReset?.let { dispositivo.ultimoReset = it }
+        payload.ultimoReset?.let { dispositivo.ultimoReset = it.take(50) } // coluna VARCHAR(50); vem da placa
         payload.resetsAnormais?.let { dispositivo.resetsAnormais = it }
         dispositivo.atualizadoEm = Instant.now()
         dispositivoRepository.save(dispositivo)
