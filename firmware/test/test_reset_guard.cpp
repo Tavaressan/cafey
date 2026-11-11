@@ -129,6 +129,26 @@ int test_safe_mode_rejects_brew_commands_and_button() {
     return 0;
 }
 
+int test_choose_reset_event_timestamp() {
+    using cafey::core::choose_reset_event_timestamp;
+    auto implausible = choose_reset_event_timestamp(0);
+    TEST_ASSERT(implausible.epoch == 0, "timestamp implausivel vira 0");
+    TEST_ASSERT(implausible.provisional, "timestamp 0 marcado como provisorio");
+
+    auto before = choose_reset_event_timestamp(1704067199);
+    TEST_ASSERT(before.epoch == 0, "antes de 2024-01-01 vira 0");
+
+    auto plausible = choose_reset_event_timestamp(1710000000);
+    TEST_ASSERT(plausible.epoch == 1710000000u, "timestamp plausivel preservado");
+    TEST_ASSERT(plausible.provisional, "timestamp preservado ainda e provisorio");
+
+    auto boundary = choose_reset_event_timestamp(1704067200);
+    TEST_ASSERT(boundary.epoch == 1704067200u, "limiar 2024-01-01 aceito");
+
+    std::cout << "[PASS] test_choose_reset_event_timestamp" << std::endl;
+    return 0;
+}
+
 int main() {
     MockTaskWdt::reset();
     int fails = 0;
@@ -136,6 +156,7 @@ int main() {
     fails += test_abnormal_reset_counter_and_safe_mode_entry();
     fails += test_stable_period_clears_counter_and_allows_safe_mode_exit();
     fails += test_safe_mode_rejects_brew_commands_and_button();
+    fails += test_choose_reset_event_timestamp();
     if (fails != 0) {
         std::cerr << fails << " test(es) falharam" << std::endl;
         return 1;

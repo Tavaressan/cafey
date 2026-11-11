@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <ctime>
 
 #include "core/task_wdt.hpp"
 #include "storage/nvs_store.hpp"
@@ -26,6 +27,17 @@ struct ResetAssessment {
  * usada em logs, eventos e modo seguro (FW-31).
  */
 ResetAssessment assess_reset_reason(esp_reset_reason_t reason);
+
+struct ResetEventTimestamp {
+    uint32_t epoch = 0;
+    bool provisional = true;
+};
+
+/**
+ * @brief Escolhe timestamp para evento de reset anormal (FW-31): se o relogio
+ * do sistema for plausivel (RTC preservado), usa-o; caso contrario, 0.
+ */
+ResetEventTimestamp choose_reset_event_timestamp(std::time_t now);
 
 /**
  * @brief Rastreia resets anormais consecutivos em NVS e decide modo seguro.

@@ -121,12 +121,13 @@ extern "C" void app_main(void) {
             if (std::snprintf(evt.evento_id, sizeof(evt.evento_id), "%s", evt_id) < 0) {
                 evt.evento_id[0] = '\0';
             }
+            const auto ts = cafey::core::choose_reset_event_timestamp(std::time(nullptr));
             evt.origem = cafey::storage::EventOrigin::APP;
             evt.resultado = cafey::storage::EventResult::ERRO;
             evt.duracao_s = 0;
-            evt.timestamp_inicio = 0;
-            evt.timestamp_fim = 0;
-            evt.horario_provisorio = true;
+            evt.timestamp_inicio = ts.epoch;
+            evt.timestamp_fim = ts.epoch;
+            evt.horario_provisorio = ts.provisional;
             switch (reset_assessment.kind) {
                 case cafey::core::ResetKind::Watchdog:
                     evt.reserved = static_cast<uint8_t>(cafey::storage::EventErrorDetail::ResetWatchdog);
@@ -143,7 +144,9 @@ extern "C" void app_main(void) {
             }
             esp_err_t perr = event_queue_store.push(evt);
             if (perr == ESP_OK) {
-                ESP_LOGI(TAG, "evento de reset anormal enfileirado: %s", reset_assessment.code);
+                ESP_LOGI(TAG, "evento de reset anormal enfileirado: %s (ts=%u, provisorio=%d)",
+                         reset_assessment.code, static_cast<unsigned>(ts.epoch),
+                         ts.provisional ? 1 : 0);
             } else {
                 ESP_LOGE(TAG, "falha ao enfileirar evento de reset anormal: %d", perr);
             }

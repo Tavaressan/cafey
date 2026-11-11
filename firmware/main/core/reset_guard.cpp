@@ -22,6 +22,16 @@ ResetAssessment assess_reset_reason(esp_reset_reason_t reason) {
     }
 }
 
+ResetEventTimestamp choose_reset_event_timestamp(std::time_t now) {
+    // 2024-01-01T00:00:00Z: limiar plausivel; apos watchdog/panico o RTC
+    // costuma preservar a hora, mas sem NTP pode estar zerado/epoca.
+    constexpr std::time_t kPlausibleEpoch = 1704067200;
+    if (now >= kPlausibleEpoch) {
+        return {static_cast<uint32_t>(now), true};
+    }
+    return {0u, true};
+}
+
 ResetGuard::ResetGuard() : nvs_(kNamespace) {}
 
 esp_err_t ResetGuard::init() {
