@@ -36,6 +36,8 @@ class AppContainer(
     customApiClient: ApiClient? = null,
     customTokenStorage: TokenStorage? = null,
     customBleClient: BleClient? = null,
+    /** Habilita detecção/notificações locais do desktop (opt-in; evita polling extra em outras plataformas). */
+    desktopNotificationsEnabled: Boolean = false,
 ) {
     val tokenStorage: TokenStorage = customTokenStorage ?: createTokenStorage()
     val apiClient: ApiClient = customApiClient ?: if (isDemoMode) {
@@ -67,8 +69,9 @@ class AppContainer(
     // Issue #282 — Suporte a múltiplos dispositivos com seletor no cabeçalho/navegação
     val activeDeviceId: MutableStateFlow<String?> = MutableStateFlow(null)
 
-    // #366 — notificações locais do desktop alimentadas pelo polling do HomeViewModel
-    val desktopNotificationDetector: DesktopNotificationDetector = DesktopNotificationDetector()
+    // #366 — notificações locais do desktop alimentadas pelo polling do HomeViewModel (opt-in)
+    val desktopNotificationDetector: DesktopNotificationDetector? =
+        if (desktopNotificationsEnabled) DesktopNotificationDetector() else null
     private val _desktopNotifications = MutableSharedFlow<DesktopNotificationEvent>(
         extraBufferCapacity = 16,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -88,12 +91,14 @@ class AppContainer(
             baseUrl: String = "https://demo.cafey.local",
             tokenStorage: TokenStorage? = null,
             bleClient: BleClient? = null,
+            desktopNotificationsEnabled: Boolean = false,
         ): AppContainer =
             AppContainer(
                 baseUrl = baseUrl,
                 isDemoMode = true,
                 customTokenStorage = tokenStorage,
                 customBleClient = bleClient,
+                desktopNotificationsEnabled = desktopNotificationsEnabled,
             )
     }
 }
