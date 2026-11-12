@@ -44,7 +44,12 @@ data class EstatisticasConsumoResponse(
     val totalPreparosConcluidos: Long,
     val porOrigem: Map<String, Long>,
     val tempoTotalPreparoSegundos: Long,
-    val sequenciaManhasDias: Int
+    val sequenciaManhasDias: Int,
+    // APP-31: contagem de preparos concluídos por dia da semana nas últimas 8 semanas (56 dias),
+    // agregada no fuso do dispositivo. Índice 0 = segunda ... 6 = domingo. Vazio quando não há
+    // dados suficientes para exibir o gráfico (nenhum preparo ou menos de 7 dias desde o primeiro
+    // preparo da janela). Campo novo e opcional para clientes antigos.
+    val porDiaDaSemana: List<Int> = emptyList()
 )
 
 data class StatusDescalcificacaoResponse(

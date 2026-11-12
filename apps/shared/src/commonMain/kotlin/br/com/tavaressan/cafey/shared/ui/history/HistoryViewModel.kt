@@ -26,6 +26,10 @@ data class HistoryUiState(
     val hasMore: Boolean = true,
     val loadingMore: Boolean = false,
     val errorMessage: String? = null,
+    // APP-31: histórico recolhível. O estado é lembrado só durante a sessão (no ViewModel).
+    val historicoExpandido: Boolean = false,
+    val eventosCarregados: Boolean = false,
+    val loadingEventos: Boolean = false,
 )
 
 /** UC-14/15 — histórico de preparos em lista e estatísticas de consumo (APP-06). */
@@ -74,7 +78,18 @@ class HistoryViewModel(
             val targetId = activeDeviceId?.value
             val deviceId = allDevices.firstOrNull { it.id == targetId }?.id ?: allDevices.firstOrNull()?.id
             if (deviceId == null) {
-                _uiState.update { it.copy(loading = false, deviceId = null, eventos = emptyList(), estatisticas = null) }
+                _uiState.update {
+                    it.copy(
+                        loading = false,
+                        deviceId = null,
+                        eventos = emptyList(),
+                        estatisticas = null,
+                        historicoExpandido = false,
+                        eventosCarregados = false,
+                        hasMore = true,
+                        page = 0,
+                    )
+                }
                 return
             }
 
@@ -87,27 +102,72 @@ class HistoryViewModel(
             }
 
             val estatisticas = eventApi.obterEstatisticas(deviceId)
-            val primeiraPagina = eventApi.listarEventos(deviceId, page = 0, size = PAGE_SIZE)
+            val deveCarregarEventos = _uiState.value.historicoExpandido
             _uiState.update {
                 it.copy(
                     loading = false,
                     deviceId = deviceId,
                     estatisticas = estatisticas,
-                    eventos = primeiraPagina.content,
-                    page = primeiraPagina.number,
-                    hasMore = !primeiraPagina.last,
+                    eventos = emptyList(),
+                    page = 0,
+                    hasMore = true,
+                    eventosCarregados = false,
+                    loadingEventos = false,
                     errorMessage = null,
                 )
+            }
+            if (deveCarregarEventos) {
+                carregarPrimeiraPaginaEventos()
             }
         } catch (e: ApiError) {
             _uiState.update { it.copy(loading = false, errorMessage = e.message) }
         }
     }
 
+    fun alternarHistorico() {
+        val expandindo = !_uiState.value.historicoExpandido
+        _uiState.update { it.copy(historicoExpandido = expandindo) }
+        if (expandindo && !_uiState.value.eventosCarregados) {
+            carregarPrimeiraPaginaEventos()
+        }
+    }
+
+    private fun carregarPrimeiraPaginaEventos() {
+        val deviceId = _uiState.value.deviceId ?: return
+        if (_uiState.value.loadingEventos || _uiState.value.eventosCarregados) return
+        _uiState.update { it.copy(loadingEventos = true) }
+        scope.launch {
+            try {
+                val primeiraPagina = eventApi.listarEventos(deviceId, page = 0, size = PAGE_SIZE)
+                _uiState.update { state ->
+                    if (state.deviceId != deviceId) return@update state
+                    state.copy(
+                        eventos = primeiraPagina.content,
+                        page = primeiraPagina.number,
+                        hasMore = !primeiraPagina.last,
+                        eventosCarregados = true,
+                        errorMessage = null,
+                    )
+                }
+            } catch (e: ApiError) {
+                _uiState.update { state ->
+                    if (state.deviceId != deviceId) return@update state
+                    state.copy(errorMessage = e.message)
+                }
+            } finally {
+                _uiState.update { state ->
+                    if (state.deviceId != deviceId) return@update state
+                    state.copy(loadingEventos = false)
+                }
+            }
+        }
+    }
+
     fun loadMore() {
         val state = _uiState.value
         val deviceId = state.deviceId ?: return
-        if (!state.hasMore || state.loadingMore) return
+        if (!state.historicoExpandido || !state.eventosCarregados) return
+        if (!state.hasMore || state.loadingMore || state.loadingEventos) return
 
         _uiState.update { it.copy(loadingMore = true) }
         scope.launch {

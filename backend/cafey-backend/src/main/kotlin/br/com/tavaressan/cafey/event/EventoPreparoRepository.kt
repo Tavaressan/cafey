@@ -49,6 +49,15 @@ interface EventoPreparoRepository : JpaRepository<EventoPreparo, UUID> {
     @Query("SELECT e.timestamp FROM EventoPreparo e WHERE e.dispositivo.id = :dispositivoId AND e.tipo = 'PREPARO' AND e.resultado = 'CONCLUIDO'")
     fun findTimestampsPreparosConcluidos(dispositivoId: UUID): List<Instant>
 
+    // APP-31 — timestamps dos preparos concluídos na janela recente (ex.: últimas 8 semanas), para
+    // a agregação por dia da semana no fuso do dispositivo. Filtra por `timestamp` (hora do evento)
+    // porque a distribuição semanal reflete quando o preparo ocorreu.
+    @Query(
+        "SELECT e.timestamp FROM EventoPreparo e WHERE e.dispositivo.id = :dispositivoId " +
+            "AND e.tipo = 'PREPARO' AND e.resultado = 'CONCLUIDO' AND e.timestamp >= :inicio"
+    )
+    fun findTimestampsPreparosConcluidosDesde(dispositivoId: UUID, inicio: Instant): List<Instant>
+
     // Issue #190 — contadores de enxágue e filtro derivados da própria tabela, sem coluna nova: a
     // baixa é um marcador (tipo BAIXA_*, resultado BAIXA) e o contador conta os preparos concluídos
     // ingeridos depois dele. `criadoEm` (hora de ingestão) em vez de `timestamp` (hora do

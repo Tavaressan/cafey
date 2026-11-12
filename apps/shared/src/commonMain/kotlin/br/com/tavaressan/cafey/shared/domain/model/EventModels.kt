@@ -50,6 +50,9 @@ data class EstatisticasConsumoResponse(
     val porOrigem: Map<String, Long>,
     val tempoTotalPreparoSegundos: Long,
     val sequenciaManhasDias: Int = 0,
+    // APP-31: índice 0 = segunda ... 6 = domingo (últimas 8 semanas, fuso do dispositivo).
+    // Vazio quando não há dados suficientes para exibir o gráfico.
+    val porDiaDaSemana: List<Int> = emptyList(),
 )
 
 /** Uma barra do gráfico de distribuição por origem (UC-15 / APP-10). `fracao` é o total
