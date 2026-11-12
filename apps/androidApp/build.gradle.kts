@@ -28,6 +28,18 @@ val backendBaseUrl: String = (project.findProperty("backendBaseUrl") as String?)
     ?: prodBackendBaseUrl
 val backendHost: String = URI(backendBaseUrl).host ?: "cafey-backend.duckdns.org"
 
+// Configuração opcional do Firebase (push Android, #364). Sem valores, o build segue e o push fica desligado.
+fun firebaseConfig(propKey: String, envKey: String): String =
+    (project.findProperty(propKey) as String?)
+        ?: System.getenv(envKey)
+        ?: localProperties.getProperty(propKey)
+        ?: ""
+
+val firebaseApiKey: String = firebaseConfig("cafey.firebase.apiKey", "CAFEY_FIREBASE_API_KEY")
+val firebaseAppId: String = firebaseConfig("cafey.firebase.appId", "CAFEY_FIREBASE_APP_ID")
+val firebaseProjectId: String = firebaseConfig("cafey.firebase.projectId", "CAFEY_FIREBASE_PROJECT_ID")
+val firebaseGcmSenderId: String = firebaseConfig("cafey.firebase.gcmSenderId", "CAFEY_FIREBASE_GCM_SENDER_ID")
+
 // Gera o `network_security_config` de debug incluindo o host escolhido acima, além dos padrões de
 // desenvolvimento (emulador e loopback do `adb reverse`) — sem isso, um IP de rede local
 // (ex.: `192.168.x.x`) seria barrado pela política de cleartext mesmo com a URL corrigida. A
@@ -66,6 +78,10 @@ android {
         versionName = "0.3.0"
 
         buildConfigField("String", "BACKEND_BASE_URL", "\"$backendBaseUrl\"")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"$firebaseApiKey\"")
+        buildConfigField("String", "FIREBASE_APP_ID", "\"$firebaseAppId\"")
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"$firebaseProjectId\"")
+        buildConfigField("String", "FIREBASE_GCM_SENDER_ID", "\"$firebaseGcmSenderId\"")
     }
 
     buildTypes {
@@ -103,4 +119,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
+
+    // Push Android via Firebase Messaging sem plugin google-services (#364).
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 }
