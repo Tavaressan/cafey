@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import br.com.tavaressan.cafey.shared.network.ApiError
 import br.com.tavaressan.cafey.shared.network.AuthApi
+import br.com.tavaressan.cafey.shared.push.PushRegistrationManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,9 +26,12 @@ data class AccountUiState(
 )
 
 /**
- * Conta + segurança (issues #183, #261). Navegação é efeito colateral na tela (LaunchedEffect).
+ * Conta + segurança (issues #183, #261, #364/#365). Navegação é efeito colateral na tela (LaunchedEffect).
  */
-class AccountViewModel(private val authApi: AuthApi) : ViewModel() {
+class AccountViewModel(
+    private val authApi: AuthApi,
+    private val pushRegistrationManager: PushRegistrationManager? = null,
+) : ViewModel() {
     private val _uiState = MutableStateFlow(AccountUiState())
     val uiState: StateFlow<AccountUiState> = _uiState.asStateFlow()
 
@@ -37,6 +41,12 @@ class AccountViewModel(private val authApi: AuthApi) : ViewModel() {
 
     fun logout() {
         viewModelScope.launch {
+            // Remove o destino de push antes de apagar o JWT (contrato da API de push).
+            try {
+                pushRegistrationManager?.removerAntesDeLogout()
+            } catch (_: Throwable) {
+                // Falha de rede no logout não pode quebrar a saída da conta.
+            }
             authApi.logout()
             _uiState.update { it.copy(loggedOut = true) }
         }

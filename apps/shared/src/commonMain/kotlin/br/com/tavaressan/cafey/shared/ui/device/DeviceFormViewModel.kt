@@ -77,6 +77,7 @@ data class DeviceFormUiState(
     val originalNome: String = "",
     val isWifiReprovisioning: Boolean = false,
     val nomeEditavel: Boolean = true,
+    val shouldRequestNotificationPermission: Boolean = false,
 )
 
 /** Formulário de dispositivo: cadastro assistido por BLE (UC-04 #249), manual (APP-13) e edição/exclusão. */
@@ -348,6 +349,10 @@ class DeviceFormViewModel(
         }
     }
 
+    fun consumeNotificationPermissionRequest() {
+        _uiState.update { it.copy(shouldRequestNotificationPermission = false) }
+    }
+
     fun onNomeChange(value: String) {
         _uiState.update { it.copy(nome = value, errors = it.errors.copy(nome = null), errorMessage = null) }
     }
@@ -436,7 +441,7 @@ class DeviceFormViewModel(
                         val ex = existing ?: currentState.existingDevice!!
                         if (ex.papel == PapelDispositivo.CONVIDADO) {
                             // Convidado vê o nome, mas não pode editá-lo
-                            _uiState.update { it.copy(saving = false, success = true, nome = ex.nome) }
+                            _uiState.update { it.copy(saving = false, success = true, nome = ex.nome, shouldRequestNotificationPermission = true) }
                             return@launch
                         }
                         if (ex.papel == PapelDispositivo.PROPRIETARIO) {
@@ -447,7 +452,7 @@ class DeviceFormViewModel(
                             // Se o usuário não alterou o nome padrão do BLE, mantém o nome já cadastrado.
                             val nomeParaSalvar = if (nomeAtual.isBlank() || nomeAtual == nomePadraoBle) ex.nome else nomeAtual
                             if (nomeParaSalvar == ex.nome) {
-                                _uiState.update { it.copy(saving = false, success = true, nome = ex.nome) }
+                                _uiState.update { it.copy(saving = false, success = true, nome = ex.nome, shouldRequestNotificationPermission = true) }
                                 return@launch
                             }
                             try {
@@ -455,7 +460,7 @@ class DeviceFormViewModel(
                                     ex.id,
                                     AtualizarDispositivoRequest(nomeParaSalvar, timezone, duracaoPreparoS, limiarDescalcificacao),
                                 )
-                                _uiState.update { it.copy(saving = false, success = true, nome = nomeParaSalvar) }
+                                _uiState.update { it.copy(saving = false, success = true, nome = nomeParaSalvar, shouldRequestNotificationPermission = true) }
                             } catch (e: ApiError) {
                                 _uiState.update { it.copy(saving = false, errorMessage = e.message) }
                             }
@@ -486,7 +491,7 @@ class DeviceFormViewModel(
                                 currentState.nome, timezone, duracaoPreparoS, limiarDescalcificacao, serialToSend, codigoVinculo,
                             )
                         )
-                        _uiState.update { it.copy(saving = false, success = true) }
+                        _uiState.update { it.copy(saving = false, success = true, shouldRequestNotificationPermission = true) }
                     } catch (e: ApiError) {
                         if (e.message?.contains("pertence a outra conta") == true || e.message?.contains("outra conta") == true) {
                             _uiState.update {

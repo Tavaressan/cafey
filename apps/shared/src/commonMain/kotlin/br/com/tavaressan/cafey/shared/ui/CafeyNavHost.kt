@@ -61,6 +61,7 @@ import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyLogo
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyWordmark
+import kotlinx.coroutines.launch
 
 private const val ROUTE_LOGIN = "login"
 private const val ROUTE_MFA_CHALLENGE = "mfa_challenge"
@@ -110,6 +111,13 @@ fun CafeyNavHost() {
             else -> ROUTE_LOGIN
         }
         sessionChecked = true
+        if (authed) {
+            // Registra o destino de push na abertura com sessão ativa (falha não deve quebrar).
+            try {
+                container.pushRegistrationManager.registrarSePossivel()
+            } catch (_: Throwable) {
+            }
+        }
     }
 
     if (!sessionChecked) {
@@ -123,10 +131,19 @@ fun CafeyNavHost() {
     }
 
     val navController = rememberNavController()
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.hierarchy?.firstOrNull { dest ->
         BOTTOM_TABS.any { it.route == dest.route }
     }?.route
+    val registrarPush: () -> Unit = {
+        coroutineScope.launch {
+            try {
+                container.pushRegistrationManager.registrarSePossivel()
+            } catch (_: Throwable) {
+            }
+        }
+    }
 
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize().background(CafeyTheme.colors.ground),
@@ -157,6 +174,7 @@ fun CafeyNavHost() {
                     composable(ROUTE_LOGIN) {
                         LoginScreen(
                             onLoggedIn = {
+                                registrarPush()
                                 val dest = if (!container.isDemoMode && !container.onboardingPreference.completed.value) ROUTE_ONBOARDING else ROUTE_HOME
                                 navController.navigate(dest) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
                             },
@@ -172,6 +190,7 @@ fun CafeyNavHost() {
                         MfaChallengeScreen(
                             desafioToken = token,
                             onVerified = {
+                                registrarPush()
                                 navController.navigate(ROUTE_HOME) {
                                     popUpTo(ROUTE_LOGIN) { inclusive = true }
                                 }
@@ -193,6 +212,7 @@ fun CafeyNavHost() {
                     composable(ROUTE_REGISTER) {
                         RegisterScreen(
                             onRegistered = {
+                                registrarPush()
                                 val dest = if (!container.isDemoMode && !container.onboardingPreference.completed.value) ROUTE_ONBOARDING else ROUTE_HOME
                                 navController.navigate(dest) { popUpTo(ROUTE_LOGIN) { inclusive = true } }
                             },
