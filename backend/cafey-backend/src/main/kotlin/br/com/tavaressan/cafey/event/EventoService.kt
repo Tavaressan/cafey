@@ -7,7 +7,9 @@ import br.com.tavaressan.cafey.device.UsuarioDispositivo
 import br.com.tavaressan.cafey.device.UsuarioDispositivoRepository
 import br.com.tavaressan.cafey.exception.BadCredentialsException
 import br.com.tavaressan.cafey.exception.ResourceNotFoundException
+import br.com.tavaressan.cafey.notification.EventoPreparoRegistradoEvent
 import org.slf4j.LoggerFactory
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
@@ -21,7 +23,8 @@ import java.util.UUID
 class EventoService(
     private val eventoPreparoRepository: EventoPreparoRepository,
     private val dispositivoRepository: DispositivoRepository,
-    private val usuarioDispositivoRepository: UsuarioDispositivoRepository
+    private val usuarioDispositivoRepository: UsuarioDispositivoRepository,
+    private val eventPublisher: ApplicationEventPublisher
 ) {
     private val logger = LoggerFactory.getLogger(EventoService::class.java)
 
@@ -38,8 +41,12 @@ class EventoService(
         private val TIPOS_BAIXA = setOf(TIPO_BAIXA_ENXAGUE, TIPO_BAIXA_FILTRO)
     }
 
+    /**
+     * @param notificar publica o evento para as notificações push (#361). Só a ingestão em tempo real
+     * (MQTT) notifica; o proxy BLE sincroniza eventos antigos com o usuário já diante da base.
+     */
     @Transactional
-    fun ingestar(dispositivoId: UUID, request: IngestaoEventoRequest): EventoResponse? {
+    fun ingestar(dispositivoId: UUID, request: IngestaoEventoRequest, notificar: Boolean = false): EventoResponse? {
         val dispositivo = dispositivoRepository.findById(dispositivoId).orElse(null) ?: return null
 
         // Só a baixa autenticada do proprietário cria marcadores; a ingestão (MQTT/proxy BLE, aberta
@@ -72,6 +79,12 @@ class EventoService(
             dispositivo.atualizadoEm = Instant.now()
             dispositivoRepository.save(dispositivo)
             logger.info("Contador de descalcificação do dispositivo {} incrementado para {}", dispositivoId, dispositivo.contadorPreparos)
+        }
+
+        if (notificar) {
+            eventPublisher.publishEvent(
+                EventoPreparoRegistradoEvent(dispositivoId, salvo.eventoId, salvo.resultado, salvo.timestamp, salvo.detalheErro)
+            )
         }
 
         return toResponse(salvo)

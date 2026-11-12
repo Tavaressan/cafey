@@ -52,13 +52,35 @@ class PostgresIntegrationTest {
     private lateinit var eventoPreparoRepository: EventoPreparoRepository
 
     @Test
-    fun `flyway aplica as migracoes V1 a V14 no schema_version`() {
+    fun `flyway aplica as migracoes V1 a V15 no schema_version`() {
         val versions = jdbcTemplate.queryForList(
             "SELECT version FROM flyway_schema_history WHERE success = true ORDER BY installed_rank",
             String::class.java,
         )
 
-        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"), versions)
+        assertEquals(listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15"), versions)
+    }
+
+    @Test
+    fun `migration V15 cria registros_push com destino unico e cascade do usuario`() {
+        val uniques = jdbcTemplate.queryForList(
+            """
+            SELECT indexdef FROM pg_indexes
+            WHERE tablename = 'registros_push' AND indexdef LIKE 'CREATE UNIQUE INDEX%(destino)'
+            """.trimIndent(),
+            String::class.java,
+        )
+        assertEquals(1, uniques.size)
+
+        val deleteRule = jdbcTemplate.queryForObject(
+            """
+            SELECT rc.delete_rule FROM information_schema.referential_constraints rc
+            JOIN information_schema.table_constraints tc ON tc.constraint_name = rc.constraint_name
+            WHERE tc.table_name = 'registros_push'
+            """.trimIndent(),
+            String::class.java,
+        )
+        assertEquals("CASCADE", deleteRule)
     }
 
     @Test

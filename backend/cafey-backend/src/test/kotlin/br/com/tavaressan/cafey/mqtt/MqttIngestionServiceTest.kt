@@ -14,6 +14,8 @@ import org.mockito.Mock
 import org.mockito.Mockito.*
 import br.com.tavaressan.cafey.event.EventoService
 import br.com.tavaressan.cafey.event.IngestaoEventoRequest
+import br.com.tavaressan.cafey.notification.DispositivoOfflineEvent
+import br.com.tavaressan.cafey.notification.PreparoIniciadoEvent
 import org.mockito.junit.jupiter.MockitoExtension
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.dao.DataIntegrityViolationException
@@ -263,12 +265,12 @@ class MqttIngestionServiceTest {
         clientService.handleIncomingMessage("dispositivos/$dispositivoId/eventos", json)
 
         val dummy = IngestaoEventoRequest("e", "PREPARO", "CONCLUIDO", "APP", 0, Instant.now())
-        verify(eventoService).ingestar(any() ?: dispositivoId, any() ?: dummy)
+        verify(eventoService).ingestar(any() ?: dispositivoId, any() ?: dummy, eq(true))
     }
 
     @Test
     fun `should ignore duplicate event when data integrity violation occurs concurrently`() {
-        `when`(eventoService.ingestar(any() ?: dispositivoId, any() ?: IngestaoEventoRequest("e", "PREPARO", "CONCLUIDO", "APP", 0, Instant.now())))
+        `when`(eventoService.ingestar(any() ?: dispositivoId, any() ?: IngestaoEventoRequest("e", "PREPARO", "CONCLUIDO", "APP", 0, Instant.now()), eq(true)))
             .thenThrow(DataIntegrityViolationException("duplicate key value violates unique constraint"))
 
         val payload = EventoPayload(
@@ -283,5 +285,44 @@ class MqttIngestionServiceTest {
         assertDoesNotThrow {
             ingestionService.processarEvento(dispositivoId, payload)
         }
+    }
+
+    // #361: notificações só nas transições, nunca na republicação do estado retido.
+
+    @Test
+    fun `should publish preparo iniciado only on transition into brewing`() {
+        val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira", estado = "DESLIGADO")
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarEstado(dispositivoId, EstadoPayload(estado = "PREPARANDO", desde = null))
+        ingestionService.processarEstado(dispositivoId, EstadoPayload(estado = "PREPARANDO", desde = null))
+
+        verify(eventPublisher, times(1)).publishEvent(PreparoIniciadoEvent(dispositivoId))
+    }
+
+    @Test
+    fun `should publish offline event when going from online to offline`() {
+        val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira", online = true)
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarSaude(dispositivoId, SaudePayload(online = false))
+
+        val captor = ArgumentCaptor.forClass(DispositivoOfflineEvent::class.java)
+        verify(eventPublisher).publishEvent(captor.capture())
+        assertEquals(dispositivoId, captor.value.dispositivoId)
+        assertEquals(disp.ultimoVisto, captor.value.ultimoVisto)
+    }
+
+    @Test
+    fun `should not publish offline event when already offline`() {
+        val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira", online = false)
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarSaude(dispositivoId, SaudePayload(online = false))
+
+        verifyNoInteractions(eventPublisher)
     }
 }

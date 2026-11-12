@@ -3,6 +3,8 @@ package br.com.tavaressan.cafey.mqtt
 import br.com.tavaressan.cafey.device.DispositivoRepository
 import br.com.tavaressan.cafey.event.EventoService
 import br.com.tavaressan.cafey.event.IngestaoEventoRequest
+import br.com.tavaressan.cafey.notification.DispositivoOfflineEvent
+import br.com.tavaressan.cafey.notification.PreparoIniciadoEvent
 import org.slf4j.LoggerFactory
 import org.springframework.context.ApplicationEventPublisher
 import org.springframework.dao.DataIntegrityViolationException
@@ -35,6 +37,7 @@ class MqttIngestionService(
         }
 
         val agora = Instant.now()
+        val estavaPreparando = isBrewingState(dispositivo.estado)
         dispositivo.estado = payload.estado
         dispositivo.ultimoVisto = payload.desde ?: agora
         dispositivo.preparoIniciadoEm = if (isBrewingState(payload.estado)) {
@@ -46,6 +49,11 @@ class MqttIngestionService(
         dispositivo.atualizadoEm = agora
         dispositivoRepository.save(dispositivo)
         logger.info("Estado do dispositivo {} atualizado para {}", dispositivoId, payload.estado)
+
+        // Só a transição avisa: o estado retido é republicado a cada reconexão da base (#361).
+        if (!estavaPreparando && isBrewingState(payload.estado)) {
+            eventPublisher.publishEvent(PreparoIniciadoEvent(dispositivoId))
+        }
     }
 
     private fun isBrewingState(estado: String): Boolean =
@@ -72,6 +80,9 @@ class MqttIngestionService(
 
         if (wasOffline && payload.online) {
             eventPublisher.publishEvent(DispositivoOnlineEvent(dispositivoId))
+        }
+        if (!wasOffline && !payload.online) {
+            eventPublisher.publishEvent(DispositivoOfflineEvent(dispositivoId, dispositivo.ultimoVisto!!))
         }
     }
 
@@ -115,7 +126,7 @@ class MqttIngestionService(
             detalheErro = payload.detalheErro
         )
         try {
-            eventoService.ingestar(dispositivoId, req)
+            eventoService.ingestar(dispositivoId, req, notificar = true)
         } catch (e: DataIntegrityViolationException) {
             logger.info("Evento concorrente duplicado ignorado: dispositivo={}, eventoId={}", dispositivoId, payload.eventoId)
         }
