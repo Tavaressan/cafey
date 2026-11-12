@@ -66,11 +66,15 @@ fun HomeScreen(onGoToDeviceRegister: () -> Unit = {}) {
         factory = viewModelFactory {
             initializer {
                 HomeViewModel(
-                    container.deviceApi,
-                    container.commandApi,
-                    container.scheduleApi,
-                    container.eventApi,
-                    container.bleClient,
+                    deviceApi = container.deviceApi,
+                    commandApi = container.commandApi,
+                    scheduleApi = container.scheduleApi,
+                    eventApi = container.eventApi,
+                    bleClient = container.bleClient,
+                    activeDeviceId = container.activeDeviceId,
+                    notificationDetector = container.desktopNotificationDetector,
+                    onDesktopNotification = container::emitDesktopNotification,
+                    notificationAccountKeyProvider = { container.tokenStorage.load()?.accessToken },
                 )
             }
         },
