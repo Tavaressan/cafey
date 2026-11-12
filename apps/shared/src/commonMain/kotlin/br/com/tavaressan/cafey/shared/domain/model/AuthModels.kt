@@ -70,6 +70,19 @@ data class MfaValidarRequest(
 )
 
 @Serializable
+data class MfaAtivarResponse(
+    val mensagem: String = "",
+    /** Códigos de uso único para entrar sem o app autenticador. Só vêm nesta resposta. */
+    val codigosRecuperacao: List<String> = emptyList(),
+)
+
+@Serializable
+data class MfaDesativarRequest(
+    val codigo: String,
+)
+
+@Serializable
 data class MfaStatusResponse(
     val mfaHabilitado: Boolean,
+    val codigosRecuperacaoRestantes: Int = 0,
 )

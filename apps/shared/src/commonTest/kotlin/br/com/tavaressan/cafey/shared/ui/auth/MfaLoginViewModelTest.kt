@@ -23,6 +23,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TestTimeSource
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -162,5 +165,76 @@ class MfaLoginViewModelTest {
         val state = viewModel.uiState.first { it.success || it.errorMessage != null }
         assertTrue(state.success)
         assertNull(state.errorMessage)
+    }
+
+    @Test
+    fun codigo_de_recuperacao_nao_envia_sozinho_e_e_aceito_pelo_botao() = runTest(testDispatcher) {
+        var corpoEnviado = ""
+        val authApi = createAuthApi { path ->
+            if (path == "/auth/2fa/validar") {
+                HttpStatusCode.OK to """{"accessToken":"a","refreshToken":"r","tokenType":"Bearer","expiresIn":900}"""
+            } else {
+                HttpStatusCode.NotFound to """{}"""
+            }
+        }
+        val viewModel = MfaChallengeViewModel(authApi, "desafio.jwt")
+        viewModel.alternarModoRecuperacao()
+        assertTrue(viewModel.uiState.value.modoRecuperacao)
+
+        viewModel.onCodigoChange("abcde-fghjk")
+        assertEquals("ABCDE-FGHJK", viewModel.uiState.value.codigo)
+        assertFalse(viewModel.uiState.value.loading)
+        assertTrue(viewModel.podeEnviar())
+
+        viewModel.submit()
+        val state = viewModel.uiState.first { it.success || it.errorMessage != null }
+        assertTrue(state.success)
+    }
+
+    @Test
+    fun desafio_vencido_no_relogio_local_nao_chama_o_backend() = runTest(testDispatcher) {
+        var chamadas = 0
+        val authApi = createAuthApi { _ ->
+            chamadas++
+            HttpStatusCode.OK to """{"accessToken":"a","refreshToken":"r","tokenType":"Bearer","expiresIn":900}"""
+        }
+        val relogio = TestTimeSource()
+        val viewModel = MfaChallengeViewModel(authApi, "desafio.jwt", relogio, validade = 5.minutes)
+
+        relogio += 5.minutes + 1.seconds
+        viewModel.onCodigoChange("123456")
+
+        assertTrue(viewModel.uiState.value.expirado)
+        assertFalse(viewModel.podeEnviar())
+        assertEquals(0, chamadas)
+    }
+
+    @Test
+    fun desafio_recusado_pelo_backend_marca_expirado_e_codigo_errado_nao() = runTest(testDispatcher) {
+        var resposta = """{"status":401,"detail":"Código inválido"}"""
+        val authApi = createAuthApi { _ -> HttpStatusCode.Unauthorized to resposta }
+        val viewModel = MfaChallengeViewModel(authApi, "desafio.jwt")
+
+        viewModel.onCodigoChange("111111")
+        val errado = viewModel.uiState.first { it.errorMessage != null || it.expirado }
+        assertEquals("Código inválido", errado.errorMessage)
+        assertFalse(errado.expirado)
+
+        resposta = """{"status":401,"detail":"Token de desafio MFA inválido ou expirado"}"""
+        viewModel.onCodigoChange("222222")
+        val vencido = viewModel.uiState.first { it.expirado }
+        assertTrue(vencido.expirado)
+    }
+
+    @Test
+    fun formatos_de_segundo_fator() {
+        assertTrue(CodigoSegundoFator.isValido("123456"))
+        assertTrue(CodigoSegundoFator.isValido("ABCDE-FGHJK"))
+        assertTrue(CodigoSegundoFator.isValido("abcdefghjk"))
+        // 0, O, 1, I e L ficam fora do alfabeto dos códigos de recuperação.
+        assertFalse(CodigoSegundoFator.isValido("ABCDE-FGHJ0"))
+        assertFalse(CodigoSegundoFator.isValido("ABCDE-FGHJ"))
+        assertFalse(CodigoSegundoFator.isValido("12345"))
+        assertEquals("ABC-12", CodigoSegundoFator.filtrarQualquer("aBc-1!2"))
     }
 }

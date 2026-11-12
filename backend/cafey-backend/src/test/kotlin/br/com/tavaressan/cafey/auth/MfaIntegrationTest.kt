@@ -93,17 +93,23 @@ class MfaIntegrationTest @Autowired constructor(
 
         val usuarioAposConfig = usuarioRepository.findByEmail(usuario.email)!!
         assertFalse(usuarioAposConfig.mfaHabilitado)
-        assertTrue(usuarioAposConfig.mfaSecret != null)
+        // Fica pendente até a confirmação; o segredo em uso continua vazio.
+        assertNull(usuarioAposConfig.mfaSecret)
+        assertTrue(usuarioAposConfig.mfaSecretPendente != null)
         // Segredo persistido deve estar cifrado, não em Base32 claro.
-        assertTrue(usuarioAposConfig.mfaSecret != segredo)
+        assertTrue(usuarioAposConfig.mfaSecretPendente != segredo)
 
         // Ativa com o primeiro código TOTP válido
         val codigo = totpService.generateCode(segredo)
         postJson("/auth/2fa/ativar", """{"codigo":"$codigo"}""", bearer = accessToken)
             .andExpect(status().isOk)
             .andExpect(jsonPath("$.mensagem").value("2FA ativado com sucesso"))
+            .andExpect(jsonPath("$.codigosRecuperacao.length()").value(10))
 
-        assertTrue(usuarioRepository.findByEmail(usuario.email)!!.mfaHabilitado)
+        val ativado = usuarioRepository.findByEmail(usuario.email)!!
+        assertTrue(ativado.mfaHabilitado)
+        assertTrue(ativado.mfaSecret != null)
+        assertNull(ativado.mfaSecretPendente)
 
         // Login agora exige desafio MFA (sem tokens finais)
         val desafioCorpo = postJson("/auth/signin", """{"email":"${usuario.email}","senha":"$SENHA"}""")
@@ -179,5 +185,124 @@ class MfaIntegrationTest @Autowired constructor(
     fun `configurar e ativar 2fa exigem autenticacao`() {
         postJson("/auth/2fa/configurar", "{}").andExpect(status().isUnauthorized)
         postJson("/auth/2fa/ativar", """{"codigo":"123456"}""").andExpect(status().isUnauthorized)
+    }
+
+    /** Configura e ativa o 2FA; devolve o segredo e os códigos de recuperação. */
+    private fun ativar2fa(accessToken: String): Pair<String, List<String>> {
+        val segredo = configurar(accessToken)
+        val corpo = postJson("/auth/2fa/ativar", """{"codigo":"${totpService.generateCode(segredo)}"}""", bearer = accessToken)
+            .andExpect(status().isOk)
+            .andReturn().response.contentAsString
+        val lista = objectMapper.readTree(corpo).get("codigosRecuperacao")
+        val codigos = (0 until lista.size()).map { lista.get(it).asText() }
+        return segredo to codigos
+    }
+
+    private fun configurar(accessToken: String): String = objectMapper.readTree(
+        postJson("/auth/2fa/configurar", "{}", bearer = accessToken)
+            .andExpect(status().isOk).andReturn().response.contentAsString
+    ).get("segredo").asText()
+
+    private fun desafio(): String = objectMapper.readTree(
+        postJson("/auth/signin", """{"email":"${usuario.email}","senha":"$SENHA"}""")
+            .andExpect(status().isOk).andReturn().response.contentAsString
+    ).get("desafioToken").asText()
+
+    private fun status2fa(accessToken: String) = objectMapper.readTree(
+        mockMvc.perform(get("/auth/2fa/status").header(HttpHeaders.AUTHORIZATION, "Bearer $accessToken"))
+            .andExpect(status().isOk).andReturn().response.contentAsString
+    )
+
+    @Test
+    fun `reconfigurar sem confirmar mantem o segredo antigo valendo`() {
+        val accessToken = login()
+        val (segredoAntigo, _) = ativar2fa(accessToken)
+
+        // Pede um segredo novo e desiste (não chama /ativar).
+        val segredoNovo = configurar(accessToken)
+        assertTrue(segredoNovo != segredoAntigo)
+        assertTrue(usuarioRepository.findByEmail(usuario.email)!!.mfaHabilitado)
+
+        // O autenticador antigo continua entrando.
+        postJson("/auth/2fa/validar", """{"desafioToken":"${desafio()}","codigo":"${totpService.generateCode(segredoAntigo)}"}""")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.accessToken").isNotEmpty)
+    }
+
+    @Test
+    fun `reconfigurar confirmado troca o segredo e os codigos de recuperacao`() {
+        val accessToken = login()
+        val (segredoAntigo, codigosAntigos) = ativar2fa(accessToken)
+        val (segredoNovo, codigosNovos) = ativar2fa(accessToken)
+        assertTrue(codigosNovos.intersect(codigosAntigos.toSet()).isEmpty())
+
+        postJson("/auth/2fa/validar", """{"desafioToken":"${desafio()}","codigo":"${codigosAntigos.first()}"}""")
+            .andExpect(status().isUnauthorized)
+        postJson("/auth/2fa/validar", """{"desafioToken":"${desafio()}","codigo":"${totpService.generateCode(segredoNovo)}"}""")
+            .andExpect(status().isOk)
+        // O segredo antigo só falha se gerar um código diferente do novo (colisão de 1 em 10^6).
+        val codigoAntigo = totpService.generateCode(segredoAntigo)
+        if (codigoAntigo != totpService.generateCode(segredoNovo)) {
+            postJson("/auth/2fa/validar", """{"desafioToken":"${desafio()}","codigo":"$codigoAntigo"}""")
+                .andExpect(status().isUnauthorized)
+        }
+    }
+
+    @Test
+    fun `codigo de recuperacao entra uma unica vez e aceita minusculas sem hifen`() {
+        val accessToken = login()
+        val (_, codigos) = ativar2fa(accessToken)
+        assertEquals(10, codigos.size)
+        assertEquals(10, status2fa(accessToken).get("codigosRecuperacaoRestantes").asInt())
+
+        val codigo = codigos.first()
+        assertTrue(codigo.matches(Regex("^[A-Z2-9]{5}-[A-Z2-9]{5}$")))
+        postJson("/auth/2fa/validar", """{"desafioToken":"${desafio()}","codigo":"${codigo.replace("-", "").lowercase()}"}""")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.accessToken").isNotEmpty)
+
+        postJson("/auth/2fa/validar", """{"desafioToken":"${desafio()}","codigo":"$codigo"}""")
+            .andExpect(status().isUnauthorized)
+        assertEquals(9, status2fa(accessToken).get("codigosRecuperacaoRestantes").asInt())
+    }
+
+    @Test
+    fun `desativar com codigo do autenticador desliga o 2fa e o login volta a emitir tokens`() {
+        val accessToken = login()
+        val (segredo, _) = ativar2fa(accessToken)
+
+        postJson("/auth/2fa/desativar", """{"codigo":"${totpService.generateCode(segredo)}"}""", bearer = accessToken)
+            .andExpect(status().isOk)
+
+        val desligado = usuarioRepository.findByEmail(usuario.email)!!
+        assertFalse(desligado.mfaHabilitado)
+        assertNull(desligado.mfaSecret)
+        assertEquals(0, status2fa(accessToken).get("codigosRecuperacaoRestantes").asInt())
+        postJson("/auth/signin", """{"email":"${usuario.email}","senha":"$SENHA"}""")
+            .andExpect(status().isOk)
+            .andExpect(jsonPath("$.accessToken").isNotEmpty)
+            .andExpect(jsonPath("$.mfaRequerido").doesNotExist())
+    }
+
+    @Test
+    fun `desativar com codigo de recuperacao funciona e com codigo errado nao`() {
+        val accessToken = login()
+        val (_, codigos) = ativar2fa(accessToken)
+
+        postJson("/auth/2fa/desativar", """{"codigo":"000000"}""", bearer = accessToken)
+            .andExpect(status().isUnauthorized)
+        assertTrue(usuarioRepository.findByEmail(usuario.email)!!.mfaHabilitado)
+
+        postJson("/auth/2fa/desativar", """{"codigo":"${codigos.last()}"}""", bearer = accessToken)
+            .andExpect(status().isOk)
+        assertFalse(usuarioRepository.findByEmail(usuario.email)!!.mfaHabilitado)
+    }
+
+    @Test
+    fun `desativar sem 2fa ativo responde 400 e exige autenticacao`() {
+        val accessToken = login()
+        postJson("/auth/2fa/desativar", """{"codigo":"123456"}""", bearer = accessToken)
+            .andExpect(status().isBadRequest)
+        postJson("/auth/2fa/desativar", """{"codigo":"123456"}""").andExpect(status().isUnauthorized)
     }
 }

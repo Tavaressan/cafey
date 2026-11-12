@@ -5,7 +5,9 @@ import br.com.tavaressan.cafey.shared.auth.TokenStorage
 import br.com.tavaressan.cafey.shared.domain.model.AuthResponse
 import br.com.tavaressan.cafey.shared.domain.model.LoginRequest
 import br.com.tavaressan.cafey.shared.domain.model.MfaAtivarRequest
+import br.com.tavaressan.cafey.shared.domain.model.MfaAtivarResponse
 import br.com.tavaressan.cafey.shared.domain.model.MfaConfigurarResponse
+import br.com.tavaressan.cafey.shared.domain.model.MfaDesativarRequest
 import br.com.tavaressan.cafey.shared.domain.model.MfaStatusResponse
 import br.com.tavaressan.cafey.shared.domain.model.MfaValidarRequest
 import br.com.tavaressan.cafey.shared.domain.model.RecuperacaoSenhaResponse
@@ -54,12 +56,21 @@ class AuthApi(
             url { path("auth", "2fa", "configurar") }
         }
 
-    suspend fun ativar2fa(codigo: String) {
-        apiClient.http.apiRequest<Unit> {
+    suspend fun ativar2fa(codigo: String): MfaAtivarResponse =
+        apiClient.http.apiRequest {
             method = HttpMethod.Post
             url { path("auth", "2fa", "ativar") }
             contentType(ContentType.Application.Json)
             setBody(MfaAtivarRequest(codigo))
+        }
+
+    /** [codigo]: 6 dígitos do autenticador ou um código de recuperação. */
+    suspend fun desativar2fa(codigo: String) {
+        apiClient.http.apiRequest<Unit> {
+            method = HttpMethod.Post
+            url { path("auth", "2fa", "desativar") }
+            contentType(ContentType.Application.Json)
+            setBody(MfaDesativarRequest(codigo))
         }
     }
 

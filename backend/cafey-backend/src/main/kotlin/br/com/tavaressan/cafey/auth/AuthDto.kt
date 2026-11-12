@@ -78,15 +78,34 @@ data class MfaAtivarRequest(
     val codigo: String
 )
 
+/** Segundo fator aceito no login e na desativação: código TOTP de 6 dígitos ou código de recuperação. */
+private const val CODIGO_SEGUNDO_FATOR = "^\\s*(\\d{6}|[A-Za-z0-9]{5}[\\s-]?[A-Za-z0-9]{5})\\s*$"
+private const val MENSAGEM_CODIGO_SEGUNDO_FATOR =
+    "Informe o código de 6 dígitos do app autenticador ou um código de recuperação"
+
+data class MfaAtivarResponse(
+    val mensagem: String,
+    /** Códigos de uso único para entrar sem o app autenticador. Exibidos só nesta resposta. */
+    val codigosRecuperacao: List<String>
+)
+
 data class MfaValidarRequest(
     @field:NotBlank(message = "Token de desafio é obrigatório")
     val desafioToken: String,
 
-    @field:NotBlank(message = "Código TOTP é obrigatório")
-    @field:Pattern(regexp = "^\\d{6}$", message = "Código TOTP deve ter 6 dígitos")
+    @field:NotBlank(message = "Código é obrigatório")
+    @field:Pattern(regexp = CODIGO_SEGUNDO_FATOR, message = MENSAGEM_CODIGO_SEGUNDO_FATOR)
+    val codigo: String
+)
+
+data class MfaDesativarRequest(
+    @field:NotBlank(message = "Código é obrigatório")
+    @field:Pattern(regexp = CODIGO_SEGUNDO_FATOR, message = MENSAGEM_CODIGO_SEGUNDO_FATOR)
     val codigo: String
 )
 
 data class MfaStatusResponse(
-    val mfaHabilitado: Boolean
+    val mfaHabilitado: Boolean,
+    /** Códigos de recuperação ainda não usados (0 quando o 2FA está inativo). */
+    val codigosRecuperacaoRestantes: Int = 0
 )

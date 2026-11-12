@@ -43,6 +43,9 @@ class AuthControllerTest {
     @Mock
     private lateinit var passwordResetTokenRepository: br.com.tavaressan.cafey.security.PasswordResetTokenRepository
 
+    @Mock
+    private lateinit var mfaCodigosRecuperacao: br.com.tavaressan.cafey.security.MfaCodigosRecuperacaoService
+
     private lateinit var emailSenderService: FakeEmailSenderService
 
     private lateinit var passwordEncoder: BCryptPasswordEncoder
@@ -68,7 +71,8 @@ class AuthControllerTest {
             jwtTokenService,
             emailSenderService,
             MfaTotpService(),
-            MfaCryptoService()
+            MfaCryptoService(),
+            mfaCodigosRecuperacao
         )
         val authController = AuthController(authService)
 

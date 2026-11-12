@@ -27,12 +27,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
+import br.com.tavaressan.cafey.shared.ui.auth.CodigoSegundoFator
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
 /** Conta e segurança (issues #183, #261). */
@@ -56,6 +58,11 @@ fun AccountScreen(onLoggedOut: () -> Unit, onViewTutorial: () -> Unit = {}) {
         onConfirmarAtivacao = viewModel::confirmarAtivacao,
         onDispensarDialogo = viewModel::dispensarDialogoConfiguracao,
         onViewTutorial = onViewTutorial,
+        onDispensarCodigosRecuperacao = viewModel::dispensarCodigosRecuperacao,
+        onAbrirDesativacao = viewModel::abrirDesativacao,
+        onCodigoDesativacaoChange = viewModel::onCodigoDesativacaoChange,
+        onConfirmarDesativacao = viewModel::confirmarDesativacao,
+        onDispensarDesativacao = viewModel::dispensarDesativacao,
     )
 }
 
@@ -68,8 +75,14 @@ internal fun AccountContent(
     onConfirmarAtivacao: () -> Unit,
     onDispensarDialogo: () -> Unit,
     onViewTutorial: () -> Unit = {},
+    onDispensarCodigosRecuperacao: () -> Unit = {},
+    onAbrirDesativacao: () -> Unit = {},
+    onCodigoDesativacaoChange: (String) -> Unit = {},
+    onConfirmarDesativacao: () -> Unit = {},
+    onDispensarDesativacao: () -> Unit = {},
 ) {
     val clipboard = LocalClipboardManager.current
+    val algumDialogoAberto = state.showConfigDialog || state.showDesativarDialog
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -96,11 +109,24 @@ internal fun AccountContent(
             color = CafeyTheme.colors.ink,
             modifier = Modifier.padding(top = 8.dp),
         )
+        if (state.mfaHabilitado == true) {
+            val restantes = state.codigosRecuperacaoRestantes
+            Text(
+                when {
+                    restantes == 0 -> "Você não tem mais códigos de recuperação. Reconfigure o 2FA para gerar novos."
+                    restantes <= 2 -> "Restam só $restantes códigos de recuperação. Reconfigure o 2FA para gerar novos."
+                    else -> "$restantes códigos de recuperação disponíveis."
+                },
+                style = CafeyTheme.typography.body,
+                color = if (restantes <= 2) CafeyTheme.colors.brandDeep else CafeyTheme.colors.muted,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
 
         state.mfaSuccessMessage?.let {
             Text(it, color = CafeyTheme.colors.brand, modifier = Modifier.padding(top = 8.dp))
         }
-        state.mfaErrorMessage?.takeIf { !state.showConfigDialog }?.let {
+        state.mfaErrorMessage?.takeIf { !algumDialogoAberto }?.let {
             Text(it, color = CafeyTheme.colors.brandDeep, modifier = Modifier.padding(top = 8.dp))
         }
 
@@ -120,6 +146,15 @@ internal fun AccountContent(
                 )
             }
         }
+        if (state.mfaHabilitado == true) {
+            OutlinedButton(
+                onClick = onAbrirDesativacao,
+                shape = CafeyTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            ) {
+                Text("Desativar autenticação em duas etapas")
+            }
+        }
 
         Button(
             onClick = onLogout,
@@ -129,7 +164,7 @@ internal fun AccountContent(
         ) {
             Text("Sair", color = CafeyTheme.colors.brandOn)
         }
-        androidx.compose.material3.OutlinedButton(
+        OutlinedButton(
             onClick = onViewTutorial,
             shape = CafeyTheme.shapes.small,
             modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
@@ -143,8 +178,26 @@ internal fun AccountContent(
             onDismissRequest = onDispensarDialogo,
             title = { Text("Configurar autenticação em duas etapas") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Adicione esta chave no seu app autenticador (Google Authenticator, Authy etc.).")
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (state.mfaHabilitado == true) {
+                        Text(
+                            "Seu autenticador atual continua valendo até você confirmar o novo código. " +
+                                "Se cancelar, nada muda.",
+                            color = CafeyTheme.colors.muted,
+                        )
+                    }
+                    Text("Escaneie o QR code com seu app autenticador (Google Authenticator, Authy etc.).")
+                    state.configOtpAuthUri?.let { uri ->
+                        QrCode(
+                            conteudo = uri,
+                            descricao = "QR code para configurar o app autenticador",
+                            modifier = Modifier.align(Alignment.CenterHorizontally),
+                        )
+                    }
+                    Text("Se estiver no mesmo celular do autenticador, copie a chave e cole no app:")
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -154,6 +207,7 @@ internal fun AccountContent(
                             state.configSegredo,
                             modifier = Modifier.weight(1f),
                             style = CafeyTheme.typography.body,
+                            fontFamily = FontFamily.Monospace,
                         )
                         OutlinedButton(onClick = { clipboard.setText(AnnotatedString(state.configSegredo)) }) {
                             Text("Copiar")
@@ -180,12 +234,87 @@ internal fun AccountContent(
                     if (state.mfaActivateLoading) {
                         CircularProgressIndicator(color = CafeyTheme.colors.brandOn)
                     } else {
-                        Text("Ativar")
+                        Text(if (state.mfaHabilitado == true) "Confirmar" else "Ativar")
                     }
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDispensarDialogo) { Text("Cancelar") }
+            },
+        )
+    }
+
+    state.codigosRecuperacao?.let { codigos ->
+        AlertDialog(
+            // Sem fechar ao tocar fora: os códigos não aparecem de novo.
+            onDismissRequest = {},
+            title = { Text("Guarde seus códigos de recuperação") },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        "Se perder o celular, use um destes códigos no lugar do app autenticador. " +
+                            "Cada um funciona uma vez. Guarde num gerenciador de senhas ou anote: " +
+                            "eles não serão mostrados de novo.",
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        codigos.forEach { codigo ->
+                            Text(codigo, fontFamily = FontFamily.Monospace, style = CafeyTheme.typography.body)
+                        }
+                    }
+                    OutlinedButton(
+                        onClick = { clipboard.setText(AnnotatedString(codigos.joinToString("\n"))) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Copiar todos")
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = onDispensarCodigosRecuperacao) { Text("Já guardei") }
+            },
+        )
+    }
+
+    if (state.showDesativarDialog) {
+        AlertDialog(
+            onDismissRequest = onDispensarDesativacao,
+            title = { Text("Desativar autenticação em duas etapas") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        "Para confirmar, digite o código de 6 dígitos do app autenticador " +
+                            "ou um código de recuperação.",
+                    )
+                    OutlinedTextField(
+                        value = state.codigoDesativacao,
+                        onValueChange = onCodigoDesativacaoChange,
+                        label = { Text("Código") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Ascii),
+                        isError = state.mfaErrorMessage != null,
+                        supportingText = { state.mfaErrorMessage?.let { Text(it) } },
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CafeyTheme.colors.brand),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = onConfirmarDesativacao,
+                    enabled = !state.mfaDeactivateLoading && CodigoSegundoFator.isValido(state.codigoDesativacao),
+                ) {
+                    if (state.mfaDeactivateLoading) {
+                        CircularProgressIndicator(color = CafeyTheme.colors.brandOn)
+                    } else {
+                        Text("Desativar")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDispensarDesativacao) { Text("Cancelar") }
             },
         )
     }
