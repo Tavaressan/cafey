@@ -50,3 +50,13 @@ cafey:
     registrar-period-seconds: 60
     recuperar-senha-capacity: 5
     recuperar-senha-period-seconds: 60
+  push:
+    # Notificações push (épico #318). Sem credenciais o canal correspondente fica desligado e o boot
+    # segue normal. Valores sensíveis só por variável de ambiente/arquivo montado (#367).
+    offline-debounce-segundos: ${CAFEY_PUSH_OFFLINE_DEBOUNCE_SEGUNDOS:180}
+    # Android (#362): caminho do JSON da conta de serviço do Firebase (nunca commitar o arquivo).
+    fcm-credenciais-path: ${CAFEY_PUSH_FCM_CREDENTIALS_PATH:}
+    # Web Push (#363): par VAPID em Base64URL e contato (mailto:) exigido pelos serviços de push.
+    vapid-public-key: ${CAFEY_PUSH_VAPID_PUBLIC_KEY:}
+    vapid-private-key: ${CAFEY_PUSH_VAPID_PRIVATE_KEY:}
+    vapid-subject: ${CAFEY_PUSH_VAPID_SUBJECT:}

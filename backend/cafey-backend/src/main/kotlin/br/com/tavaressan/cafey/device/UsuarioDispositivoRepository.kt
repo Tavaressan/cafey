@@ -13,5 +13,9 @@ interface UsuarioDispositivoRepository : JpaRepository<UsuarioDispositivo, Usuar
     @Query("SELECT ud FROM UsuarioDispositivo ud JOIN FETCH ud.usuario WHERE ud.dispositivo.id = :dispositivoId")
     fun findByDispositivoId(dispositivoId: UUID): List<UsuarioDispositivo>
 
+    /** Dono e convidados de um dispositivo (destinatários das notificações, #361). */
+    @Query("SELECT ud.usuario.id FROM UsuarioDispositivo ud WHERE ud.dispositivo.id = :dispositivoId")
+    fun findUsuarioIdsByDispositivoId(dispositivoId: UUID): List<UUID>
+
     fun findByUsuarioIdAndDispositivoId(usuarioId: UUID, dispositivoId: UUID): UsuarioDispositivo?
 }

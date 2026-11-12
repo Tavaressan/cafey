@@ -18,6 +18,8 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
+import org.springframework.context.ApplicationEventPublisher
+import br.com.tavaressan.cafey.notification.EventoPreparoRegistradoEvent
 import java.time.Duration
 import java.time.Instant
 import java.util.Optional
@@ -35,6 +37,9 @@ class EventoServiceTest {
     @Mock
     private lateinit var usuarioDispositivoRepository: UsuarioDispositivoRepository
 
+    @Mock
+    private lateinit var eventPublisher: ApplicationEventPublisher
+
     private lateinit var service: EventoService
 
     private val usuarioId = UUID.randomUUID()
@@ -46,7 +51,7 @@ class EventoServiceTest {
 
     @BeforeEach
     fun setUp() {
-        service = EventoService(eventoPreparoRepository, dispositivoRepository, usuarioDispositivoRepository)
+        service = EventoService(eventoPreparoRepository, dispositivoRepository, usuarioDispositivoRepository, eventPublisher)
 
         user = Usuario(id = usuarioId, nome = "User", email = "user@cafey.com", senhaHash = "hash")
         device = Dispositivo(id = dispositivoId, nome = "Cafeteira", contadorPreparos = 5, limiarDescalcificacao = 10)
@@ -352,5 +357,35 @@ class EventoServiceTest {
         assertThrows<ResourceNotFoundException> {
             service.exportarCsv(dispositivoId, usuarioId)
         }
+    }
+
+    // #361: só a ingestão em tempo real (MQTT) publica o evento que vira push.
+
+    @Test
+    fun `should publish notification event only when asked and the event is new`() {
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(device))
+        `when`(eventoPreparoRepository.existsByDispositivoIdAndEventoId(dispositivoId, "evt-push")).thenReturn(false)
+        `when`(eventoPreparoRepository.save(any(EventoPreparo::class.java))).thenAnswer {
+            val e = it.getArgument<EventoPreparo>(0)
+            e.id = UUID.randomUUID()
+            e
+        }
+        val ts = Instant.now()
+        val req = IngestaoEventoRequest(eventoId = "evt-push", resultado = "erro", origem = "APP", duracaoS = 10, timestamp = ts, detalheErro = "sem agua")
+
+        service.ingestar(dispositivoId, req, notificar = true)
+
+        verify(eventPublisher).publishEvent(EventoPreparoRegistradoEvent(dispositivoId, "evt-push", "ERRO", ts, "sem agua"))
+    }
+
+    @Test
+    fun `should not publish notification event by default or for duplicates`() {
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(device))
+        `when`(eventoPreparoRepository.existsByDispositivoIdAndEventoId(dispositivoId, "evt-dup")).thenReturn(true)
+        val req = IngestaoEventoRequest(eventoId = "evt-dup", resultado = "CONCLUIDO", origem = "APP", duracaoS = 10, timestamp = Instant.now())
+
+        service.ingestar(dispositivoId, req, notificar = true)
+
+        verifyNoInteractions(eventPublisher)
     }
 }

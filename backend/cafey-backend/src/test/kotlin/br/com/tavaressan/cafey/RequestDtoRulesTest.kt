@@ -1,5 +1,8 @@
 package br.com.tavaressan.cafey
 
+import br.com.tavaressan.cafey.notification.RegistrarPushRequest
+import br.com.tavaressan.cafey.notification.RemoverPushRequest
+
 import br.com.tavaressan.cafey.auth.LoginRequest
 import br.com.tavaressan.cafey.auth.RedefinirSenhaRequest
 import br.com.tavaressan.cafey.auth.RefreshRequest
@@ -49,7 +52,9 @@ class RequestDtoRulesTest {
             CriarAgendamentoRequest::class,
             AtualizarAgendamentoRequest::class,
             IngestaoEventoRequest::class,
-            ProxyBleEventosRequest::class
+            ProxyBleEventosRequest::class,
+            RegistrarPushRequest::class,
+            RemoverPushRequest::class
         )
     }
 

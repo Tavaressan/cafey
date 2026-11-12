@@ -40,6 +40,11 @@ services:
       # Chave AES-256 (Base64, 32 bytes) da cifra do segredo TOTP em repouso (issue #260).
       # Sem ela em prod o 2FA fica indisponível (503), mas o app sobe e login sem 2FA segue normal.
       CAFEY_MFA_ENCRYPTION_KEY: ${CAFEY_MFA_ENCRYPTION_KEY:-}
+      # Notificações push (épico #318, #367). Sem elas o push fica desligado e o resto segue normal.
+      CAFEY_PUSH_FCM_CREDENTIALS_PATH: ${CAFEY_PUSH_FCM_CREDENTIALS_PATH:-}
+      CAFEY_PUSH_VAPID_PUBLIC_KEY: ${CAFEY_PUSH_VAPID_PUBLIC_KEY:-}
+      CAFEY_PUSH_VAPID_PRIVATE_KEY: ${CAFEY_PUSH_VAPID_PRIVATE_KEY:-}
+      CAFEY_PUSH_VAPID_SUBJECT: ${CAFEY_PUSH_VAPID_SUBJECT:-}
     volumes:
       # Certificados AWS IoT Core (INFRA-05) — arquivos reais ficam fora do repositório,
       # em /opt/cafey/secrets na instância (nunca commitados).
