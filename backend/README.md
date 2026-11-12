@@ -108,5 +108,52 @@ substitua o arquivo em `/opt/cafey/secrets/firebase-service-account.json` e rein
 backend para recarregar o arquivo. Após validar o envio, revogue a chave antiga no console. O
 conteúdo da credencial (chave privada, tokens) nunca é registrado em log.
 
-> Web Push (#363) usa variáveis próprias (`CAFEY_PUSH_VAPID_PUBLIC_KEY`,
-> `CAFEY_PUSH_VAPID_PRIVATE_KEY`, `CAFEY_PUSH_VAPID_SUBJECT`); consulte a ADR e o `.env.example`.
+### Web — Web Push padrão / VAPID (RFC 8030/8291/8292, #363)
+
+1. **Gerar o par VAPID** (P-256) uma única vez. As chaves devem ser em Base64URL cru (sem padding):
+   a pública é o ponto não comprimido (65 bytes, `0x04‖X‖Y`) e a privada é o escalar de 32 bytes.
+
+   Com `openssl`:
+   ```bash
+   # gera a chave privada P-256
+   openssl ecparam -name prime256v1 -genkey -noout -out vapid.pem
+   # pública não comprimida (65 bytes) em Base64URL cru
+   openssl ec -in vapid.pem -pubout -outform DER 2>/dev/null \
+     | tail -c 65 | base64 | tr '+/' '-_' | tr -d '=\n'; echo
+   # privada (escalar de 32 bytes) em Base64URL cru
+   openssl ec -in vapid.pem -noout -text 2>/dev/null \
+     | awk '/priv:/{f=1;next}/pub:/{f=0} f{gsub(/[: \n]/,"");printf "%s",$0}' \
+     | xxd -r -p | base64 | tr '+/' '-_' | tr -d '=\n'; echo
+   rm vapid.pem
+   ```
+
+   Ou com o utilitário do próprio backend:
+   ```bash
+   cd backend/cafey-backend
+   ./gradlew -q --console=plain runVapidKeyGen 2>/dev/null || \
+     java -cp "build/libs/*:$(./gradlew -q dependencies --configuration runtimeClasspath 2>/dev/null || true)" \
+       br.com.tavaressan.cafey.notification.webpush.GeradorChavesVapid
+   ```
+   (Alternativa direta após compilar: `./gradlew classes && java -cp "build/classes/kotlin/main:$(./gradlew -q printClasspath 2>/dev/null || echo '')" br.com.tavaressan.cafey.notification.webpush.GeradorChavesVapid`; ou execute `GeradorChavesVapid.main()` pela IDE/test classpath.)
+2. **Configurar as variáveis** (nunca versionar os valores): defina
+   `CAFEY_PUSH_VAPID_PUBLIC_KEY`, `CAFEY_PUSH_VAPID_PRIVATE_KEY` e `CAFEY_PUSH_VAPID_SUBJECT`.
+   `CAFEY_PUSH_VAPID_SUBJECT` deve ser um contato `mailto:` (ex.: `mailto:ops@cafey.app`), exigido
+   pelos serviços de push (RFC 8292). Em produção o `compose.prod.yaml` as repassa ao container.
+3. **Assinatura no navegador**: o frontend obtém a pública em
+   `GET /notificacoes/vapid-public-key` (autenticado) e a usa no `PushManager.subscribe`. O payload
+   é cifrado com `aes128gcm` (RFC 8291) e assinado com VAPID (RFC 8292); sem chaves válidas o canal
+   fica desligado e o endpoint responde 503.
+
+Configuração (variáveis já declaradas em `application.yml`, `.env.example` e `compose.prod.yaml`):
+
+| Variável | Uso | Default |
+|---|---|---|
+| `CAFEY_PUSH_VAPID_PUBLIC_KEY` | Chave pública VAPID (Base64URL, ponto P-256 não comprimido) | vazio — canal Web desligado |
+| `CAFEY_PUSH_VAPID_PRIVATE_KEY` | Chave privada VAPID (Base64URL, escalar de 32 bytes) | vazio — canal Web desligado |
+| `CAFEY_PUSH_VAPID_SUBJECT` | Contato do operador (`mailto:` ou URL), enviado no JWT VAPID | vazio — canal Web desligado |
+
+**Rotação do par VAPID:** gere um novo par, atualize as três variáveis e reinicie o backend. A troca
+invalida a identificação do servidor nas assinaturas existentes: os navegadores precisam se
+reinscrever (`PushManager.subscribe` com a nova pública e novo `POST /notificacoes/registros`).
+Enquanto houver assinaturas antigas, envios a elas podem falhar até a re-assinatura. A chave privada
+nunca é registrada em log.
