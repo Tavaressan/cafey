@@ -64,7 +64,8 @@ O cliente Desktop (`apps/desktopApp`) exibe notificações nativas do sistema op
 um ícone na bandeja (`Tray`) enquanto o aplicativo estiver aberto (inclusive minimizado na bandeja).
 A detecção de transições (café pronto, falha no preparo, preparo iniciado e cafeteira offline) é
 feita em componente reutilizável e testável em `shared` (`DesktopNotificationDetector`), alimentado
-pelos dados do polling do `HomeViewModel`.
+pelos dados do polling do `HomeViewModel`. A detecção é habilitada apenas no Desktop (opt-in no
+`AppContainer`) para não gerar requisições extras em outras plataformas.
 
 Limitações atuais:
 - **Só com o app aberto:** não há push do sistema operacional para o app JVM; se o app for encerrado,
@@ -72,13 +73,17 @@ Limitações atuais:
 - **Eventos de preparo por `eventoId`:** além das transições de estado/online observadas em todos os
   dispositivos carregados, os eventos recentes de preparo (`CONCLUIDO`/`ERRO`) são consultados no
   polling apenas para o dispositivo selecionado (1 requisição extra por ciclo), para evitar
-  multiplicar chamadas quando o usuário possui vários dispositivos. Transições de preparo iniciando e
-  cafeteira offline são detectadas para todos os dispositivos presentes na lista.
-- **Histórico:** na primeira leitura após abrir o app ou trocar de conta, o estado atual não gera
-  notificações retroativas; apenas transições observadas depois disso são notificadas. Eventos são
+  multiplicar chamadas quando o usuário possui vários dispositivos. Para o dispositivo selecionado,
+  pronto/falha são notificados apenas por eventos (evita duplicação quando o estado muda antes do
+  evento chegar); para os demais, usa-se fallback por transição de estado. Preparo iniciado e
+  cafeteira offline são detectados para todos os dispositivos presentes na lista.
+- **Histórico:** na primeira leitura após abrir o app, trocar de conta ou trocar o dispositivo
+  selecionado, o estado/eventos atuais são registrados sem notificação retroativa. Eventos são
   deduplicados por `eventoId`.
+- **Bandeja indisponível:** se o sistema não suportar bandeja (ex.: alguns ambientes Linux/Wayland),
+  o app não cria `Tray` e fechar a janela encerra o aplicativo. As notificações usam fallback via
+  `notify-send` no Linux quando disponível (ou quando o envio pela bandeja falhar).
 
-Por padrão, fechar a janela mantém o app ativo na bandeja para continuar notificando; use "Sair" no
-menu da bandeja para encerrar. Clicar no ícone/menu da bandeja traz a janela para a frente e mantém
-o dispositivo ativo selecionado (a seleção do dispositivo associado à última notificação é aplicada
-ao reabrir).
+Por padrão, quando a bandeja está disponível, fechar a janela mantém o app ativo para continuar
+notificando; use "Sair" no menu da bandeja para encerrar. Clicar no ícone/menu da bandeja traz a
+janela para a frente e mantém/seleciona o dispositivo associado à última notificação.
