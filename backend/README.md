@@ -69,3 +69,44 @@ montados via volume em produção (`backend/compose.prod.yaml`, bind mount de
 correspondente só é ativado (`@ConditionalOnProperty`) se esses paths estiverem configurados; em
 dev, a ausência não impede o boot (MQTT fica desabilitado). Ativado em produção desde 2026-09-14 —
 ver `docs/docs_arquitetura/aws-iot-core-provisioning.md`.
+
+## Notificações push (épico #318)
+
+O backend envia notificações push para os dispositivos dos usuários quando eventos relevantes
+acontecem (ex.: café pronto, falha no preparo, cafeteira offline). Os canais são independentes e
+desligados por padrão: sem credencial configurada, o boot segue normal e o envio apenas registra um
+aviso em log (adequado para desenvolvimento e testes).
+
+### Android — Firebase Cloud Messaging (HTTP v1, #362)
+
+1. **Criar o projeto Firebase** (somente Cloud Messaging): acesse o
+   [console do Firebase](https://console.firebase.google.com/), crie/selecione o projeto do app e
+   habilite apenas o Cloud Messaging. Não é necessário configurar outros produtos.
+2. **Criar a conta de serviço** com papel mínimo de envio: em
+   *Configurações do projeto → Contas de serviço → Gerenciar contas de serviço* (Google Cloud),
+   crie uma conta de serviço e conceda a ela o papel **Firebase Cloud Messaging API Admin**
+   (`roles/cloudmessaging.admin`, equivalente mínimo para envio de mensagens via API HTTP v1).
+   Gere uma chave JSON para essa conta.
+3. **Montar a credencial na instância** (nunca versionar o arquivo): copie o JSON para
+   `/opt/cafey/secrets/firebase-service-account.json` na instância. Em produção o
+   `backend/compose.prod.yaml` já monta `/opt/cafey/secrets` como `/run/secrets:ro` dentro do
+   container, e a variável `CAFEY_PUSH_FCM_CREDENTIALS_PATH` aponta por padrão para
+   `/run/secrets/firebase-service-account.json`.
+4. **Testar ponta a ponta**: com o app Android registrado (`POST /notificacoes/registrar`) e o
+   backend configurado, chame `POST /notificacoes/teste` autenticado como o usuário dono do
+   registro. A resposta informa quantos destinos foram considerados e quantas entregas o FCM
+   confirmou.
+
+Configuração (variáveis já declaradas em `application.yml`, `.env.example` e `compose.prod.yaml`):
+
+| Variável | Uso | Default |
+|---|---|---|
+| `CAFEY_PUSH_FCM_CREDENTIALS_PATH` | Caminho do JSON da conta de serviço do Firebase (Android/FCM) | vazio — canal Android desligado |
+
+**Rotação da credencial:** gere uma nova chave JSON para a mesma conta de serviço no console,
+substitua o arquivo em `/opt/cafey/secrets/firebase-service-account.json` e reinicie o serviço do
+backend para recarregar o arquivo. Após validar o envio, revogue a chave antiga no console. O
+conteúdo da credencial (chave privada, tokens) nunca é registrado em log.
+
+> Web Push (#363) usa variáveis próprias (`CAFEY_PUSH_VAPID_PUBLIC_KEY`,
+> `CAFEY_PUSH_VAPID_PRIVATE_KEY`, `CAFEY_PUSH_VAPID_SUBJECT`); consulte a ADR e o `.env.example`.
