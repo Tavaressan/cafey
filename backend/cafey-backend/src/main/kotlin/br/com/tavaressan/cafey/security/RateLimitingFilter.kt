@@ -126,7 +126,9 @@ class RateLimitingFilter(
         "/auth/signin", "/auth/login" -> ROUTE_SIGNIN
         "/auth/signup", "/auth/registrar" -> ROUTE_SIGNUP
         "/auth/recuperar-senha" -> ROUTE_RECUPERAR_SENHA
-        "/auth/2fa/validar" -> ROUTE_VALIDAR_2FA
+        // Todas as rotas que conferem um código de 2FA dividem o balde: senão, tentar códigos de
+        // recuperação pela desativação contornaria o limite do login.
+        "/auth/2fa/validar", "/auth/2fa/ativar", "/auth/2fa/desativar" -> ROUTE_VALIDAR_2FA
         else -> null
     }
 

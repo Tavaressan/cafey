@@ -27,6 +27,13 @@ class Usuario(
     @Column(name = "mfa_secret", length = 512)
     var mfaSecret: String? = null,
 
+    /**
+     * Segredo TOTP gerado em /auth/2fa/configurar e ainda não confirmado (cifrado). Só substitui
+     * [mfaSecret] quando o usuário valida o primeiro código em /auth/2fa/ativar.
+     */
+    @Column(name = "mfa_secret_pendente", length = 512)
+    var mfaSecretPendente: String? = null,
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     var criadoEm: Instant = Instant.now(),
 

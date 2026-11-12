@@ -176,6 +176,7 @@ fun CafeyNavHost() {
                                     popUpTo(ROUTE_LOGIN) { inclusive = true }
                                 }
                             },
+                            onBack = { navController.popBackStack() },
                         )
                     }
                     composable(ROUTE_FORGOT_PASSWORD) {

@@ -14,6 +14,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -28,11 +29,15 @@ import br.com.tavaressan.cafey.shared.LocalAppContainer
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyWordmark
 
-/** Issue #261 — desafio 2FA após login: valida o código TOTP de 6 dígitos e emite a sessão. */
+/**
+ * Issue #261 — desafio 2FA após login: valida o código TOTP de 6 dígitos (ou um código de recuperação)
+ * e emite a sessão. [onBack] volta ao login, inclusive quando o desafio de 5 minutos vence.
+ */
 @Composable
 fun MfaChallengeScreen(
     desafioToken: String,
     onVerified: () -> Unit,
+    onBack: () -> Unit,
 ) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<MfaChallengeViewModel>(
@@ -60,8 +65,30 @@ fun MfaChallengeScreen(
             style = CafeyTheme.typography.screenTitle,
             color = CafeyTheme.colors.ink,
         )
+        if (state.expirado) {
+            Text(
+                "O tempo para digitar o código acabou. Entre de novo com seu e-mail e senha.",
+                style = CafeyTheme.typography.body,
+                color = CafeyTheme.colors.muted,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Button(
+                onClick = onBack,
+                colors = ButtonDefaults.buttonColors(containerColor = CafeyTheme.colors.brand),
+                shape = CafeyTheme.shapes.small,
+                modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+            ) {
+                Text("Voltar ao login")
+            }
+            return@Column
+        }
+
         Text(
-            "Digite o código de 6 dígitos do seu app autenticador.",
+            if (state.modoRecuperacao) {
+                "Digite um dos códigos de recuperação que você guardou ao ativar o 2FA. Cada código funciona uma vez."
+            } else {
+                "Digite o código de 6 dígitos do seu app autenticador."
+            },
             style = CafeyTheme.typography.body,
             color = CafeyTheme.colors.muted,
             modifier = Modifier.padding(top = 8.dp),
@@ -70,9 +97,12 @@ fun MfaChallengeScreen(
         OutlinedTextField(
             value = state.codigo,
             onValueChange = viewModel::onCodigoChange,
-            label = { Text("Código") },
+            label = { Text(if (state.modoRecuperacao) "Código de recuperação" else "Código") },
+            placeholder = if (state.modoRecuperacao) ({ Text("XXXXX-XXXXX") }) else null,
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = if (state.modoRecuperacao) KeyboardType.Ascii else KeyboardType.Number,
+            ),
             isError = state.errorMessage != null,
             supportingText = { state.errorMessage?.let { Text(it) } },
             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = CafeyTheme.colors.brand),
@@ -81,7 +111,7 @@ fun MfaChallengeScreen(
 
         Button(
             onClick = viewModel::submit,
-            enabled = !state.loading && MfaChallengeViewModel.isCodigoValido(state.codigo),
+            enabled = viewModel.podeEnviar(state),
             colors = ButtonDefaults.buttonColors(containerColor = CafeyTheme.colors.brand),
             shape = CafeyTheme.shapes.small,
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
@@ -91,6 +121,24 @@ fun MfaChallengeScreen(
             } else {
                 Text("Verificar")
             }
+        }
+
+        TextButton(
+            onClick = viewModel::alternarModoRecuperacao,
+            enabled = !state.loading,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+        ) {
+            Text(
+                if (state.modoRecuperacao) "Usar o app autenticador" else "Perdeu o celular? Usar código de recuperação",
+                color = CafeyTheme.colors.brand,
+            )
+        }
+        TextButton(
+            onClick = onBack,
+            enabled = !state.loading,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Voltar ao login", color = CafeyTheme.colors.muted)
         }
     }
 }

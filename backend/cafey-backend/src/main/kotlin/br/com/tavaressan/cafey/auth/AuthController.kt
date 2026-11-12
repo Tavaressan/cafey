@@ -107,9 +107,10 @@ class AuthController(
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
         summary = "Gera segredo TOTP e URI otpauth:// para configurar 2FA (RFC 6238)",
-        description = "Requer autenticação. Gera um novo segredo TOTP, armazena-o cifrado (2FA ainda não " +
-            "ativado) e retorna a URI `otpauth://...` e o segredo em Base32 para apps autenticadores " +
-            "(Google Authenticator, Authy etc.)."
+        description = "Requer autenticação. Gera um novo segredo TOTP e o guarda cifrado como **pendente**: " +
+            "se o 2FA já estiver ativo, o segredo em uso continua valendo até a confirmação em " +
+            "`/auth/2fa/ativar`. Retorna a URI `otpauth://...` (para QR code) e o segredo em Base32 para " +
+            "apps autenticadores (Google Authenticator, Authy etc.)."
     )
     @ApiResponse(responseCode = "200", description = "Segredo TOTP gerado")
     @ApiResponse(
@@ -126,10 +127,11 @@ class AuthController(
     @SecurityRequirement(name = "bearerAuth")
     @Operation(
         summary = "Ativa o 2FA validando o primeiro código TOTP",
-        description = "Requer autenticação e um segredo previamente gerado em `/auth/2fa/configurar`. " +
-            "Valida o código de 6 dígitos e habilita `mfa_habilitado` para o usuário."
+        description = "Requer autenticação e um segredo pendente gerado em `/auth/2fa/configurar`. " +
+            "Valida o código de 6 dígitos, troca o segredo em uso pelo pendente, habilita o 2FA e devolve " +
+            "10 códigos de recuperação novos (os anteriores deixam de valer). Os códigos só aparecem aqui."
     )
-    @ApiResponse(responseCode = "200", description = "2FA ativado com sucesso")
+    @ApiResponse(responseCode = "200", description = "2FA ativado; códigos de recuperação na resposta")
     @ApiResponse(
         responseCode = "400",
         description = "2FA não configurado",
@@ -144,17 +146,44 @@ class AuthController(
     fun ativar2fa(
         @AuthenticationPrincipal jwt: Jwt,
         @Valid @RequestBody request: MfaAtivarRequest
+    ): ResponseEntity<MfaAtivarResponse> {
+        val usuarioId = UUID.fromString(jwt.subject)
+        return ResponseEntity.ok(authService.ativar2fa(usuarioId, request))
+    }
+
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(
+        summary = "Desativa o 2FA",
+        description = "Requer autenticação e o código de 6 dígitos do app autenticador ou um código de " +
+            "recuperação. Apaga o segredo TOTP e os códigos de recuperação."
+    )
+    @ApiResponse(responseCode = "200", description = "2FA desativado")
+    @ApiResponse(
+        responseCode = "400",
+        description = "2FA não está ativo",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
+    @ApiResponse(
+        responseCode = "401",
+        description = "Token JWT ausente/inválido ou código inválido",
+        content = [Content(schema = Schema(implementation = ProblemDetail::class))]
+    )
+    @PostMapping("/2fa/desativar")
+    fun desativar2fa(
+        @AuthenticationPrincipal jwt: Jwt,
+        @Valid @RequestBody request: MfaDesativarRequest
     ): ResponseEntity<Map<String, String>> {
         val usuarioId = UUID.fromString(jwt.subject)
-        authService.ativar2fa(usuarioId, request)
-        return ResponseEntity.ok(mapOf("mensagem" to "2FA ativado com sucesso"))
+        authService.desativar2fa(usuarioId, request)
+        return ResponseEntity.ok(mapOf("mensagem" to "2FA desativado"))
     }
 
     @SecurityRequirements
     @Operation(
         summary = "Valida o código TOTP após desafio de login e emite os tokens JWT finais",
         description = "Endpoint público. Recebe o `desafioToken` (curta duração, retornado pelo " +
-            "`/auth/signin` quando `mfaRequerido=true`) e o código TOTP de 6 dígitos. " +
+            "`/auth/signin` quando `mfaRequerido=true`) e o código TOTP de 6 dígitos ou um código de " +
+            "recuperação (`XXXXX-XXXXX`, uso único). " +
             "Se válido, emite `accessToken` e `refreshToken`."
     )
     @ApiResponse(responseCode = "200", description = "Código válido; tokens JWT emitidos")

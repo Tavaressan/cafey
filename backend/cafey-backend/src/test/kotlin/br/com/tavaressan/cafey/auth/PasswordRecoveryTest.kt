@@ -67,7 +67,8 @@ class PasswordRecoveryTest {
             jwtTokenService,
             emailSenderService,
             MfaTotpService(),
-            MfaCryptoService()
+            MfaCryptoService(),
+            org.mockito.Mockito.mock(br.com.tavaressan.cafey.security.MfaCodigosRecuperacaoService::class.java)
         )
         user = Usuario(id = userId, nome = "User", email = "user@cafey.com", senhaHash = "oldhash")
     }
@@ -110,7 +111,8 @@ class PasswordRecoveryTest {
             jwtTokenService,
             failingSender,
             MfaTotpService(),
-            MfaCryptoService()
+            MfaCryptoService(),
+            org.mockito.Mockito.mock(br.com.tavaressan.cafey.security.MfaCodigosRecuperacaoService::class.java)
         )
 
         val res = service.solicitarRecuperacaoSenha(SolicitarRecuperacaoSenhaRequest(email = "user@cafey.com"))

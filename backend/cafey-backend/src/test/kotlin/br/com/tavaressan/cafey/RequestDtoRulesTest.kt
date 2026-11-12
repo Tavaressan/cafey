@@ -4,6 +4,9 @@ import br.com.tavaressan.cafey.notification.RegistrarPushRequest
 import br.com.tavaressan.cafey.notification.RemoverPushRequest
 
 import br.com.tavaressan.cafey.auth.LoginRequest
+import br.com.tavaressan.cafey.auth.MfaAtivarRequest
+import br.com.tavaressan.cafey.auth.MfaDesativarRequest
+import br.com.tavaressan.cafey.auth.MfaValidarRequest
 import br.com.tavaressan.cafey.auth.RedefinirSenhaRequest
 import br.com.tavaressan.cafey.auth.RefreshRequest
 import br.com.tavaressan.cafey.auth.RegisterRequest
@@ -45,6 +48,9 @@ class RequestDtoRulesTest {
             RefreshRequest::class,
             SolicitarRecuperacaoSenhaRequest::class,
             RedefinirSenhaRequest::class,
+            MfaAtivarRequest::class,
+            MfaValidarRequest::class,
+            MfaDesativarRequest::class,
             CriarDispositivoRequest::class,
             AtualizarDispositivoRequest::class,
             CompartilharDispositivoRequest::class,

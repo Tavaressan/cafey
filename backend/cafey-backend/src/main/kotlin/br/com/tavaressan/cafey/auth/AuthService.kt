@@ -6,6 +6,7 @@ import br.com.tavaressan.cafey.exception.ResourceNotFoundException
 import br.com.tavaressan.cafey.exception.ServicoIndisponivelException
 import br.com.tavaressan.cafey.mail.EmailSenderService
 import br.com.tavaressan.cafey.security.JwtTokenService
+import br.com.tavaressan.cafey.security.MfaCodigosRecuperacaoService
 import br.com.tavaressan.cafey.security.MfaCryptoService
 import br.com.tavaressan.cafey.security.MfaTotpService
 import br.com.tavaressan.cafey.security.PasswordResetToken
@@ -35,7 +36,8 @@ class AuthService(
     private val jwtTokenService: JwtTokenService,
     private val emailSenderService: EmailSenderService,
     private val mfaTotpService: MfaTotpService,
-    private val mfaCryptoService: MfaCryptoService
+    private val mfaCryptoService: MfaCryptoService,
+    private val mfaCodigosRecuperacao: MfaCodigosRecuperacaoService
 ) {
 
     private val logger = LoggerFactory.getLogger(AuthService::class.java)
@@ -181,42 +183,43 @@ class AuthService(
         passwordResetTokenRepository.save(resetToken)
     }
 
+    /**
+     * Gera um segredo novo e o guarda como **pendente**. O segredo em uso (se o 2FA já estiver ativo)
+     * só é trocado quando o usuário confirmar o primeiro código em [ativar2fa]; desistir no meio não
+     * tranca ninguém fora da conta.
+     */
     @Transactional
     fun configurar2fa(usuarioId: UUID): MfaConfigurarResponse {
-        if (!mfaCryptoService.isAvailable()) {
-            throw ServicoIndisponivelException(
-                "2FA indisponível no servidor: chave de cifra MFA não configurada"
-            )
-        }
-        val usuario = usuarioRepository.findById(usuarioId)
-            .orElseThrow { ResourceNotFoundException("Usuário não encontrado") }
+        exigirMfaDisponivel()
+        val usuario = buscarUsuario(usuarioId)
         val segredo = mfaTotpService.generateSecretBase32()
-        usuario.mfaSecret = mfaCryptoService.encrypt(segredo)
-        // Não habilita ainda: a ativação ocorre em /auth/2fa/ativar após validar o primeiro código.
+        usuario.mfaSecretPendente = mfaCryptoService.encrypt(segredo)
         usuario.atualizadoEm = Instant.now()
         usuarioRepository.save(usuario)
         val otpauthUri = mfaTotpService.buildOtpAuthUri(segredo, usuario.email)
         return MfaConfigurarResponse(otpauthUri = otpauthUri, segredo = segredo)
     }
 
+    /**
+     * Confirma o segredo pendente com o primeiro código: ele passa a ser o segredo em uso, o 2FA fica
+     * ativo e um conjunto novo de códigos de recuperação substitui o anterior.
+     */
     @Transactional
-    fun ativar2fa(usuarioId: UUID, request: MfaAtivarRequest) {
-        if (!mfaCryptoService.isAvailable()) {
-            throw ServicoIndisponivelException(
-                "2FA indisponível no servidor: chave de cifra MFA não configurada"
-            )
-        }
-        val usuario = usuarioRepository.findById(usuarioId)
-            .orElseThrow { ResourceNotFoundException("Usuário não encontrado") }
-        val segredoCifrado = usuario.mfaSecret
+    fun ativar2fa(usuarioId: UUID, request: MfaAtivarRequest): MfaAtivarResponse {
+        exigirMfaDisponivel()
+        val usuario = buscarUsuario(usuarioId)
+        val pendenteCifrado = usuario.mfaSecretPendente
             ?: throw RequisicaoInvalidaException("2FA não configurado. Chame /auth/2fa/configurar antes de ativar.")
-        val segredo = mfaCryptoService.decrypt(segredoCifrado)
-        if (!mfaTotpService.verifyCode(segredo, request.codigo)) {
+        if (!mfaTotpService.verifyCode(mfaCryptoService.decrypt(pendenteCifrado), request.codigo)) {
             throw BadCredentialsException("Código TOTP inválido")
         }
+        usuario.mfaSecret = pendenteCifrado
+        usuario.mfaSecretPendente = null
         usuario.mfaHabilitado = true
         usuario.atualizadoEm = Instant.now()
         usuarioRepository.save(usuario)
+        val codigos = mfaCodigosRecuperacao.gerarNovos(usuarioId)
+        return MfaAtivarResponse(mensagem = "2FA ativado com sucesso", codigosRecuperacao = codigos)
     }
 
     @Transactional
@@ -231,17 +234,62 @@ class AuthService(
         if (!usuario.mfaHabilitado || usuario.mfaSecret == null) {
             throw BadCredentialsException("2FA não está ativo para este usuário")
         }
-        val segredo = mfaCryptoService.decrypt(usuario.mfaSecret!!)
-        if (!mfaTotpService.verifyCode(segredo, request.codigo)) {
-            throw BadCredentialsException("Código TOTP inválido")
+        exigirMfaDisponivel()
+        if (!verificarSegundoFator(usuario, request.codigo)) {
+            throw BadCredentialsException("Código inválido")
         }
         return createAuthResponse(usuario, UUID.randomUUID())
     }
+
+    /**
+     * Desliga o 2FA. Exige o código do autenticador ou um código de recuperação, para que um token de
+     * acesso vazado não baste para remover o segundo fator.
+     */
+    @Transactional
+    fun desativar2fa(usuarioId: UUID, request: MfaDesativarRequest) {
+        exigirMfaDisponivel()
+        val usuario = buscarUsuario(usuarioId)
+        if (!usuario.mfaHabilitado || usuario.mfaSecret == null) {
+            throw RequisicaoInvalidaException("2FA não está ativo")
+        }
+        if (!verificarSegundoFator(usuario, request.codigo)) {
+            throw BadCredentialsException("Código inválido")
+        }
+        usuario.mfaHabilitado = false
+        usuario.mfaSecret = null
+        usuario.mfaSecretPendente = null
+        usuario.atualizadoEm = Instant.now()
+        usuarioRepository.save(usuario)
+        mfaCodigosRecuperacao.removerTodos(usuarioId)
+    }
+
+    /** Código de 6 dígitos vai para o TOTP; qualquer outro formato é tratado como código de recuperação. */
+    private fun verificarSegundoFator(usuario: Usuario, codigo: String): Boolean {
+        val normalizado = codigo.trim()
+        if (normalizado.length == 6 && normalizado.all { it.isDigit() }) {
+            val segredo = mfaCryptoService.decrypt(usuario.mfaSecret!!)
+            return mfaTotpService.verifyCode(segredo, normalizado)
+        }
+        return mfaCodigosRecuperacao.consumir(usuario.id!!, normalizado)
+    }
+
+    private fun exigirMfaDisponivel() {
+        if (!mfaCryptoService.isAvailable()) {
+            throw ServicoIndisponivelException(
+                "2FA indisponível no servidor: chave de cifra MFA não configurada"
+            )
+        }
+    }
+
+    private fun buscarUsuario(usuarioId: UUID): Usuario =
+        usuarioRepository.findById(usuarioId)
+            .orElseThrow { ResourceNotFoundException("Usuário não encontrado") }
 
     @Transactional(readOnly = true)
     fun status2fa(usuarioId: UUID): MfaStatusResponse {
         val usuario = usuarioRepository.findById(usuarioId)
             .orElseThrow { ResourceNotFoundException("Usuário não encontrado") }
-        return MfaStatusResponse(mfaHabilitado = usuario.mfaHabilitado)
+        val restantes = if (usuario.mfaHabilitado) mfaCodigosRecuperacao.restantes(usuarioId) else 0
+        return MfaStatusResponse(mfaHabilitado = usuario.mfaHabilitado, codigosRecuperacaoRestantes = restantes)
     }
 }
