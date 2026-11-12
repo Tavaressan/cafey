@@ -13,6 +13,8 @@ enum class CoffeeAction : uint8_t {
     Cancelar,
     EsquecerRede,       // requer `ssid`; remove rede salva (e desconecta se for a atual)
     EsquecerTodasRedes, // remove todas as redes; base fica aguardando provisionamento BLE
+    Silenciar,          // modo silencioso do buzzer, persistido em NVS (#311)
+    AtivarSom,          // sai do modo silencioso (#311)
 };
 
 /**

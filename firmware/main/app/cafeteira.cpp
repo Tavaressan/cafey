@@ -17,15 +17,42 @@ constexpr const char* TAG = "cafeteira";
 } // namespace
 
 Cafeteira::Cafeteira(gpio_num_t relay_pin, gpio_num_t button_pin,
-                     gpio_num_t led_r, gpio_num_t led_g, gpio_num_t led_b)
+                     gpio_num_t led_r, gpio_num_t led_g, gpio_num_t led_b,
+                     gpio_num_t buzzer_pin)
     : ActiveObject("cafeteira", 16, 4096, 5, /*tick_period_ms=*/10),
       relay_(relay_pin),
       led_(led_r, led_g, led_b),
+      buzzer_(buzzer_pin),
       button_pin_(button_pin) {}
 
 void Cafeteira::set_network_ok(bool ok) {
+    const bool changed = ok != network_ok_;
     network_ok_ = ok;
     led_.update(visual_state_, network_ok_);
+    // Som so na mudanca (a reconexao em backoff repete o mesmo estado) e com
+    // intervalo minimo, para rede instavel nao virar sequencia de bipes. Antes
+    // do on_start (app_main chama set_network_ok(false)) nao conta intervalo.
+    if (changed && buzzer_.is_initialized() &&
+        ticks_since_network_sound_ >= kNetworkSoundCooldownS * kTicksPerSecond) {
+        ticks_since_network_sound_ = 0;
+        buzzer_.notify(ok ? drivers::SoundEvent::NetworkOnline
+                          : drivers::SoundEvent::NetworkLost);
+    }
+}
+
+void Cafeteira::set_muted(bool muted) {
+    const bool was_muted = buzzer_.muted();
+    if (sound_settings_ != nullptr) {
+        const esp_err_t err = sound_settings_->set_muted(muted);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "falha ao gravar modo silencioso: %d", err);
+        }
+    }
+    buzzer_.set_muted(muted);
+    ESP_LOGI(TAG, "som %s", muted ? "silenciado" : "ativado");
+    if (was_muted && !muted) {
+        buzzer_.notify(drivers::SoundEvent::SoundEnabled);
+    }
 }
 
 void Cafeteira::set_schedules_armed(bool armed) {
@@ -34,6 +61,9 @@ void Cafeteira::set_schedules_armed(bool armed) {
 }
 
 void Cafeteira::set_error(bool error) {
+    if (error && !has_error_) {
+        buzzer_.notify(drivers::SoundEvent::Error);
+    }
     has_error_ = error;
     apply_state();
 }
@@ -78,6 +108,7 @@ void Cafeteira::open_bind_window() {
     bind_ticks_left_ = kBindWindowS * kTicksPerSecond;
     ESP_LOGI(TAG, "janela de vinculo aberta (%us)", static_cast<unsigned>(kBindWindowS));
     apply_state();
+    buzzer_.notify(drivers::SoundEvent::BindWindowOpened);
     if (on_bind_window_change_) on_bind_window_change_(true, bind_code_);
 }
 
@@ -107,6 +138,7 @@ void Cafeteira::start_brew(uint32_t duration_s, cafey::storage::EventOrigin orig
     last_result_ = Result::None;
     state_ = State::On;
     apply_state();
+    buzzer_.notify(drivers::SoundEvent::BrewStarted);
 }
 
 void Cafeteira::enqueue_brew_event(cafey::storage::EventResult result, uint32_t duration_s) {
@@ -145,6 +177,7 @@ void Cafeteira::cancel_brew() {
                                            : 0;
         const uint32_t elapsed_s = elapsed_ticks / kTicksPerSecond;
         enqueue_brew_event(cafey::storage::EventResult::CANCELADO, elapsed_s);
+        buzzer_.notify(drivers::SoundEvent::BrewCancelled);
     }
     brew_ticks_left_ = 0;
     brew_ticks_total_ = 0;
@@ -166,11 +199,16 @@ void Cafeteira::finish_brew() {
     // Spec §5.3: Branco fixo (alguns minutos) | Café pronto
     ready_ticks_left_ = kReadyDurationS * kTicksPerSecond;
     apply_state();
+    buzzer_.notify(drivers::SoundEvent::CoffeeReady);
 }
 
 void Cafeteira::on_start() {
     relay_.init();
     led_.init();
+    buzzer_.init();
+    if (sound_settings_ != nullptr) {
+        buzzer_.set_muted(sound_settings_->muted());
+    }
 
     const gpio_config_t btn_cfg = {
         .pin_bit_mask = (1ULL << button_pin_),
@@ -191,6 +229,7 @@ void Cafeteira::on_start() {
 
     state_ = State::Off;
     apply_state();
+    buzzer_.notify(drivers::SoundEvent::Boot);
 }
 
 void Cafeteira::on_tick() {
@@ -201,6 +240,12 @@ void Cafeteira::on_tick() {
 
     // Atualiza o padrao visual do LED (respira/pisca/pulsa/fixo)
     led_.tick();
+
+    // Avanca a nota do buzzer: O(1) por tick, sem espera (#311).
+    buzzer_.tick();
+    if (ticks_since_network_sound_ < kNetworkSoundCooldownS * kTicksPerSecond) {
+        ++ticks_since_network_sound_;
+    }
 
     // Temporizador de "Cafe pronto" (Branco fixo por alguns minutos)
     if (ready_ticks_left_ > 0 && state_ == State::Off) {
@@ -287,6 +332,9 @@ void Cafeteira::dispatch(const Message& msg) {
             break;
         case MessageType::ScheduleArmedChanged:
             set_schedules_armed(msg.arg != 0);
+            break;
+        case MessageType::SetMuted:
+            set_muted(msg.arg != 0);
             break;
         default:
             break;

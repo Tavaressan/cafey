@@ -153,6 +153,15 @@
         "text": "Carga simulada. Na montagem real: fase da rede em COM/NO.",
         "fontSize": "12"
       }
+    },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": 250,
+      "left": 330,
+      "attrs": {
+        "volume": "0.1"
+      }
     }
   ],
   "connections": [
@@ -435,6 +444,18 @@
       [
         "$bb"
       ]
+    ],
+    [
+      "bz1:1",
+      "esp:GND.1",
+      "black",
+      []
+    ],
+    [
+      "bz1:2",
+      "esp:D25",
+      "purple",
+      []
     ]
   ],
   "dependencies": {}

@@ -4,7 +4,9 @@
 #include "app/agendador.hpp"
 #include "app/cafeteira.hpp"
 #include "app/conectividade.hpp"
+#include "drivers/buzzer.hpp"
 #include "drivers/rgb_led.hpp"
+#include "storage/sound_settings_store.hpp"
 #include "storage/event_queue_store.hpp"
 #include "storage/event_id_generator.hpp"
 
@@ -22,6 +24,8 @@ using cafey::core::MessageType;
 using cafey::drivers::CoffeeVisualState;
 using cafey::drivers::LedColor;
 using cafey::drivers::LedPattern;
+using cafey::drivers::Buzzer;
+using cafey::drivers::SoundPattern;
 
 // Relogio manual para os testes de evento (o clock.hpp so traz o SystemClock).
 namespace cafey::core {
@@ -449,6 +453,175 @@ int test_skeleton_active_objects() {
     return 0;
 }
 
+// ---------------------------------------------------------------------------
+// Buzzer (#311)
+// ---------------------------------------------------------------------------
+
+static void tick_n(TestableCafeteira& caf, uint32_t n) {
+    for (uint32_t i = 0; i < n; ++i) caf.tick();
+}
+
+// Deixa terminar o som do boot para que o proximo evento comece do silencio.
+static void let_sound_finish(TestableCafeteira& caf) {
+    tick_n(caf, Buzzer::duration_ticks(caf.buzzer().pattern()) + 1);
+}
+
+int test_cafeteira_sounds_follow_events() {
+    MockGpio::reset();
+    MockLedc::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    TestableCafeteira caf;
+    caf.boot();
+    TEST_ASSERT(caf.buzzer().is_initialized(), "buzzer inicializado no on_start");
+    TEST_ASSERT(caf.buzzer().pattern() == SoundPattern::Startup, "boot toca o arpejo de inicio");
+    TEST_ASSERT(MockLedc::get_pin(LEDC_CHANNEL_1) == GPIO_NUM_25, "buzzer no GPIO25, canal 1");
+    let_sound_finish(caf);
+    TEST_ASSERT(!caf.buzzer().playing(), "som do boot termina sozinho");
+
+    caf.post(Message{MessageType::StartBrew, 1});
+    caf.process_pending();
+    TEST_ASSERT(caf.buzzer().pattern() == SoundPattern::Beep, "preparo iniciado -> bipe");
+
+    tick_n(caf, 120); // 1 s de preparo + debounce
+    TEST_ASSERT(caf.last_result() == cafey::app::Cafeteira::Result::Concluido, "preparo concluido");
+    TEST_ASSERT(caf.buzzer().pattern() == SoundPattern::Ready, "cafe pronto -> melodia");
+    let_sound_finish(caf);
+
+    caf.post(Message{MessageType::StartBrew, 60});
+    caf.process_pending();
+    let_sound_finish(caf);
+    caf.post(Message{MessageType::StopBrew, 0});
+    caf.process_pending();
+    TEST_ASSERT(caf.buzzer().pattern() == SoundPattern::Cancel, "preparo cancelado -> descendente");
+    let_sound_finish(caf);
+
+    caf.post(Message{MessageType::StopBrew, 0});
+    caf.process_pending();
+    TEST_ASSERT(!caf.buzzer().playing(), "parar com a cafeteira ja desligada nao toca");
+
+    caf.set_error(true);
+    TEST_ASSERT(caf.buzzer().pattern() == SoundPattern::Error, "falha operacional -> erro");
+    let_sound_finish(caf);
+    caf.set_error(true);
+    TEST_ASSERT(!caf.buzzer().playing(), "erro repetido nao toca de novo");
+    caf.set_error(false);
+
+    long_press(caf);
+    TEST_ASSERT(caf.bind_window_open(), "janela de vinculo aberta");
+    TEST_ASSERT(caf.buzzer().pattern() == SoundPattern::Binding, "janela de vinculo -> tres bipes");
+
+    std::cout << "[PASS] test_cafeteira_sounds_follow_events" << std::endl;
+    return 0;
+}
+
+int test_cafeteira_network_sound_on_edges_with_cooldown() {
+    MockGpio::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    TestableCafeteira caf;
+    caf.set_network_ok(false); // como no app_main, antes do start
+    caf.boot();
+    let_sound_finish(caf);
+
+    caf.post(Message{MessageType::NetworkStatusChanged, 1});
+    caf.process_pending();
+    TEST_ASSERT(caf.buzzer().pattern() == SoundPattern::Connected, "rede conectou -> ascendente");
+    let_sound_finish(caf);
+
+    caf.post(Message{MessageType::NetworkStatusChanged, 1});
+    caf.process_pending();
+    TEST_ASSERT(!caf.buzzer().playing(), "mesmo estado nao toca");
+
+    caf.post(Message{MessageType::NetworkStatusChanged, 0});
+    caf.process_pending();
+    TEST_ASSERT(!caf.buzzer().playing(), "queda logo apos conectar fica muda (intervalo minimo)");
+    TEST_ASSERT(caf.led().color() == LedColor::Amber, "LED continua refletindo a rede");
+
+    caf.post(Message{MessageType::NetworkStatusChanged, 1});
+    caf.process_pending();
+    tick_n(caf, cafey::app::Cafeteira::kNetworkSoundCooldownS * 100);
+    caf.post(Message{MessageType::NetworkStatusChanged, 0});
+    caf.process_pending();
+    TEST_ASSERT(caf.buzzer().pattern() == SoundPattern::Disconnected,
+                "queda apos o intervalo -> descendente");
+
+    std::cout << "[PASS] test_cafeteira_network_sound_on_edges_with_cooldown" << std::endl;
+    return 0;
+}
+
+int test_cafeteira_sound_never_delays_command_button_or_led() {
+    MockGpio::reset();
+    MockLedc::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    TestableCafeteira caf;
+    caf.boot();
+
+    // Melodia mais longa tocando: o comando de preparo age no mesmo dispatch.
+    caf.post(Message{MessageType::BrewFinished, 0});
+    caf.post(Message{MessageType::StartBrew, 60});
+    caf.process_pending();
+    TEST_ASSERT(caf.relay_on(), "rele fecha no mesmo dispatch, com som tocando");
+    TEST_ASSERT(caf.buzzer().playing(), "som segue em paralelo");
+    TEST_ASSERT(caf.led().color() == LedColor::Green, "LED muda na hora");
+
+    // LED segue animando (verde pulsando: alterna a cada 25 ticks) enquanto toca.
+    const int g_before = MockGpio::get_pin(GPIO_NUM_22).level;
+    tick_n(caf, 25);
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_22).level != g_before, "pulso do LED avanca no tick");
+
+    // Botao: debounce de 3 amostras continua valendo com som tocando.
+    caf.set_error(true); // erro: padrao mais longo, prioridade maxima
+    TEST_ASSERT(caf.buzzer().pattern() == SoundPattern::Error, "erro tocando");
+    MockGpio::get_pin(GPIO_NUM_27).level = 0;
+    tick_n(caf, 5);
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    tick_n(caf, 5);
+    TEST_ASSERT(caf.pending_count() == 1, "toque curto enfileirado em 10 ticks, como sem som");
+    caf.process_pending();
+    TEST_ASSERT(!caf.relay_on(), "toque cancela o preparo na hora");
+
+    std::cout << "[PASS] test_cafeteira_sound_never_delays_command_button_or_led" << std::endl;
+    return 0;
+}
+
+int test_cafeteira_mute_persists_across_reboot() {
+    MockGpio::reset();
+    MockNvs::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    {
+        cafey::storage::SoundSettingsStore settings;
+        settings.init();
+        TestableCafeteira caf;
+        caf.attach_sound_settings(&settings);
+        caf.boot();
+        TEST_ASSERT(caf.buzzer().pattern() == SoundPattern::Startup, "som ligado por padrao");
+
+        caf.post(Message{MessageType::SetMuted, 1});
+        caf.process_pending();
+        TEST_ASSERT(caf.buzzer().muted() && !caf.buzzer().playing(), "silenciar corta o som");
+        TEST_ASSERT(settings.muted(), "preferencia gravada");
+        caf.post(Message{MessageType::StartBrew, 60});
+        caf.process_pending();
+        TEST_ASSERT(caf.relay_on() && !caf.buzzer().playing(), "silenciado: preparo sem bipe");
+    }
+
+    // "Reboot": objetos novos lendo o mesmo NVS.
+    cafey::storage::SoundSettingsStore settings;
+    settings.init();
+    TestableCafeteira caf;
+    caf.attach_sound_settings(&settings);
+    caf.boot();
+    TEST_ASSERT(caf.buzzer().muted(), "silencioso sobrevive a reboot");
+    TEST_ASSERT(!caf.buzzer().playing(), "boot silencioso");
+
+    caf.post(Message{MessageType::SetMuted, 0});
+    caf.process_pending();
+    TEST_ASSERT(!caf.buzzer().muted() && !settings.muted(), "som reativado e gravado");
+    TEST_ASSERT(caf.buzzer().pattern() == SoundPattern::DoubleBeep, "confirma com dois bipes");
+
+    std::cout << "[PASS] test_cafeteira_mute_persists_across_reboot" << std::endl;
+    return 0;
+}
+
 int main() {
     std::cout << "Running Cafey Cafeteira AO Unit Tests (Spec §5.3)..." << std::endl;
     if (test_cafeteira_button_toggles_relay_and_led()) return 1;
@@ -464,6 +637,10 @@ int main() {
     if (test_cafeteira_long_press_opens_bind_window()) return 1;
     if (test_cafeteira_bind_window_expires()) return 1;
     if (test_cafeteira_short_press_still_toggles_brew_with_window_open()) return 1;
+    if (test_cafeteira_sounds_follow_events()) return 1;
+    if (test_cafeteira_network_sound_on_edges_with_cooldown()) return 1;
+    if (test_cafeteira_sound_never_delays_command_button_or_led()) return 1;
+    if (test_cafeteira_mute_persists_across_reboot()) return 1;
     if (test_skeleton_active_objects()) return 1;
     std::cout << "All Cafeteira AO tests PASSED!" << std::endl;
     return 0;
