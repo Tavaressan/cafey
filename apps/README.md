@@ -57,3 +57,28 @@ Compila os três targets e roda os testes de `shared` (`commonTest`).
 `docs/docs_interface/prototype/assets/cafey.css` para Compose: `CafeyColors`, `CafeyTypography` e
 `CafeyShapes`, expostos via o composable `CafeyTheme`. As fontes (Space Grotesk, Instrument Sans,
 JetBrains Mono — SIL OFL) estão empacotadas em `shared/src/commonMain/composeResources/font`.
+
+## Notificações locais (Desktop)
+
+O cliente Desktop (`apps/desktopApp`) exibe notificações nativas do sistema operacional por meio de
+um ícone na bandeja (`Tray`) enquanto o aplicativo estiver aberto (inclusive minimizado na bandeja).
+A detecção de transições (café pronto, falha no preparo, preparo iniciado e cafeteira offline) é
+feita em componente reutilizável e testável em `shared` (`DesktopNotificationDetector`), alimentado
+pelos dados do polling do `HomeViewModel`.
+
+Limitações atuais:
+- **Só com o app aberto:** não há push do sistema operacional para o app JVM; se o app for encerrado,
+  nenhuma notificação é entregue.
+- **Eventos de preparo por `eventoId`:** além das transições de estado/online observadas em todos os
+  dispositivos carregados, os eventos recentes de preparo (`CONCLUIDO`/`ERRO`) são consultados no
+  polling apenas para o dispositivo selecionado (1 requisição extra por ciclo), para evitar
+  multiplicar chamadas quando o usuário possui vários dispositivos. Transições de preparo iniciando e
+  cafeteira offline são detectadas para todos os dispositivos presentes na lista.
+- **Histórico:** na primeira leitura após abrir o app ou trocar de conta, o estado atual não gera
+  notificações retroativas; apenas transições observadas depois disso são notificadas. Eventos são
+  deduplicados por `eventoId`.
+
+Por padrão, fechar a janela mantém o app ativo na bandeja para continuar notificando; use "Sair" no
+menu da bandeja para encerrar. Clicar no ícone/menu da bandeja traz a janela para a frente e mantém
+o dispositivo ativo selecionado (a seleção do dispositivo associado à última notificação é aplicada
+ao reabrir).
