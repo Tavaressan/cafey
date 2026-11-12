@@ -73,6 +73,7 @@ data class HomeUiState(
     val proximoPreparo: ProximoPreparo? = null,
     val sequenciaManhasDias: Int = 0,
     val isOffline: Boolean = false,
+    val shouldRequestNotificationPermission: Boolean = false,
 ) {
     val isDeviceOffline: Boolean get() = isOffline
     val deviceState: DeviceState get() = device?.let { DeviceState.from(it.estado) } ?: DeviceState.Unknown("")
@@ -245,12 +246,16 @@ class HomeViewModel(
     fun selectDevice(id: String) {
         if (selectedDeviceId == id && _uiState.value.device?.id == id) return
         selectedDeviceId = id
-        _uiState.update { it.copy(loading = true) }
+        _uiState.update { it.copy(loading = true, shouldRequestNotificationPermission = true) }
         if (activeDeviceId != null) {
             activeDeviceId.value = id
         } else {
             scope.launch { refresh() }
         }
+    }
+
+    fun consumeNotificationPermissionRequest() {
+        _uiState.update { it.copy(shouldRequestNotificationPermission = false) }
     }
 
     // Issue #176 — hora local do próprio aparelho, não o timezone salvo no dispositivo: é isso
@@ -314,12 +319,18 @@ class HomeViewModel(
                             commandInFlight = false,
                             device = if (estadoEstimado != null) it.device?.copy(estado = estadoEstimado) else it.device,
                             errorMessage = null,
+                            shouldRequestNotificationPermission = acao == AcaoComando.LIGAR || it.shouldRequestNotificationPermission,
                         )
                     }
                 } else {
                     selectedDeviceId?.let { statsCache.remove(it) }
                     refresh()
-                    _uiState.update { it.copy(commandInFlight = false) }
+                    _uiState.update {
+                        it.copy(
+                            commandInFlight = false,
+                            shouldRequestNotificationPermission = acao == AcaoComando.LIGAR || it.shouldRequestNotificationPermission,
+                        )
+                    }
                 }
             } catch (e: BleError) {
                 _uiState.update { it.copy(commandInFlight = false, errorMessage = e.message) }

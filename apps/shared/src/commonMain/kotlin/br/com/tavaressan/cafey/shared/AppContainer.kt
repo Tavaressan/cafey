@@ -9,6 +9,7 @@ import br.com.tavaressan.cafey.shared.network.AuthApi
 import br.com.tavaressan.cafey.shared.network.CommandApi
 import br.com.tavaressan.cafey.shared.network.DeviceApi
 import br.com.tavaressan.cafey.shared.network.EventApi
+import br.com.tavaressan.cafey.shared.network.PushApi
 import br.com.tavaressan.cafey.shared.network.ScheduleApi
 import br.com.tavaressan.cafey.shared.network.createDemoHttpClient
 import br.com.tavaressan.cafey.shared.network.platformDefaultBaseUrl
@@ -18,6 +19,8 @@ import br.com.tavaressan.cafey.shared.preferences.OnboardingPreference
 import br.com.tavaressan.cafey.shared.preferences.createOnboardingPreferenceStorage
 import br.com.tavaressan.cafey.shared.preferences.ThemePreference
 import br.com.tavaressan.cafey.shared.preferences.createThemePreferenceStorage
+import br.com.tavaressan.cafey.shared.push.PushRegistrationManager
+import br.com.tavaressan.cafey.shared.push.createPushRegistrationManager
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -55,6 +58,8 @@ class AppContainer(
     val scheduleApi: ScheduleApi = ScheduleApi(apiClient)
     val eventApi: EventApi = EventApi(apiClient)
     val commandApi: CommandApi = CommandApi(apiClient)
+    val pushApi: PushApi = PushApi(apiClient)
+    val pushRegistrationManager: PushRegistrationManager = createPushRegistrationManager(apiClient, pushApi)
 
     /** Cliente BLE opcional (injetado por plataforma, ex.: Android; nulo em Desktop/Web). */
     val bleClient: BleClient? = customBleClient ?: createPlatformBleClient()

@@ -50,6 +50,7 @@ import br.com.tavaressan.cafey.shared.ui.auth.fieldErrorMessage
 import br.com.tavaressan.cafey.shared.ui.ble.BlePermissionStatus
 import br.com.tavaressan.cafey.shared.ui.ble.BleReadinessGate
 import br.com.tavaressan.cafey.shared.ui.ble.rememberBlePermissionController
+import br.com.tavaressan.cafey.shared.ui.push.ContextualPushPermissionEffect
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
 /**
@@ -73,6 +74,11 @@ fun DeviceFormScreen(deviceId: String? = null, onDone: () -> Unit) {
     val state by viewModel.uiState.collectAsState()
     val blePermissionController = rememberBlePermissionController()
     var confirmDelete by remember { mutableStateOf(false) }
+
+    ContextualPushPermissionEffect(
+        shouldRequest = state.shouldRequestNotificationPermission,
+        onConsumed = viewModel::consumeNotificationPermissionRequest,
+    )
 
     LaunchedEffect(state.success) {
         if (state.success) onDone()

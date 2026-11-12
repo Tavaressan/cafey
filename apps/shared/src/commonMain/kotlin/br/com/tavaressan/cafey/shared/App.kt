@@ -7,6 +7,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import br.com.tavaressan.cafey.shared.network.platformDefaultBaseUrl
+import br.com.tavaressan.cafey.shared.push.PushNavigationTarget
 import br.com.tavaressan.cafey.shared.ui.CafeyNavHost
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
@@ -34,7 +35,13 @@ fun App(
     // Issue #182 — carrega a preferência de tema persistida uma vez, aqui em cima (acima do
     // NavHost), para que CafeyTheme reflita a escolha alterada na tela "Base" imediatamente.
     val darkTheme by container.themePreference.darkTheme.collectAsState()
+    val pendingPushDeviceId by PushNavigationTarget.pendingDeviceId.collectAsState()
     LaunchedEffect(container) { container.themePreference.load() }
+    LaunchedEffect(container, pendingPushDeviceId) {
+        val deviceId = pendingPushDeviceId ?: return@LaunchedEffect
+        PushNavigationTarget.consume()
+        container.selectDevice(deviceId)
+    }
 
     CompositionLocalProvider(LocalAppContainer provides container) {
         CafeyTheme(darkTheme = darkTheme) {

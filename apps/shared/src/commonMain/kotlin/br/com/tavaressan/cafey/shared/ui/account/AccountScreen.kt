@@ -33,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
+import br.com.tavaressan.cafey.shared.ui.push.PushNotificationsSection
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 
 /** Conta e segurança (issues #183, #261). */
@@ -40,7 +41,9 @@ import br.com.tavaressan.cafey.shared.ui.theme.CafeyTheme
 fun AccountScreen(onLoggedOut: () -> Unit, onViewTutorial: () -> Unit = {}) {
     val container = LocalAppContainer.current
     val viewModel = viewModel<AccountViewModel>(
-        factory = viewModelFactory { initializer { AccountViewModel(container.authApi) } },
+        factory = viewModelFactory {
+            initializer { AccountViewModel(container.authApi, container.pushRegistrationManager) }
+        },
     )
     val state by viewModel.uiState.collectAsState()
 
@@ -120,6 +123,8 @@ internal fun AccountContent(
                 )
             }
         }
+
+        PushNotificationsSection()
 
         Button(
             onClick = onLogout,

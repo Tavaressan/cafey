@@ -45,6 +45,7 @@ import br.com.tavaressan.cafey.shared.domain.model.DeviceState
 import br.com.tavaressan.cafey.shared.domain.model.ProximoPreparo
 import br.com.tavaressan.cafey.shared.ui.LocalNavShellSizeClass
 import br.com.tavaressan.cafey.shared.ui.NavShellSizeClass
+import br.com.tavaressan.cafey.shared.ui.push.ContextualPushPermissionEffect
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyLightColors
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyLogo
 import br.com.tavaressan.cafey.shared.ui.theme.CafeyStar
@@ -81,6 +82,11 @@ fun HomeScreen(onGoToDeviceRegister: () -> Unit = {}) {
         },
     )
     val state by viewModel.uiState.collectAsState()
+
+    ContextualPushPermissionEffect(
+        shouldRequest = state.shouldRequestNotificationPermission,
+        onConsumed = viewModel::consumeNotificationPermissionRequest,
+    )
 
     Column(
         modifier = Modifier
