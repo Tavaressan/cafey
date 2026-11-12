@@ -85,6 +85,8 @@ data class DiagnosticoDispositivoResponse(
     val uptimeS: Long? = null,
     val versaoAgendamentos: Int,
     val estadoRele: String? = null,
+    val ultimoReset: String? = null,
+    val resetsAnormais: Int? = null,
     val errosRecentes: List<ErroRecenteDiagnosticoResponse> = emptyList(),
     val atualizadoEm: String,
 )

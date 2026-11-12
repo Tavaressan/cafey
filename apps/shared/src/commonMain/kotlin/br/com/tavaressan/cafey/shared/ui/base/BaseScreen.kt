@@ -273,6 +273,20 @@ private fun DiagnosticoCard(diagnostico: DiagnosticoDispositivoResponse?, restri
         DiagnosticoItem("Estado do relé", diagnostico.estadoRele ?: "Indisponível")
         DiagnosticoItem("Versão do firmware", diagnostico.firmware ?: "Indisponível")
         DiagnosticoItem("Tempo ligado (uptime)", diagnostico.uptimeS?.let { "${it}s" } ?: "Indisponível")
+        diagnostico.ultimoReset?.let {
+            DiagnosticoItem("Último reinício", textoUltimoReinicio(it))
+        }
+        diagnostico.resetsAnormais?.let { n ->
+            DiagnosticoItem("Reinícios anormais seguidos", n.toString())
+            if (n >= 3) {
+                Text(
+                    "Modo seguro: o preparo fica bloqueado até a placa ficar estável.",
+                    style = CafeyTheme.typography.bodySmall,
+                    color = CafeyTheme.colors.brandDeep,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
         DiagnosticoItem("Versão dos agendamentos", diagnostico.versaoAgendamentos.toString())
 
         Text(
@@ -314,6 +328,15 @@ private fun DiagnosticoItem(rotulo: String, valor: String) {
         )
     }
 }
+
+internal fun textoUltimoReinicio(codigo: String): String = when (codigo.trim().uppercase()) {
+    "RESET_NORMAL" -> "normal"
+    "RESET_WATCHDOG" -> "travamento (watchdog)"
+    "RESET_PANIC" -> "falha (pânico)"
+    "RESET_BROWNOUT" -> "queda de energia (brownout)"
+    else -> codigo
+}
+
 
 @Composable
 private fun WifiSection(

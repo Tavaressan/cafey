@@ -178,6 +178,8 @@ class DeviceApiTest {
                         "uptimeS":7200,
                         "versaoAgendamentos":3,
                         "estadoRele":null,
+                        "ultimoReset":"RESET_WATCHDOG",
+                        "resetsAnormais":2,
                         "errosRecentes":[{"eventoId":"e1","timestamp":"2026-11-09T11:59:00Z","origem":"APP","detalheErro":"falha"}],
                         "atualizadoEm":"2026-11-09T12:00:00Z"
                     }
@@ -197,6 +199,8 @@ class DeviceApiTest {
         assertEquals(7200L, diag.uptimeS)
         assertEquals(3, diag.versaoAgendamentos)
         assertEquals(null, diag.estadoRele)
+        assertEquals("RESET_WATCHDOG", diag.ultimoReset)
+        assertEquals(2, diag.resetsAnormais)
         assertEquals(1, diag.errosRecentes.size)
     }
 }

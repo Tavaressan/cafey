@@ -243,6 +243,8 @@ class DispositivoService(
             uptimeS = dispositivo.uptimeS,
             versaoAgendamentos = dispositivo.versaoAgendamentos,
             estadoRele = null,
+            ultimoReset = dispositivo.ultimoReset,
+            resetsAnormais = dispositivo.resetsAnormais,
             errosRecentes = erros,
             atualizadoEm = dispositivo.atualizadoEm
         )

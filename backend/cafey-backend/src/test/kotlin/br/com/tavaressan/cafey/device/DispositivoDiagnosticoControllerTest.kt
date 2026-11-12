@@ -49,7 +49,9 @@ class DispositivoDiagnosticoControllerTest @Autowired constructor(
                 uptimeS = 7200,
                 firmware = "2.0.1",
                 versaoAgendamentos = 3,
-                ultimoVisto = Instant.parse("2026-11-09T12:00:00Z")
+                ultimoVisto = Instant.parse("2026-11-09T12:00:00Z"),
+                ultimoReset = "RESET_WATCHDOG",
+                resetsAnormais = 2
             )
         )
         vincular(proprietario, dispositivo, PapelDispositivo.PROPRIETARIO)
@@ -91,6 +93,8 @@ class DispositivoDiagnosticoControllerTest @Autowired constructor(
             .andExpect(jsonPath("$.uptimeS").value(7200))
             .andExpect(jsonPath("$.versaoAgendamentos").value(3))
             .andExpect(jsonPath("$.estadoRele").value(nullValue()))
+            .andExpect(jsonPath("$.ultimoReset").value("RESET_WATCHDOG"))
+            .andExpect(jsonPath("$.resetsAnormais").value(2))
             .andExpect(jsonPath("$.errosRecentes[0].eventoId").value("evt-erro-diag"))
             .andExpect(jsonPath("$.errosRecentes[0].detalheErro").value("falha no aquecimento"))
     }
