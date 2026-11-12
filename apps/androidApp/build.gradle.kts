@@ -29,11 +29,17 @@ val backendBaseUrl: String = (project.findProperty("backendBaseUrl") as String?)
 val backendHost: String = URI(backendBaseUrl).host ?: "cafey-backend.duckdns.org"
 
 // Configuração opcional do Firebase (push Android, #364). Sem valores, o build segue e o push fica desligado.
+// Aspas ao redor do valor (`chave="AIza..."`) são comuns ao copiar do console e, num .properties,
+// viram parte do valor: removidas aqui para não quebrar o buildConfigField nem o FirebaseOptions.
 fun firebaseConfig(propKey: String, envKey: String): String =
-    (project.findProperty(propKey) as String?)
+    ((project.findProperty(propKey) as String?)
         ?: System.getenv(envKey)
         ?: localProperties.getProperty(propKey)
-        ?: ""
+        ?: "")
+        .trim()
+        .removeSurrounding("\"")
+        .removeSurrounding("'")
+        .trim()
 
 val firebaseApiKey: String = firebaseConfig("cafey.firebase.apiKey", "CAFEY_FIREBASE_API_KEY")
 val firebaseAppId: String = firebaseConfig("cafey.firebase.appId", "CAFEY_FIREBASE_APP_ID")
