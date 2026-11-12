@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
 
     private fun tratarIntentDeNotificacao(intent: Intent?) {
         val dispositivoId = intent?.getStringExtra(CafeyPush.EXTRA_DISPOSITIVO_ID)
+            ?: intent?.getStringExtra("dispositivoId")
         if (!dispositivoId.isNullOrBlank()) {
             PushNavigationTarget.setPendingDeviceId(dispositivoId)
         }

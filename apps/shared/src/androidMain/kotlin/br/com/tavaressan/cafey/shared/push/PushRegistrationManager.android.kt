@@ -14,6 +14,7 @@ private class AndroidPushRegistrationManager(
 
     override suspend fun registrarSePossivel() {
         if (!apiClient.isAuthenticated()) return
+        if (!AndroidPushPlatform.isConfigured()) return
         val context = try {
             AndroidPlatformContext.require()
         } catch (e: Exception) {

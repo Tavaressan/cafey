@@ -1,11 +1,11 @@
 package br.com.tavaressan.cafey.android.push
 
 import android.util.Log
+import br.com.tavaressan.cafey.android.BuildConfig
 import br.com.tavaressan.cafey.shared.auth.AndroidPlatformContext
 import br.com.tavaressan.cafey.shared.auth.createTokenStorage
 import br.com.tavaressan.cafey.shared.network.ApiClient
 import br.com.tavaressan.cafey.shared.network.PushApi
-import br.com.tavaressan.cafey.shared.network.platformDefaultBaseUrl
 import br.com.tavaressan.cafey.shared.push.AndroidPushPlatform
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -29,7 +29,7 @@ class CafeyFirebaseMessagingService : FirebaseMessagingService() {
                 val tokenStorage = createTokenStorage()
                 val stored = tokenStorage.load() ?: return@launch
                 if (stored.accessToken.isBlank()) return@launch
-                val apiClient = ApiClient(platformDefaultBaseUrl, tokenStorage)
+                val apiClient = ApiClient(BuildConfig.BACKEND_BASE_URL, tokenStorage)
                 val pushApi = PushApi(apiClient)
                 pushApi.registrarAndroid(token)
             } catch (e: Exception) {
