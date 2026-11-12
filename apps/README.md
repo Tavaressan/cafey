@@ -76,7 +76,7 @@ O app Web usa Web Push padrão (VAPID), **sem Firebase**:
 
 - Service worker: `apps/webApp/src/wasmJsMain/resources/sw.js` (copiado para a raiz do bundle como `/sw.js`).
 - Manifest PWA: `apps/webApp/src/wasmJsMain/resources/manifest.webmanifest`.
-- `apps/webApp/vercel.json` define cabeçalhos para `/sw.js` (`Cache-Control: no-cache, no-store, must-revalidate` e `Service-Worker-Allowed: /`) para garantir atualização correta e escopo na raiz.
+- `apps/webApp/src/wasmJsMain/resources/vercel.json` (copiado para a raiz do bundle de produção) define cabeçalhos para `/sw.js` (`Cache-Control: no-cache, no-store, must-revalidate` e `Service-Worker-Allowed: /`) para garantir atualização correta e escopo na raiz.
 - A ativação é feita por gesto do usuário no botão **"Ativar notificações"** na tela **Conta** (permissão solicitada apenas no clique). A chave pública VAPID é obtida de `GET /notificacoes/vapid-public-key`; se o servidor responder `503`, o recurso é considerado indisponível e o botão fica oculto.
 - Estados exibidos: ativadas, negadas (com instrução para reativar nas configurações do navegador) ou não suportado.
 - **Limitação Safari/iOS:** no Safari (iPhone/iPad), notificações Web Push só funcionam quando o app é instalado como PWA (Adicionar à Tela de Início). Em abas comuns do Safari/iOS, o recurso pode aparecer como não suportado.
