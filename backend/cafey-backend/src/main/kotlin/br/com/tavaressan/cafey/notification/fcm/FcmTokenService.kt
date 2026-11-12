@@ -37,13 +37,15 @@ internal class FcmTokenService(
     private var cachedToken: String? = null
     private var expiresAt: Instant = Instant.EPOCH
 
-    private val privateKey by lazy {
-        val pem = credenciais.privateKey
+    private val privateKey = parsePrivateKey(credenciais.privateKey)
+
+    private fun parsePrivateKey(pemValue: String): java.security.PrivateKey {
+        val pem = pemValue
             .replace("-----BEGIN PRIVATE KEY-----", "")
             .replace("-----END PRIVATE KEY-----", "")
             .replace("\\s".toRegex(), "")
         val bytes = Base64.getDecoder().decode(pem)
-        KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(bytes))
+        return KeyFactory.getInstance("RSA").generatePrivate(PKCS8EncodedKeySpec(bytes))
     }
 
     fun obterToken(): String = lock.withLock {

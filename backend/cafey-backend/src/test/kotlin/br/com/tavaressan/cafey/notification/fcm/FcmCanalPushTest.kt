@@ -347,6 +347,28 @@ class FcmCanalPushTest {
         }
     }
 
+    @Test
+    fun `private_key invalida desliga canal sem lancar excecao`() {
+        val tmpFile = Files.createTempFile("fcm-bad-key-", ".json")
+        try {
+            val serviceAccountJson = mapper.writeValueAsString(
+                mapOf(
+                    "project_id" to "test-project",
+                    "client_email" to "test@test-project.iam.gserviceaccount.com",
+                    "private_key" to "-----BEGIN PRIVATE KEY-----\nINVALIDO\n-----END PRIVATE KEY-----",
+                    "token_uri" to "http://localhost:${server.address.port}/token"
+                )
+            )
+            Files.writeString(tmpFile, serviceAccountJson)
+            val props = NotificacaoProperties(fcmCredenciaisPath = tmpFile.toString())
+            val httpClient = HttpClient.newBuilder().build()
+            val canal = FcmCanalPush(props, httpClient, mapper)
+            assertFalse(canal.habilitado, "private_key inválida deve desligar o canal")
+        } finally {
+            Files.deleteIfExists(tmpFile)
+        }
+    }
+
     // ─── Utilitários ──────────────────────────────────────────────────────────
 
     private fun mensagemTeste() = MensagemPush(
