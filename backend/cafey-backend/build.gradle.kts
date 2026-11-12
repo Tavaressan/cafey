@@ -65,6 +65,11 @@ allOpen {
 	annotation("jakarta.persistence.Embeddable")
 }
 
+// O GeradorChavesVapid (#363) também tem `main`: sem isto o bootJar não sabe qual classe iniciar.
+springBoot {
+	mainClass = "br.com.tavaressan.cafey.CafeyBackendApplicationKt"
+}
+
 tasks.withType<Test> {
 	useJUnitPlatform()
 }
