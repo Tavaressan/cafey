@@ -480,7 +480,7 @@ class DispositivoServiceTest {
         assertEquals(3600L, res.uptimeS)
         assertEquals("1.2.3", res.firmware)
         assertEquals("DESLIGADO", res.estado)
-        assertNull(res.estadoRele)
+        assertEquals("DESLIGADO", res.estadoRele)
         assertEquals(1, res.errosRecentes.size)
         assertEquals("boiler timeout", res.errosRecentes[0].detalheErro)
     }

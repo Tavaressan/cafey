@@ -5,7 +5,6 @@ import br.com.tavaressan.cafey.event.EventoPreparoRepository
 import br.com.tavaressan.cafey.security.JwtTokenService
 import br.com.tavaressan.cafey.user.Usuario
 import br.com.tavaressan.cafey.user.UsuarioRepository
-import org.hamcrest.Matchers.nullValue
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -92,7 +91,7 @@ class DispositivoDiagnosticoControllerTest @Autowired constructor(
             .andExpect(jsonPath("$.firmware").value("2.0.1"))
             .andExpect(jsonPath("$.uptimeS").value(7200))
             .andExpect(jsonPath("$.versaoAgendamentos").value(3))
-            .andExpect(jsonPath("$.estadoRele").value(nullValue()))
+            .andExpect(jsonPath("$.estadoRele").value("LIGADO"))
             .andExpect(jsonPath("$.ultimoReset").value("RESET_WATCHDOG"))
             .andExpect(jsonPath("$.resetsAnormais").value(2))
             .andExpect(jsonPath("$.errosRecentes[0].eventoId").value("evt-erro-diag"))

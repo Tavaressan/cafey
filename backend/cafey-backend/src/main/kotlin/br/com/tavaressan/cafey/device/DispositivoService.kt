@@ -242,7 +242,7 @@ class DispositivoService(
             firmware = dispositivo.firmware,
             uptimeS = dispositivo.uptimeS,
             versaoAgendamentos = dispositivo.versaoAgendamentos,
-            estadoRele = null,
+            estadoRele = estadoReleDerivado(dispositivo.estado),
             ultimoReset = dispositivo.ultimoReset,
             resetsAnormais = dispositivo.resetsAnormais,
             errosRecentes = erros,

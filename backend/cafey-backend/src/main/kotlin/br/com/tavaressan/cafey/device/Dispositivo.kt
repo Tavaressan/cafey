@@ -73,3 +73,14 @@ class Dispositivo(
     @Column(name = "atualizado_em", nullable = false)
     var atualizadoEm: Instant = Instant.now()
 )
+
+/** Estados publicados pela placa em que a caldeira (relé) está energizada. */
+fun estadoIndicaPreparo(estado: String): Boolean =
+    estado.trim().uppercase() in setOf("PREPARANDO", "LIGADO", "BREWING")
+
+/**
+ * Estado do relé derivado do estado do módulo: a placa ainda não publica o relé de forma
+ * independente, e o relé fica ligado exatamente enquanto o módulo prepara café.
+ */
+fun estadoReleDerivado(estado: String): String =
+    if (estadoIndicaPreparo(estado)) "LIGADO" else "DESLIGADO"

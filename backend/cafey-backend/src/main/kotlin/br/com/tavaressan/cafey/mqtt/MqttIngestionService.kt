@@ -1,6 +1,7 @@
 package br.com.tavaressan.cafey.mqtt
 
 import br.com.tavaressan.cafey.device.DispositivoRepository
+import br.com.tavaressan.cafey.device.estadoIndicaPreparo
 import br.com.tavaressan.cafey.event.EventoService
 import br.com.tavaressan.cafey.event.IngestaoEventoRequest
 import br.com.tavaressan.cafey.notification.DispositivoOfflineEvent
@@ -37,10 +38,10 @@ class MqttIngestionService(
         }
 
         val agora = Instant.now()
-        val estavaPreparando = isBrewingState(dispositivo.estado)
+        val estavaPreparando = estadoIndicaPreparo(dispositivo.estado)
         dispositivo.estado = payload.estado
         dispositivo.ultimoVisto = payload.desde ?: agora
-        dispositivo.preparoIniciadoEm = if (isBrewingState(payload.estado)) {
+        dispositivo.preparoIniciadoEm = if (estadoIndicaPreparo(payload.estado)) {
             payload.desde ?: dispositivo.preparoIniciadoEm ?: agora
         } else {
             null
@@ -51,13 +52,10 @@ class MqttIngestionService(
         logger.info("Estado do dispositivo {} atualizado para {}", dispositivoId, payload.estado)
 
         // Só a transição avisa: o estado retido é republicado a cada reconexão da base (#361).
-        if (!estavaPreparando && isBrewingState(payload.estado)) {
+        if (!estavaPreparando && estadoIndicaPreparo(payload.estado)) {
             eventPublisher.publishEvent(PreparoIniciadoEvent(dispositivoId))
         }
     }
-
-    private fun isBrewingState(estado: String): Boolean =
-        estado.trim().uppercase() in setOf("PREPARANDO", "LIGADO", "BREWING")
 
     @Transactional
     fun processarSaude(dispositivoId: UUID, payload: SaudePayload) {

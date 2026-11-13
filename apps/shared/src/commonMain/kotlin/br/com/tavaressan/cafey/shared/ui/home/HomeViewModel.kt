@@ -100,6 +100,8 @@ class HomeViewModel(
     private val refreshMutex = Mutex()
     private val statsCache = mutableMapOf<String, Pair<Long, Int>>()
     private var selectedDeviceId: String? = null
+    /** Mensagem do último erro vindo da sondagem (e não de um comando), para limpá-la quando passar. */
+    private var erroDaSondagem: String? = null
 
     private val fallback: BleCommandFallback? =
         if (bleClient != null && bleClient.isSupported) {
@@ -164,8 +166,17 @@ class HomeViewModel(
                 if (obsolete) {
                     return@withLock
                 }
+                val erroSondagemAnterior = erroDaSondagem
+                erroDaSondagem = null
                 _uiState.update { current ->
-                    val errorParaManter = if (current.device == null) null else current.errorMessage
+                    // Erro de comando (ex.: BLE) é mantido entre sondagens; já o erro da própria
+                    // sondagem some assim que ela volta a funcionar, senão o aviso de "falha de
+                    // conexão" ficaria preso na tela com o servidor já respondendo.
+                    val errorParaManter = when {
+                        current.device == null -> null
+                        current.errorMessage != null && current.errorMessage == erroSondagemAnterior -> null
+                        else -> current.errorMessage
+                    }
                     current.copy(
                         loading = false,
                         device = device,
@@ -178,6 +189,7 @@ class HomeViewModel(
                 }
             }
         } catch (e: ApiError) {
+            erroDaSondagem = e.message
             _uiState.update { it.copy(loading = false, errorMessage = e.message) }
         }
     }
