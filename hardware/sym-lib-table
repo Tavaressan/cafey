@@ -2,4 +2,5 @@
   (version 7)
   (lib (name "esp32_30pin")(type "KiCad")(uri "${KIPRJMOD}/libraries/esp32_30pin.kicad_sym")(options "")(descr ""))
   (lib (name "relay_module")(type "KiCad")(uri "${KIPRJMOD}/libraries/relay_module.kicad_sym")(options "")(descr "Modulo rele 1 canal - simbolo unico do projeto"))
+  (lib (name "cafey")(type "KiCad")(uri "${KIPRJMOD}/libraries/cafey.kicad_sym")(options "")(descr "Simbolos da revisao B: SSR, fonte A1385, disjuntor, botao RGB (#304)"))
 )

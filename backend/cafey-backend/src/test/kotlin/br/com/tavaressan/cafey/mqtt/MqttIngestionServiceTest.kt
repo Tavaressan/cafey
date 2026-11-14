@@ -152,6 +152,78 @@ class MqttIngestionServiceTest {
     }
 
     @Test
+    fun `should persist dht11 reading from saude payload`() {
+        val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira")
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarSaude(
+            dispositivoId,
+            SaudePayload(online = true, temperaturaC = 24.5, umidade = 55)
+        )
+
+        assertEquals(24.5, disp.temperaturaC)
+        assertEquals(55, disp.umidade)
+        assertNotNull(disp.ambienteAtualizadoEm)
+    }
+
+    @Test
+    fun `should clear dht11 reading when online saude omits it`() {
+        val disp = Dispositivo(
+            id = dispositivoId,
+            nome = "Cafeteira",
+            temperaturaC = 24.5,
+            umidade = 55,
+            ambienteAtualizadoEm = Instant.parse("2026-11-13T10:00:00Z")
+        )
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarSaude(dispositivoId, SaudePayload(online = true))
+
+        assertNull(disp.temperaturaC)
+        assertNull(disp.umidade)
+        assertNull(disp.ambienteAtualizadoEm)
+    }
+
+    @Test
+    fun `should keep last dht11 reading when device goes offline`() {
+        val lida = Instant.parse("2026-11-13T10:00:00Z")
+        val disp = Dispositivo(
+            id = dispositivoId,
+            nome = "Cafeteira",
+            online = true,
+            temperaturaC = 24.5,
+            umidade = 55,
+            ambienteAtualizadoEm = lida
+        )
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarSaude(dispositivoId, SaudePayload(online = false))
+
+        assertEquals(24.5, disp.temperaturaC)
+        assertEquals(55, disp.umidade)
+        assertEquals(lida, disp.ambienteAtualizadoEm)
+    }
+
+    @Test
+    fun `should discard impossible dht11 values`() {
+        val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira")
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarSaude(
+            dispositivoId,
+            SaudePayload(online = true, temperaturaC = 400.0, umidade = 180)
+        )
+
+        assertNull(disp.temperaturaC)
+        assertNull(disp.umidade)
+        assertNull(disp.ambienteAtualizadoEm)
+    }
+
+    @Test
     fun `should accept unknown ultimoReset as text`() {
         val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira")
         `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))

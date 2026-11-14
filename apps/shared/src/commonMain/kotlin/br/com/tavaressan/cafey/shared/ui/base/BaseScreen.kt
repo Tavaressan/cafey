@@ -23,6 +23,9 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlinx.datetime.TimeZone
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -246,6 +249,9 @@ private fun DiagnosticoCard(diagnostico: DiagnosticoDispositivoResponse?, restri
             .padding(18.dp),
     ) {
         Text("Diagnóstico do módulo", style = CafeyTheme.typography.cardTitle, color = CafeyTheme.colors.ink)
+        @OptIn(ExperimentalTime::class)
+        val agoraMs = Clock.System.now().toEpochMilliseconds()
+        val fuso = TimeZone.currentSystemDefault()
         if (diagnostico == null) {
             val msg = if (restrito) "Indisponível no momento." else "Carregando diagnóstico..."
             Text(
@@ -259,7 +265,7 @@ private fun DiagnosticoCard(diagnostico: DiagnosticoDispositivoResponse?, restri
 
         if (!diagnostico.online) {
             Text(
-                "Base offline — últimos valores conhecidos em ${diagnostico.ultimoVisto ?: "indisponível"}.",
+                "Base offline — últimos valores conhecidos: ${textoUltimaComunicacao(diagnostico.ultimoVisto, agoraMs, fuso, "indisponível")}.",
                 style = CafeyTheme.typography.bodySmall,
                 color = CafeyTheme.colors.brandDeep,
                 modifier = Modifier.padding(top = 8.dp),
@@ -268,11 +274,19 @@ private fun DiagnosticoCard(diagnostico: DiagnosticoDispositivoResponse?, restri
 
         DiagnosticoItem("Conexão Wi-Fi (RSSI)", diagnostico.rssi?.let { "$it dBm" } ?: "Indisponível")
         DiagnosticoItem("Conexão com a nuvem", if (diagnostico.online) "Online" else "Offline")
-        DiagnosticoItem("Última comunicação", diagnostico.ultimoVisto ?: "Indisponível")
+        DiagnosticoItem("Última comunicação", textoUltimaComunicacao(diagnostico.ultimoVisto, agoraMs, fuso))
         DiagnosticoItem("Estado do módulo", diagnostico.estado.ifBlank { "Indisponível" })
-        DiagnosticoItem("Estado do relé", diagnostico.estadoRele ?: "Indisponível")
+        DiagnosticoItem("Estado do relé", textoEstadoRele(diagnostico.estadoRele))
         DiagnosticoItem("Versão do firmware", diagnostico.firmware ?: "Indisponível")
         DiagnosticoItem("Tempo ligado (uptime)", diagnostico.uptimeS?.let { "${it}s" } ?: "Indisponível")
+        DiagnosticoItem("Temperatura do módulo", textoTemperatura(diagnostico.temperaturaC))
+        DiagnosticoItem("Umidade do módulo", textoUmidade(diagnostico.umidade))
+        if (diagnostico.temperaturaC != null || diagnostico.umidade != null) {
+            DiagnosticoItem(
+                "Leitura do sensor",
+                textoUltimaComunicacao(diagnostico.ambienteAtualizadoEm, agoraMs, fuso),
+            )
+        }
         diagnostico.ultimoReset?.let {
             DiagnosticoItem("Último reinício", textoUltimoReinicio(it))
         }

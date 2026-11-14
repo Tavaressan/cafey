@@ -46,6 +46,13 @@ public:
     static constexpr uint32_t kLongPressMs = 5000;
     static constexpr uint32_t kBindWindowS = 120;
 
+    // Polaridade do acionamento da carga. BANCADA: modulo de rele HL-52S, nivel
+    // BAIXO liga, com R1 10k como PULL-UP para +3V3. Para o SSR Fotek SSR-40DA
+    // (HW-27, #305) trocar para `High` e R1 para pull-down. Polaridade e resistor
+    // trocados ligam a carga no boot.
+    static constexpr drivers::Relay::ActiveLevel kRelayActiveLevel =
+        drivers::Relay::ActiveLevel::Low;
+
     explicit Cafeteira(gpio_num_t relay_pin = GPIO_NUM_26,
                        gpio_num_t button_pin = GPIO_NUM_27,
                        gpio_num_t led_r = GPIO_NUM_21,

@@ -23,6 +23,9 @@ enum class MessageType : uint8_t {
     MqttDisconnected,
     EstadoChanged, // arg: 1 = preparando, 0 = desligada (FW-21)
     EventQueued,   // novo evento enfileirado no storage (FW-22)
+    // Ambiente (DHT11)
+    AmbienteLido,         // arg: temperatura em decimos de C, arg2: umidade %
+    AmbienteIndisponivel, // sensor falhou kFailuresToFault vezes seguidas
     // Agendador
     TimeSynced,
     ScheduleFired,

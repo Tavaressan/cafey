@@ -13,7 +13,10 @@ data class SaudePayload(
     val uptimeS: Long? = null,
     val rssi: Int? = null,
     val ultimoReset: String? = null,
-    val resetsAnormais: Int? = null
+    val resetsAnormais: Int? = null,
+    /** DHT11: temperatura em °C (uma casa) e umidade relativa em %. Ausentes com o sensor indisponível. */
+    val temperaturaC: Double? = null,
+    val umidade: Int? = null
 )
 
 data class ComandoPayload(

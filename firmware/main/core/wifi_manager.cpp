@@ -216,8 +216,29 @@ void WifiManager::handle_disconnected(uint8_t reason) {
 
     state_ = WifiState::RECONNECTING;
     const bool is_auth = is_auth_reason(reason);
-    if (on_disconnected_reason_) on_disconnected_reason_(is_auth);
-    if (on_disconnected_) on_disconnected_();
+
+    // Provisionamento em curso: o usuario espera o resultado do candidato, entao a
+    // falha e sinalizada na hora. Sem candidato, uma rede que falha nao e motivo
+    // para avisar: as outras redes conhecidas sao tentadas primeiro, e so a rodada
+    // inteira sem sucesso e sinalizada (uma vez por queda).
+    bool signal = true;
+    bool round_done = true;
+    if (!has_pending_) {
+        const auto outcome = round_.on_failure(credentials_.count());
+        signal = outcome.signal;
+        round_done = outcome.round_done;
+        if (!round_done) {
+            ESP_LOGW(TAG, "Falha ao conectar em '%s' (motivo %u); tentando a proxima rede salva",
+                     connect_ssid_.c_str(), static_cast<unsigned>(reason));
+        } else if (signal) {
+            ESP_LOGW(TAG, "Nenhuma das %u rede(s) salva(s) conectou",
+                     static_cast<unsigned>(credentials_.count()));
+        }
+    }
+    if (signal) {
+        if (on_disconnected_reason_) on_disconnected_reason_(is_auth);
+        if (on_disconnected_) on_disconnected_();
+    }
 
     if (is_auth && has_pending_) {
         // Senha errada no provisionamento pendente: descarta o candidato (nunca
@@ -234,13 +255,14 @@ void WifiManager::handle_disconnected(uint8_t reason) {
         policy_.reset();
     }
 
-    schedule_reconnect();
+    schedule_reconnect(round_done);
 }
 
 void WifiManager::handle_got_ip(const std::string& ip) {
     state_ = WifiState::CONNECTED;
     ip_ = ip;
     policy_.reset();
+    round_.on_connected();
     connect_index_ = 0;
     stop_provision_timer();
 
@@ -361,10 +383,15 @@ void WifiManager::try_reconnect() {
     (void)try_connect_known(connect_index_);
 }
 
-void WifiManager::schedule_reconnect() {
-    uint32_t delay_ms = policy_.next_delay_ms();
-    ESP_LOGW(TAG, "Wi-Fi desconectado; nova tentativa em %u ms (tentativa #%u)",
-             static_cast<unsigned>(delay_ms), static_cast<unsigned>(policy_.attempts()));
+void WifiManager::schedule_reconnect(bool round_done) {
+    // Entre redes da mesma rodada so se espera a troca de AP; o backoff
+    // exponencial vale entre rodadas completas.
+    const uint32_t delay_ms =
+        round_done ? policy_.next_delay_ms() : WifiRoundTracker::kInterNetworkDelayMs;
+    if (round_done) {
+        ESP_LOGW(TAG, "Wi-Fi desconectado; nova rodada em %u ms (tentativa #%u)",
+                 static_cast<unsigned>(delay_ms), static_cast<unsigned>(policy_.attempts()));
+    }
 
     if (reconnect_timer_ == nullptr) {
         esp_timer_create_args_t timer_args = {};

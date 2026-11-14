@@ -27,6 +27,25 @@ add_executable(test_rgb_led
 )
 add_test(NAME RgbLedDriverTest COMMAND test_rgb_led)
 
+add_executable(test_dht11
+    test_dht11.cpp
+    ../main/drivers/dht11.cpp
+)
+add_test(NAME Dht11DriverTest COMMAND test_dht11)
+
+add_executable(test_ambiente
+    test_ambiente.cpp
+    ../main/core/active_object.cpp
+    ../main/app/ambiente.cpp
+    ../main/drivers/dht11.cpp
+)
+add_test(NAME AmbienteTest COMMAND test_ambiente)
+
+add_executable(test_wifi_round_tracker
+    test_wifi_round_tracker.cpp
+)
+add_test(NAME WifiRoundTrackerTest COMMAND test_wifi_round_tracker)
+
 add_executable(test_active_object
     test_active_object.cpp
     ../main/core/active_object.cpp

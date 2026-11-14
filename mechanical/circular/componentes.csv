@@ -5,6 +5,8 @@ nome,zona,apoio,dx,dy,dz,x,y,z,fonte
 # --- baixa tensao (frente, y < divisoria) ---
 placa_base,baixa,fundo,70,50,1.6,-65,-95,5,placa ilhada 5x7 cm (M3) correndo nas ranhuras do berco; soquetes femea (M4) para o DevKit
 esp32,baixa,placa,52,29,24,-60,-85,6.6,DevKit V1 ~52x29x13 + soquetes femea ~8.5 + folga; antena em x min (longe do SSR); micro-USB em x max
+placa_driver,baixa,fundo,45,28,18,50,-74,5,placa ilhada ~3x5 cm com 3 MOSFETs IRLZ44N (TO-220, ~16.5 mm) + 6 resistores: driver do anel RGB de 12 V (esq. rev B+)
+boost_mt3608,baixa,fundo,37,18,16,10,-60,5,modulo boost MT3608 ~36.5 x 17 x 14 + trimpot: 5 V -> 12 V so para o anel RGB; saida em rabicho ate o botao
 esp32_usb,baixa,livre,25,14,12,-8,-78,10,plugue micro-USB + curva do cabo que vem da A1385 pela travessia
 # --- rede (tras, y > divisoria + folga) ---
 ssr_dissipador,rede,fundo,80,65,50,-85,10,4,PROVISORIO: SSR 63x45x23 (medido 09/11) + dissipador NAO medido; envelope chutado (#305)

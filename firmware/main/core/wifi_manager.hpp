@@ -6,6 +6,7 @@
 #include <string>
 
 #include "reconnect_policy.hpp"
+#include "wifi_round_tracker.hpp"
 #include "wifi_credentials.hpp"
 
 #if defined(ESP_PLATFORM)
@@ -118,11 +119,12 @@ private:
     esp_err_t apply_sta_config(const std::string& ssid, const std::string& password);
     esp_err_t apply_and_connect(const std::string& ssid, const std::string& password);
     esp_err_t try_connect_known(size_t start_index);
-    void schedule_reconnect();
+    void schedule_reconnect(bool round_done);
     void stop_provision_timer();
     static bool is_auth_reason(uint8_t reason);
 
     ReconnectPolicy policy_;
+    WifiRoundTracker round_;
     WifiCredentialsStore credentials_;
     WifiState state_ = WifiState::NOT_PROVISIONED;
     std::string ip_;
