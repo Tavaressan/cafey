@@ -16,6 +16,8 @@ Fatia atual: **I/O local, Driver do Relé (com proteção anti-glitch no boot), 
 | Buzzer (J5) | 25 | Estágio de acionamento a definir (#311) | Reservado; ainda não usado pelo firmware |
 | Sensor de temperatura do SSR | 33 | Opcional (#323) | Reservado; ainda não usado pelo firmware |
 
+> **Bancada (13/11/2026):** `Cafeteira::kRelayActiveLevel = Low` para o módulo HL-52S (LOW liga, R1 10 kΩ **pull-up** para +3V3). Para o SSR-40DA da montagem final, trocar para `High` e R1 para pull-down; a tabela de pinagem abaixo descreve o SSR.
+
 Fonte única da pinagem: seção 3 de [`hardware/README.md`](../hardware/README.md). O botão RGB (#308) substitui o LED RGB discreto e o botão M1: contato no GPIO27 e anel nos GPIO21/22/23. O anel é de ânodo comum em 12 V, acionado por MOSFETs IRLZ44N no lado baixo (gate = GPIO via 220 Ω, pull-down de 10 kΩ): nível ALTO acende, então o driver segue com `common_anode = false`. O DHT11 está no GPIO33. O GPIO19 da placa de desenvolvimento em uso está com defeito e o projeto não o usa.
 
 ## Estados do LED RGB (Spec §5.3)
