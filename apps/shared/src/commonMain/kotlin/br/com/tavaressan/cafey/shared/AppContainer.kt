@@ -12,11 +12,17 @@ import br.com.tavaressan.cafey.shared.network.EventApi
 import br.com.tavaressan.cafey.shared.network.ScheduleApi
 import br.com.tavaressan.cafey.shared.network.createDemoHttpClient
 import br.com.tavaressan.cafey.shared.network.platformDefaultBaseUrl
+import br.com.tavaressan.cafey.shared.notifications.DesktopNotificationDetector
+import br.com.tavaressan.cafey.shared.notifications.DesktopNotificationEvent
 import br.com.tavaressan.cafey.shared.preferences.OnboardingPreference
 import br.com.tavaressan.cafey.shared.preferences.createOnboardingPreferenceStorage
 import br.com.tavaressan.cafey.shared.preferences.ThemePreference
 import br.com.tavaressan.cafey.shared.preferences.createThemePreferenceStorage
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 /**
  * Composição manual de dependências da camada `shared` — sem framework de DI, é pequeno o
@@ -30,6 +36,8 @@ class AppContainer(
     customApiClient: ApiClient? = null,
     customTokenStorage: TokenStorage? = null,
     customBleClient: BleClient? = null,
+    /** Habilita detecção/notificações locais do desktop (opt-in; evita polling extra em outras plataformas). */
+    desktopNotificationsEnabled: Boolean = false,
 ) {
     val tokenStorage: TokenStorage = customTokenStorage ?: createTokenStorage()
     val apiClient: ApiClient = customApiClient ?: if (isDemoMode) {
@@ -61,6 +69,19 @@ class AppContainer(
     // Issue #282 — Suporte a múltiplos dispositivos com seletor no cabeçalho/navegação
     val activeDeviceId: MutableStateFlow<String?> = MutableStateFlow(null)
 
+    // #366 — notificações locais do desktop alimentadas pelo polling do HomeViewModel (opt-in)
+    val desktopNotificationDetector: DesktopNotificationDetector? =
+        if (desktopNotificationsEnabled) DesktopNotificationDetector() else null
+    private val _desktopNotifications = MutableSharedFlow<DesktopNotificationEvent>(
+        extraBufferCapacity = 16,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val desktopNotifications: SharedFlow<DesktopNotificationEvent> = _desktopNotifications.asSharedFlow()
+
+    fun emitDesktopNotification(event: DesktopNotificationEvent) {
+        _desktopNotifications.tryEmit(event)
+    }
+
     fun selectDevice(id: String?) {
         activeDeviceId.value = id
     }
@@ -70,12 +91,14 @@ class AppContainer(
             baseUrl: String = "https://demo.cafey.local",
             tokenStorage: TokenStorage? = null,
             bleClient: BleClient? = null,
+            desktopNotificationsEnabled: Boolean = false,
         ): AppContainer =
             AppContainer(
                 baseUrl = baseUrl,
                 isDemoMode = true,
                 customTokenStorage = tokenStorage,
                 customBleClient = bleClient,
+                desktopNotificationsEnabled = desktopNotificationsEnabled,
             )
     }
 }

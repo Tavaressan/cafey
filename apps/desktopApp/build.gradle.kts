@@ -17,6 +17,11 @@ dependencies {
     implementation(project(":shared"))
     implementation(compose.desktop.currentOs)
     implementation(libs.ktor.client.cio)
+    testImplementation(libs.kotlin.test)
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 compose.desktop {

@@ -40,6 +40,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import br.com.tavaressan.cafey.shared.LocalAppContainer
+import br.com.tavaressan.cafey.shared.auth.jwtSubject
 import br.com.tavaressan.cafey.shared.domain.model.DeviceState
 import br.com.tavaressan.cafey.shared.domain.model.ProximoPreparo
 import br.com.tavaressan.cafey.shared.ui.LocalNavShellSizeClass
@@ -66,11 +67,15 @@ fun HomeScreen(onGoToDeviceRegister: () -> Unit = {}) {
         factory = viewModelFactory {
             initializer {
                 HomeViewModel(
-                    container.deviceApi,
-                    container.commandApi,
-                    container.scheduleApi,
-                    container.eventApi,
-                    container.bleClient,
+                    deviceApi = container.deviceApi,
+                    commandApi = container.commandApi,
+                    scheduleApi = container.scheduleApi,
+                    eventApi = container.eventApi,
+                    bleClient = container.bleClient,
+                    activeDeviceId = container.activeDeviceId,
+                    notificationDetector = container.desktopNotificationDetector,
+                    onDesktopNotification = container.desktopNotificationDetector?.let { { event -> container.emitDesktopNotification(event) } },
+                    notificationAccountKeyProvider = { jwtSubject(container.tokenStorage.load()?.accessToken) ?: container.tokenStorage.load()?.accessToken },
                 )
             }
         },

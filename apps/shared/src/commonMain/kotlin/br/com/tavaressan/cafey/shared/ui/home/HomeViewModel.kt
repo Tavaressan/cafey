@@ -17,6 +17,10 @@ import br.com.tavaressan.cafey.shared.network.CommandApi
 import br.com.tavaressan.cafey.shared.network.DeviceApi
 import br.com.tavaressan.cafey.shared.network.EventApi
 import br.com.tavaressan.cafey.shared.network.ScheduleApi
+import br.com.tavaressan.cafey.shared.notifications.DesktopNotificationDetector
+import br.com.tavaressan.cafey.shared.notifications.DesktopNotificationEvent
+import br.com.tavaressan.cafey.shared.notifications.DeviceSnapshot
+import br.com.tavaressan.cafey.shared.notifications.NotificationPollSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -84,6 +88,9 @@ class HomeViewModel(
     private val activeDeviceId: MutableStateFlow<String?>? = null,
     coroutineScope: kotlinx.coroutines.CoroutineScope? = null,
     private val nowProvider: () -> Long = { Clock.System.now().toEpochMilliseconds() },
+    private val notificationDetector: DesktopNotificationDetector? = null,
+    private val onDesktopNotification: ((DesktopNotificationEvent) -> Unit)? = null,
+    private val notificationAccountKeyProvider: (suspend () -> String?)? = null,
 ) : ViewModel() {
     constructor(
         deviceApi: DeviceApi,
@@ -92,7 +99,19 @@ class HomeViewModel(
         eventApi: EventApi,
         bleClient: BleClient?,
         coroutineScope: kotlinx.coroutines.CoroutineScope?,
-    ) : this(deviceApi, commandApi, scheduleApi, eventApi, bleClient, null, coroutineScope)
+    ) : this(
+        deviceApi = deviceApi,
+        commandApi = commandApi,
+        scheduleApi = scheduleApi,
+        eventApi = eventApi,
+        bleClient = bleClient,
+        activeDeviceId = null,
+        coroutineScope = coroutineScope,
+        nowProvider = { Clock.System.now().toEpochMilliseconds() },
+        notificationDetector = null,
+        onDesktopNotification = null,
+        notificationAccountKeyProvider = null,
+    )
 
     private val scope = coroutineScope ?: viewModelScope
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -176,9 +195,50 @@ class HomeViewModel(
                         isOffline = isOffline,
                     )
                 }
+                detectarNotificacoes(devices = devices, selectedDevice = device)
             }
         } catch (e: ApiError) {
             _uiState.update { it.copy(loading = false, errorMessage = e.message) }
+        }
+    }
+
+    private suspend fun detectarNotificacoes(
+        devices: List<DispositivoResponse>,
+        selectedDevice: DispositivoResponse?,
+    ) {
+        val detector = notificationDetector ?: return
+        val emit = onDesktopNotification ?: return
+        val accountKey = try {
+            notificationAccountKeyProvider?.invoke()
+        } catch (_: Exception) {
+            null
+        }
+        val recentEventosByDevice = if (selectedDevice != null) {
+            try {
+                mapOf(selectedDevice.id to eventApi.listarEventos(selectedDevice.id, page = 0, size = 5).content)
+            } catch (_: ApiError) {
+                emptyMap()
+            }
+        } else {
+            emptyMap()
+        }
+        val snapshots = devices.map {
+            DeviceSnapshot(
+                id = it.id,
+                nome = it.nome,
+                online = it.online,
+                state = DeviceState.from(it.estado),
+            )
+        }
+        val events = detector.onPoll(
+            NotificationPollSnapshot(
+                accountKey = accountKey,
+                devices = snapshots,
+                recentEventosByDevice = recentEventosByDevice,
+            ),
+        )
+        for (event in events) {
+            emit(event)
         }
     }
 
