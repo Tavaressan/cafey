@@ -1,5 +1,7 @@
 #include "active_object.hpp"
 
+#include "task_wdt.hpp"
+
 namespace cafey::core {
 
 ActiveObject::ActiveObject(const char* name, uint32_t queue_length,
@@ -9,7 +11,9 @@ ActiveObject::ActiveObject(const char* name, uint32_t queue_length,
       queue_length_(queue_length),
       stack_size_(stack_size),
       priority_(priority),
-      tick_ticks_(tick_period_ms ? pdMS_TO_TICKS(tick_period_ms) : portMAX_DELAY) {}
+      tick_ticks_(tick_period_ms ? pdMS_TO_TICKS(tick_period_ms)
+                                 : pdMS_TO_TICKS(kNoTickWaitMs)),
+      has_tick_(tick_period_ms > 0) {}
 
 ActiveObject::~ActiveObject() {
     stop();
@@ -74,16 +78,29 @@ void ActiveObject::task_entry(void* self) {
     static_cast<ActiveObject*>(self)->run();
 }
 
-void ActiveObject::run() {
-    on_start();
+void ActiveObject::wait_and_handle_once() {
     Message msg;
-    while (running_) {
-        if (xQueueReceive(queue_, &msg, tick_ticks_) == pdTRUE) {
-            dispatch(msg);
-        } else {
-            on_tick();
-        }
+    if (xQueueReceive(queue_, &msg, tick_ticks_) == pdTRUE) {
+        dispatch(msg);
+    } else if (has_tick_) {
+        // Timeout do tick configurado: dispara on_tick().
+        on_tick();
     }
+    // AO sem tick: timeout de fatia apenas para alimentar o WDT, sem on_tick().
+    task_wdt_feed();
+}
+
+void ActiveObject::run() {
+    // FW-31: inscreve esta task do Active Object no Task WDT e alimenta a cada
+    // volta do laco (mensagem ou tick periodico). Tasks de terceiros (esp-mqtt,
+    // NimBLE, Wi-Fi) nao passam por aqui e nao sao inscritas.
+    task_wdt_subscribe_current();
+    on_start();
+    task_wdt_feed();
+    while (running_) {
+        wait_and_handle_once();
+    }
+    task_wdt_unsubscribe_current();
     vTaskDelete(nullptr);
 }
 

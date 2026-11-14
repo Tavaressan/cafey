@@ -38,6 +38,16 @@ void Cafeteira::set_error(bool error) {
     apply_state();
 }
 
+void Cafeteira::set_safe_mode(bool safe) {
+    if (safe_mode_ == safe) return;
+    safe_mode_ = safe;
+    if (safe_mode_ && state_ == State::On) {
+        // Garante rele desligado: cancela sem retomar preparo apos reset.
+        cancel_brew();
+    }
+    apply_state();
+}
+
 void Cafeteira::apply_state() {
     if (state_ == State::On) {
         relay_.turn_on();
@@ -90,6 +100,10 @@ void Cafeteira::close_bind_window() {
 }
 
 void Cafeteira::start_brew(uint32_t duration_s, cafey::storage::EventOrigin origin) {
+    if (safe_mode_) {
+        ESP_LOGW(TAG, "preparo recusado: modo seguro ativo (FW-31)");
+        return;
+    }
     if (duration_s == 0) duration_s = kDefaultDurationS;
     // Teto de seguranca independente do backend (issue #143): cobre o comando
     // MQTT, o fallback BLE (spec §6.4) e o disparo de agendamento local, que
@@ -194,6 +208,14 @@ void Cafeteira::on_start() {
 }
 
 void Cafeteira::on_tick() {
+    // FW-31: apos 5 min continuos sem reset, considera o sistema estavel.
+    if (!stable_marked_) {
+        if (++stable_ticks_ >= kStablePeriodTicks) {
+            stable_marked_ = true;
+            if (on_stable_period_) on_stable_period_();
+        }
+    }
+
     // Janela de vinculo (FW-24, #275): conta regressiva em ticks e fecha no fim.
     if (bind_ticks_left_ > 0 && --bind_ticks_left_ == 0) {
         close_bind_window();

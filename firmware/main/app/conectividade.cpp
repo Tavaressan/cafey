@@ -13,7 +13,6 @@ namespace {
 // Valores de `estado` que o app reconhece (DeviceModels.kt) e a spec exemplifica.
 constexpr const char* kEstadoPreparando = "{\"estado\":\"PREPARANDO\"}";
 constexpr const char* kEstadoDesligado = "{\"estado\":\"DESLIGADO\"}";
-constexpr const char* kSaudeOnline = "{\"online\":true}";
 } // namespace
 
 Conectividade::Conectividade() : ActiveObject("conectividade", 16) {}
@@ -68,7 +67,10 @@ void Conectividade::on_mqtt_connected() {
     DownlinkSubscriber(*mqtt_, *topics_).subscribe_all();
 
     // `saude` online faz o backend republicar a lista de agendamentos.
-    UplinkPublisher(*mqtt_, *topics_).publish_saude(kSaudeOnline);
+    // Inclui motivo do ultimo reset e contador (FW-31), se disponiveis.
+    std::string saude = "{\"online\":true,\"ultimoReset\":\"" + reset_reason_code_ +
+                        "\",\"resetsAnormais\":" + std::to_string(abnormal_reset_count_) + "}";
+    UplinkPublisher(*mqtt_, *topics_).publish_saude(saude);
     publish_estado();
     drain_events();
 }

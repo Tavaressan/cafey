@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <string>
 
 #include "core/active_object.hpp"
 #include "core/mqtt_client.hpp"
@@ -42,6 +43,14 @@ public:
         event_queue_ = queue;
     }
 
+    /**
+     * @brief Info de reset para publicar no topico `saude` (FW-31).
+     */
+    void set_reset_info(const char* reason_code, uint32_t abnormal_count) {
+        reset_reason_code_ = reason_code ? reason_code : "RESET_NORMAL";
+        abnormal_reset_count_ = abnormal_count;
+    }
+
 protected:
     void dispatch(const cafey::core::Message& msg) override;
 
@@ -57,6 +66,9 @@ private:
     std::function<bool()> start_mqtt_;
     bool mqtt_started_ = false;
     bool brewing_ = false; // ultimo estado informado pela Cafeteira
+
+    std::string reset_reason_code_ = "RESET_NORMAL";
+    uint32_t abnormal_reset_count_ = 0;
 };
 
 } // namespace cafey::app
