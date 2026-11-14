@@ -53,4 +53,32 @@ class DiagnosticoTextosTest {
         assertEquals("55 %", textoUmidade(55))
         assertEquals("Indisponível", textoUmidade(null))
     }
+
+    @Test
+    fun classificaONivelDeTemperatura() {
+        assertEquals(NivelTemperatura.Normal, nivelTemperatura(null))
+        assertEquals(NivelTemperatura.Normal, nivelTemperatura(44.9))
+        assertEquals(NivelTemperatura.Atencao, nivelTemperatura(45.0))
+        assertEquals(NivelTemperatura.Atencao, nivelTemperatura(54.9))
+        assertEquals(NivelTemperatura.Alta, nivelTemperatura(55.0))
+    }
+
+    @Test
+    fun alarmeSoValeComLeituraRecente() {
+        val recente = "2026-11-13T14:58:00Z" // 2 min antes de "agora"
+        val antiga = "2026-11-13T14:30:00Z"
+        assertEquals(null, textoAlarmeTemperatura(60.0, antiga, agora))
+        assertEquals(null, textoAlarmeTemperatura(60.0, null, agora))
+        assertEquals(null, textoAlarmeTemperatura(30.0, recente, agora))
+        assertEquals(null, textoAlarmeTemperatura(null, recente, agora))
+    }
+
+    @Test
+    fun alarmeTemTextoPorNivel() {
+        val recente = "2026-11-13T14:58:00Z"
+        val atencao = textoAlarmeTemperatura(47.5, recente, agora)
+        assertEquals(true, atencao?.contains("47,5 °C") == true && atencao.contains("quente"))
+        val alta = textoAlarmeTemperatura(58.0, recente, agora)
+        assertEquals(true, alta?.contains("58,0 °C") == true && alta.contains("Desligue"))
+    }
 }

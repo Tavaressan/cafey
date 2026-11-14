@@ -272,6 +272,15 @@ private fun DiagnosticoCard(diagnostico: DiagnosticoDispositivoResponse?, restri
             )
         }
 
+        textoAlarmeTemperatura(diagnostico.temperaturaC, diagnostico.ambienteAtualizadoEm, agoraMs)?.let { alarme ->
+            Text(
+                alarme,
+                style = CafeyTheme.typography.bodySmall,
+                color = CafeyTheme.colors.brandDeep,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+        }
+
         DiagnosticoItem("Conexão Wi-Fi (RSSI)", diagnostico.rssi?.let { "$it dBm" } ?: "Indisponível")
         DiagnosticoItem("Conexão com a nuvem", if (diagnostico.online) "Online" else "Offline")
         DiagnosticoItem("Última comunicação", textoUltimaComunicacao(diagnostico.ultimoVisto, agoraMs, fuso))

@@ -3,7 +3,22 @@ package br.com.tavaressan.cafey.shared.ui.home
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
+import kotlinx.datetime.TimeZone
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.LaunchedEffect
@@ -481,6 +496,8 @@ internal fun StageCard(
             starColor = starColor,
             deviceState = deviceState,
             brewingProgress = brewingProgress,
+            duracaoPreparoS = duracaoPreparoS,
+            estimado = isOffline,
         )
 
         Column(
@@ -524,11 +541,13 @@ internal fun StageCard(
 }
 
 @Composable
-private fun BrewingDial(
+internal fun BrewingDial(
     stateLabel: String,
     starColor: androidx.compose.ui.graphics.Color,
     deviceState: DeviceState,
     brewingProgress: BrewingProgress,
+    duracaoPreparoS: Int = 0,
+    estimado: Boolean = false,
 ) {
     val ringSize = 176.dp
     val strokeWidth = 6.dp
@@ -554,6 +573,27 @@ private fun BrewingDial(
             indeterminateRotation.snapTo(0f)
         }
     }
+
+    // Brilho suave do ultimo minuto (#376): so pulsa alpha, sem mexer no layout.
+    val determinado = brewingProgress as? BrewingProgress.Determinate
+    // A animacao infinita so existe no ultimo minuto; fora dele nada anima sem necessidade.
+    val noUltimoMinuto = determinado != null && determinado.restanteS in 1 until LIMITE_MENOS_DE_UM_MINUTO_S
+    val brilho = if (noUltimoMinuto) {
+        val transicao = rememberInfiniteTransition(label = "brilho-ultimo-minuto")
+        val alpha by transicao.animateFloat(
+            initialValue = 0.35f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(1100), RepeatMode.Reverse),
+            label = "brilho",
+        )
+        alpha
+    } else {
+        0f
+    }
+    var ultimoDeterminado by remember { mutableStateOf<BrewingProgress.Determinate?>(null) }
+    if (determinado != null) ultimoDeterminado = determinado
+    var mostrarHorario by remember { mutableStateOf(false) }
+    val fuso = remember { TimeZone.currentSystemDefault() }
 
     Box(
         modifier = Modifier.size(ringSize),
@@ -618,6 +658,31 @@ private fun BrewingDial(
                             size = arcSize,
                             style = Stroke(width = strokePx, cap = StrokeCap.Round),
                         )
+                        // Ultimo minuto: halo largo e translucido so sobre o trecho final.
+                        if (duracaoPreparoS > 0 && brewingProgress.restanteS in 1 until LIMITE_MENOS_DE_UM_MINUTO_S) {
+                            val inicioHalo = 360f * (1f - LIMITE_MENOS_DE_UM_MINUTO_S.toFloat() / duracaoPreparoS)
+                                .coerceAtLeast(0f)
+                            val sweepHalo = (360f * brewingProgress.fraction - inicioHalo).coerceAtLeast(0f)
+                            if (sweepHalo > 0f) {
+                                drawArc(
+                                    color = progressColor.copy(alpha = 0.28f * brilho),
+                                    startAngle = -90f + inicioHalo,
+                                    sweepAngle = sweepHalo,
+                                    useCenter = false,
+                                    topLeft = topLeft,
+                                    size = arcSize,
+                                    style = Stroke(width = strokePx * 2.4f, cap = StrokeCap.Round),
+                                )
+                            }
+                        }
+                        // Marcador na ponta do arco: da movimento sem acrescentar texto.
+                        if (brewingProgress.fraction < 1f) {
+                            val ang = (-90f + 360f * brewingProgress.fraction) * (kotlin.math.PI.toFloat() / 180f)
+                            val raio = diameter / 2f
+                            val centro = Offset(size.width / 2f + raio * kotlin.math.cos(ang), size.height / 2f + raio * kotlin.math.sin(ang))
+                            drawCircle(color = progressColor, radius = strokePx * 0.95f, center = centro)
+                            drawCircle(color = trackColor.copy(alpha = 1f), radius = strokePx * 0.35f, center = centro)
+                        }
                     }
                 }
             }
@@ -632,14 +697,54 @@ private fun BrewingDial(
                 .border(1.dp, CafeyTheme.colors.line, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                CafeyStar(color = starColor, size = 44.dp)
-                Text(
-                    stateLabel,
-                    style = CafeyTheme.typography.cardTitle,
-                    color = CafeyTheme.colors.ink,
-                    modifier = Modifier.padding(top = 7.dp),
-                )
+            Crossfade(targetState = determinado != null, label = "centro-mostrador") { comTempo ->
+                val d = ultimoDeterminado
+                if (comTempo && d != null) {
+                    val tempo = textoTempoRestante(d.restanteS, estimado)
+                    val grande = d.restanteS >= LIMITE_MENOS_DE_UM_MINUTO_S
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClickLabel = "Alternar entre tempo restante e horário previsto",
+                                role = Role.Button,
+                            ) { mostrarHorario = !mostrarHorario }
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                            .semantics(mergeDescendants = true) {
+                                contentDescription = "Preparando, ${descricaoRestanteAcessivel(d.restanteS)}"
+                                liveRegion = LiveRegionMode.Polite
+                                role = Role.Button
+                            },
+                    ) {
+                        CafeyStar(color = starColor, size = 24.dp)
+                        Text(
+                            text = if (mostrarHorario) horaPrevista(d.terminaEmMs, fuso) else tempo,
+                            style = (if (grande || mostrarHorario) CafeyTheme.typography.cardHero else CafeyTheme.typography.cardTitle)
+                                .copy(fontFeatureSettings = "tnum"),
+                            color = CafeyTheme.colors.ink,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                        Text(
+                            text = if (mostrarHorario) "pronto às" else stateLabel,
+                            style = CafeyTheme.typography.bodySmall,
+                            color = CafeyTheme.colors.muted,
+                        )
+                    }
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CafeyStar(color = starColor, size = 44.dp)
+                        Text(
+                            stateLabel,
+                            style = CafeyTheme.typography.cardTitle,
+                            color = CafeyTheme.colors.ink,
+                            modifier = Modifier.padding(top = 7.dp),
+                        )
+                    }
+                }
             }
         }
     }
