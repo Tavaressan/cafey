@@ -1,6 +1,6 @@
 # Spike: Avaliação de Inclusão do Display OLED SSD1306 (I2C) no Módulo IoT
 
-**Status:** Concluído  
+**Status:** Concluído (reavaliado em 13/11/2026: ver seção 9; pinagem da seção 2.2 substituída)  
 **Autor:** Antigravity / Vetor  
 **Data:** 26/10/2026  
 **Issue relacionada:** #127 (`[SPIKE] Avaliar inclusão de display OLED SSD1306 (I2C) no módulo IoT`)  
@@ -54,7 +54,9 @@ Pinos disponíveis e viáveis no ESP32 DevKit V1 (30 pinos):
   - **I2C SCL:** `GPIO 22`
   - **LED R / G / B:** Mover para `GPIO 16, 17, 18` (ou usar transição para LED endereçável WS2812B em um único pino `GPIO 23`).
 
-**Decisão de Pinagem:** A **Alternativa A (SDA em GPIO 18, SCL em GPIO 19)** é a mais segura, pois é 100% retrocompatível com o hardware já soldado e montado na bancada.
+**Decisão de Pinagem (original, 26/10):** A **Alternativa A (SDA em GPIO 18, SCL em GPIO 19)**.
+
+> **Superada em 13/11/2026.** O GPIO19 do DevKit em uso está com defeito, e a pinagem mudou na revisão B. Ver a seção 9.
 
 ---
 
@@ -141,3 +143,32 @@ Para preservar o modelo determinístico de Active Objects do Cafey sem degradaç
    - `[MECH] Desenho de suporte frontal 3D para display OLED 0.96"`
    - `[FW] Implementar cafey::drivers::DisplaySsd1306 e task periódica FreeRTOS`
    - `[DOC] Atualizar especificação técnica §5.3 com layout da tela`
+
+---
+
+## 9. Reavaliação em 13/11/2026 (revisão B+)
+
+### 9.1 O que mudou desde o spike
+- **Pinagem em uso:** GPIO21/22/23 (anel RGB, agora por MOSFETs de 12 V), GPIO25 (buzzer), GPIO26 (SSR/relé), GPIO27 (botão) e GPIO33 (DHT11). Fonte única: `hardware/README.md`, seção 3.
+- **Alimentação:** A1385 (5 V / 1 A) no lugar do HLK-PM01 (600 mA). O orçamento elétrico da seção 3 melhora; o OLED (~15 a 25 mA em 3,3 V) continua desprezível.
+- **GPIO19 com defeito** no DevKit em uso: a alternativa A original não vale mais.
+- **Carcaça circular** (Ø 250 mm, parede curva), não mais chapa dobrada: a janela vira recorte na parede ou no tampo (a seção 4 está desatualizada).
+- **Contagem regressiva no app:** a issue #376 mostra o tempo restante no mostrador do app. A regra de cálculo (`preparoIniciadoEm` + `duracaoPreparoS`) é a mesma que o OLED usaria.
+
+### 9.2 Nova pinagem proposta
+| Sinal | GPIO | Observação |
+|---|---|---|
+| I2C SDA | **18** | Sem strapping; pino de uso geral |
+| I2C SCL | **17** | Livre no DevKit com WROOM-32 (sem PSRAM) |
+| Reservas | 4, 32 | 13 e 16 também livres; evitar 14 (emite sinal no boot) e 19 (defeito) |
+
+Os pull-ups de 4,7 kΩ costumam vir no módulo; conferir antes de acrescentar. O módulo vai em `+3V3`.
+
+### 9.3 O que o display mostraria
+Igual ao MVP da seção 6. A contagem regressiva e o estado dependem do firmware conhecer o início e a duração do preparo, que ele já conhece (`Cafeteira`).
+
+### 9.4 Mecânica (a decidir)
+O arco frontal já tem marca (−105°), botão (−66°), buzzer (−45°) e DHT11 (−140°). Uma janela de 22 × 11 mm mais 4 furos M2 (24 × 24 mm) precisa de espaço próprio, ou de substituir a marca gravada. No tampo não: ele carrega a cafeteira (flecha já perto do limite, `check.py`).
+
+### 9.5 Conclusão
+Mantém-se a recomendação de **adiar** para depois da banca, salvo decisão em contrário do responsável. As 4 frentes da seção 8 continuam valendo, com a pinagem da seção 9.2.
