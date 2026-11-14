@@ -35,6 +35,7 @@ private:
     std::time_t epoch_;
 };
 } // namespace cafey::core
+using cafey::core::ManualClock;
 
 // Expoe os hooks protegidos para acionar o AO de forma sincrona no teste.
 class TestableCafeteira : public cafey::app::Cafeteira {
