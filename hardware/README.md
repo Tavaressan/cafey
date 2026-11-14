@@ -57,9 +57,9 @@ flowchart TB
 ## 2. Esquemático KiCad (`hardware/`)
 
 - Projeto: `hardware/pi_dsm_26_2.kicad_pro` (KiCad 10.0.x; última exportação com 10.0.7)
-- Esquemático: `hardware/pi_dsm_26_2.kicad_sch` (revisão B, 09/11/2026)
+- Esquemático: `hardware/pi_dsm_26_2.kicad_sch` (revisão B+, 13/11/2026: folha A3)
 - PDF vetorial: `hardware/pi_dsm_26_2.pdf`
-- Bibliotecas locais: `hardware/libraries/` — `cafey.kicad_sym` traz os símbolos da revisão B (`SSR_DC_AC`, `Apple_A1385`, `Circuit_Breaker_1P`, `Botao_RGB`). `relay_module.kicad_sym` fica como histórico da revisão A.
+- Bibliotecas locais: `hardware/libraries/` — `cafey.kicad_sym` traz os símbolos da revisão B (`SSR_DC_AC`, `Apple_A1385`, `Circuit_Breaker_1P`, `Botao_RGB`, `MOSFET_N_Logica`, `Boost_MT3608`, `DHT11_Modulo`). `relay_module.kicad_sym` fica como histórico da revisão A.
 
 ### Referências dos componentes
 
@@ -69,14 +69,19 @@ flowchart TB
 | **PS1** | Fonte 5 V | Apple A1385, 100–240 V AC → 5 V / 1 A, saída USB-A. Corpo ~38 × 25 × 25 mm (1,5 × 1 × 1 pol., informado em 09/11/2026), sem contar os pinos. Rede ligada direto nos pinos (decisão do responsável) | Em uso; verificações em #306 |
 | **SSR1** | Acionamento da carga | Fotek SSR-40DA: entrada 3–32 V DC (3 = +, 4 = −), saída 24–380 V AC (1, 2), com dissipador aletado. Corpo **63 × 45 × 23 mm** (medido em 09/11/2026) | Em uso; dissipador, capacidade, fuga e ensaio térmico em #305 |
 | **CB1** | Proteção contra sobrecorrente e liga/desliga geral | **Chave disjuntora ST-001**, 10 A, 125/250 V AC, reset/off, com LED vermelho, **3 terminais**, 29 × 14 × 25 mm (C × L × A), 9 g. Acesso pelo tampo | Pino 3 (lâmpada) ligado ao N no esquemático: **confirmar a marcação dos terminais na peça**. Recorte de painel e espessura máxima de painel a medir (#302). Capacidade de interrupção não informada (#307) |
-| **SW1** | Interface física | Botão anti-vandalismo de aço inox, IP65, rosca 16 mm, frente 18 mm, 35 mm de comprimento, com chicote. **Contato 1NA** (fios amarelo e branco) → unidade A, GPIO27. **Anel RGB de cátodo comum** (preto = negativo comum; vermelho, verde e azul = anodos) → unidade B, GPIO21/22/23. **LED especificado para 12–24 V DC** | Acionamento do anel a definir (seção 3.1, #308) |
+| **SW1** | Interface física | Botão anti-vandalismo de aço inox, IP65, rosca 16 mm, frente 18 mm, 35 mm de comprimento, com chicote. **Contato 1NA** (fios amarelo e branco) → unidade A, GPIO27. **Anel RGB de ânodo comum** (`C+` = positivo comum em 12 V; `R`, `G`, `B` = cátodos, acesos ao puxar para o GND) → unidade B, via MOSFETs Q2–Q4, GPIO21/22/23. **LED especificado para 12–24 V DC** | Acionamento por MOSFETs no lado baixo, 12 V do U3 (seção 3.1). **Confirmar a polaridade com multímetro antes de energizar** (#308) |
 | **J5** | Rabicho do buzzer | Conector destacável 2 vias (JST-XH): 1 = BUZZER (GPIO25), 2 = GND | O kit LAFVIN traz um buzzer ativo e um passivo (sem especificação elétrica no manual). Escolha e estágio de acionamento em #311 |
 | **P1** | Entrada de energia | Cabo macho NBR 14136, 3G1,0 mm² (10 A) | Em uso |
 | **J1** | Saída para a cafeteira | Tomada fêmea NBR 14136 de painel (10 A) | Em uso |
 | **J3** | Junção do PE | Borne de aterramento DIN verde-amarelo / WAGO 221-412 | Em uso |
 | **R1** | Pull-down da entrada do SSR | 10 kΩ, 1/4 W, de `RELE_IN` para GND: GPIO em alta impedância = SSR desligado | Em uso (era pull-up na rev. A) |
 | **R2** | Pull-up do botão | 10 kΩ, 1/4 W | Em uso |
-| **R3 / R4 / R5** | Limitadores do anel RGB (R/G/B) | 220 Ω / 100 Ω / 100 Ω, 1/4 W | Valores da rev. A. Um LED de 12–24 V costuma ter resistor interno; com ele, R3–R5 provavelmente saem. Depende da seção 3.1 (#308) |
+| **R3 / R4 / R5** | Resistores de gate de Q2–Q4 | 220 Ω, 1/4 W, em série entre o GPIO e o gate | Mudaram de função na rev. B+: eram limitadores do LED discreto |
+| **R8 / R9 / R10** | Pull-down do gate | 10 kΩ, 1/4 W, do gate ao GND | Mantém o canal apagado com o GPIO em alta impedância (boot, reset, gravação) |
+| **Q2 / Q3 / Q4** | Chave de cada canal do anel (R, G, B) | MOSFET canal N de nível lógico **IRLZ44N** (ou IRLIZ44N, com aba isolada), TO-220: G = GPIO, D = cátodo do canal, S = GND | Novo (rev. B+) |
+| **U3** | Fonte de 12 V do anel | Módulo boost **MT3608** (ou XL6009), entrada no `+5V` (A1385), saída ajustada a **12,0 V** | Novo. Ajustar o trimpot com multímetro **antes** de ligar ao botão |
+| **C4** | Reservatório do 12 V | Eletrolítico 100 µF / 25 V | Novo |
+| **U4** | Sensor de temperatura e umidade | **DHT11**, módulo de 3 pinos do kit LAFVIN (VCC, DATA, GND; traz pull-up de 10 kΩ), em `+3V3` e GPIO33 | Novo. Exigência da prova (#323, ver seção 3.2) |
 | **C1** | Reserva do barramento 5 V | Eletrolítico 470 µF / 16 V | Mantido da rev. A |
 | **C2** | Desacoplamento do barramento 5 V | Cerâmico 100 nF | Mantido da rev. A |
 | **C3** | Debounce do botão | Cerâmico 100 nF | Em uso |
@@ -93,47 +98,74 @@ Esta tabela é a referência para o esquemático, o firmware e a documentação.
 |---|---|---|---|---|---|
 | `RELE_IN` (SSR1 +) | GPIO26 | 7 | Saída | R1 10 kΩ **pull-down**; nível ALTO liga a carga | `Relay`, `Cafeteira::kRelayActiveLevel = High` |
 | `BOTAO` (SW1 A) | GPIO27 | 6 | Entrada | R2 10 kΩ pull-up + C3 100 nF; solto = 1, pressionado = 0 | `Cafeteira` (botão) |
-| `LED_R` (SW1 B) | GPIO21 | 26 | Saída (LEDC) | R3 | `RgbLed` |
-| `LED_G` (SW1 B) | GPIO22 | 29 | Saída (LEDC) | R4 | `RgbLed` |
-| `LED_B` (SW1 B) | GPIO23 | 30 | Saída (LEDC) | R5 | `RgbLed` |
+| `LED_R` → Q2 | GPIO21 | 26 | Saída | R3 220 Ω → gate de Q2; R8 10 kΩ pull-down | `RgbLed` (nível alto acende) |
+| `LED_G` → Q3 | GPIO22 | 29 | Saída | R4 220 Ω → gate de Q3; R9 10 kΩ pull-down | `RgbLed` |
+| `LED_B` → Q4 | GPIO23 | 30 | Saída (LEDC) | R5 220 Ω → gate de Q4; R10 10 kΩ pull-down | `RgbLed` |
 | `BUZZER` (J5.1) | GPIO25 | 8 | Saída (LEDC, se passivo) | Estágio a definir (#311) | Ainda não usado |
-| Sensor de temperatura do SSR (opcional) | GPIO33 | 9 | Entrada | Reservado, fora do esquemático (#323) | Ainda não usado |
+| `DHT_DATA` (U4) | GPIO33 | 9 | Entrada/saída (dreno aberto) | Pull-up de 10 kΩ no módulo (+ pull-up interno); sensor em +3V3 | `Dht11` + AO `Ambiente`, leitura a cada 5 s |
 | `+5V` (barramento 5V/VIN) | VIN | 1 | Alimentação | Vem do USB (PS1). Nada externo neste pino | — |
 | `+3V3` | 3V3 | 16 | Alimentação (`power_out`) | Regulador da placa; alimenta R2 | — |
-| `GND` | GND | 2, 17 | — | Comum DC, SSR1 −, J5.2 | — |
+| `+12V` | — | — | Alimentação | Saída do U3 (boost): só alimenta `C+` do anel (SW1 B) e C4 | — |
+| `GND` | GND | 2, 17 | — | Comum DC **obrigatório entre PS1, U1, U3 (entrada e saída), Q2–Q4 e SSR1 −** | — |
 
-### 3.1 Anel RGB do botão: tensão do LED (pendente, #308)
+### 3.1 Anel RGB do botão: 12 V por MOSFETs no lado baixo (#308)
 
-O anel do botão é especificado para **12–24 V DC**. Um LED vendido para essa
-faixa normalmente traz um resistor interno dimensionado para 12 V. Com o GPIO
-entregando 3,3 V, a corrente prevista é muito baixa:
+O anel é de **12–24 V DC, ânodo comum**: `C+` recebe o positivo e cada cor acende
+quando seu pino (`R`, `G` ou `B`) é puxado para o GND. O GPIO do ESP32 (3,3 V,
+poucos mA) não aciona isso direto, então cada canal ganha um MOSFET:
 
-- o vermelho (queda de ~2 V) deve acender fraco;
-- o verde e o azul (queda de ~3 V) devem ficar praticamente apagados. O azul é
-  a cor de "ocioso conectado" (spec §5.3).
+```
+GPIOxx ──[220 Ω]──┬── G
+                  │        D ── pino R/G/B do botão
+               [10 kΩ]     S ── GND comum
+                  │
+                 GND                     +12 V (U3) ── C+ do botão
+```
 
-É uma **previsão**, não uma medida: o valor do resistor interno não é conhecido.
-Antes de fixar o circuito, medir na bancada, **sem rede**, com o preto no GND:
+- **Lógica sem inversão:** o MOSFET liga com o gate alto, então nível ALTO no GPIO
+  acende o canal. O `RgbLed` segue com `common_anode = false`; a inversão de
+  ânodo comum acontece no hardware, não no firmware.
+- **MOSFET:** IRLZ44N (TO-220, conduz bem com 3,3 V no gate). O 2N7000 foi
+  descartado: seu limiar chega a 3 V e ele só suporta 200 mA, o que deixa o
+  acionamento a 3,3 V no limite. O AO3400 serve, mas é SMD e não entra na placa
+  ilhada.
+- **12 V:** módulo boost MT3608 (U3) na linha `+5V` da A1385 (1 A). O anel puxa
+  algumas dezenas de mA, bem dentro da margem. **O trimpot sai de fábrica
+  ajustado para tensões altas (até 28 V): ajustar para 12,0 V com multímetro,
+  sem carga, antes de ligar ao botão.**
+- **GND comum obrigatório** entre a fonte de 5 V, a entrada e a saída do boost,
+  o ESP32 e as fontes dos MOSFETs. Sem ele os MOSFETs perdem a referência.
+- **Pull-down do gate (R8–R10):** com o ESP32 resetando ou gravando, o GPIO fica
+  em alta impedância; sem o resistor o gate flutua e o anel pisca.
+- **A confirmar na bancada, sem rede:** (1) com o multímetro em modo diodo,
+  confirmar que o fio preto é o positivo comum (ânodo). Se for cátodo comum, o
+  circuito muda para chave no lado alto; (2) medir a corrente por cor a 12 V para
+  saber se o anel já traz resistor interno. Se não trouxer, acrescentar um
+  resistor em série em cada cátodo (para ~10 mA a 12 V: ~680 Ω no vermelho; os
+  valores finais saem da medição).
 
-| Teste | Como | O que registrar |
-|---|---|---|
-| 1. A 3,3 V | Cada cor no pino 3V3 do DevKit | Brilho a ~1 m, com luz ambiente |
-| 2. A 5 V | Cada cor no pino VIN/5V do DevKit, com multímetro em série | Corrente e brilho |
+### 3.2 DHT11: temperatura e umidade (GPIO33)
 
-Saídas possíveis, da mais simples para a mais complexa:
+A prova exige leitura de temperatura. O DHT11 do kit (item 6 do inventário)
+atende: 0–50 °C com ±2 °C e resolução de 1 °C; 20–80 % UR com ±5 %. Não serve
+para medir o dissipador do SSR (queda de projeto: o #323 trata disso com outro
+sensor); aqui mede **o ar dentro da carcaça**, que sobe com o SSR e é o dado
+que o diagnóstico mostra.
 
-| Resultado | Circuito | Mudança no firmware |
-|---|---|---|
-| 3,3 V basta para as três cores | GPIO direto no anodo, sem R3–R5 | Nenhuma |
-| Só 5 V basta | Chave do lado positivo (high-side) por cor, a partir do +5V (cátodo comum exige comutar o anodo) | Polaridade do PWM, se a chave inverter |
-| Nem 5 V basta | Conversor 5 → 12 V e chave high-side por cor, por exemplo um driver high-side de 8 canais como o TBD62783 (entrada compatível com 3,3 V) | Idem |
+- **Ligação:** VCC em `+3V3`, DATA no GPIO33, GND no comum. Em 3,3 V a linha de
+  dado nunca passa de 3,3 V, então não precisa de conversor de nível. O módulo do
+  kit traz o pull-up de 10 kΩ; com o sensor solto de 4 pinos, acrescentar 10 kΩ
+  entre DATA e `+3V3`.
+- **Por que GPIO33:** entrada e saída, sem função de strapping e sem sinal no boot.
+- **Leitura:** a cada 5 s (o sensor pede ≥ 1 s). Cada leitura segura as
+  interrupções por ~4 ms; com 5 s de intervalo isso não afeta Wi-Fi nem BLE.
+- **Na carcaça:** o módulo fica por dentro da parede, a −140°, atrás de uma grade
+  de furos de 2,5 mm, longe do SSR e do ESP32 (`mechanical/circular/aberturas.csv`).
 
-Os componentes da segunda e da terceira linha **não estão na lista de
-compras**. Se o teste apontar para elas, é compra antes da montagem.
+**GPIO19 com defeito:** o GPIO19 do DevKit em uso não funciona. O projeto não o
+usa; evitá-lo também em ESP32 de reposição, por precaução.
 
 **Por que GPIO25 para o buzzer:** não é pino de strapping (0, 2, 5, 12, 15), não é somente entrada (34–39), não é a UART0 de gravação (1, 3) e não emite sinal no boot (como o GPIO14). Fica no mesmo lado do DevKit que GPIO26 e GPIO27, o que agrupa a fiação.
-
-**Por que GPIO33 para o sensor (opcional):** é canal do ADC1, que continua disponível com o Wi-Fi ativo (o ADC2 não). Serve tanto para um NTC analógico quanto para um sensor 1-Wire (DS18B20). A escolha do sensor é do spike #323.
 
 **Pinos evitados:** GPIO0, 2, 5, 12 e 15 (strapping; GPIO12 alto no boot impede a partida), GPIO1 e 3 (UART0), GPIO6–11 (flash), GPIO14 (sinal no boot) e GPIO34–39 (somente entrada).
 

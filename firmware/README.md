@@ -16,7 +16,7 @@ Fatia atual: **I/O local, Driver do Relé (com proteção anti-glitch no boot), 
 | Buzzer (J5) | 25 | Estágio de acionamento a definir (#311) | Reservado; ainda não usado pelo firmware |
 | Sensor de temperatura do SSR | 33 | Opcional (#323) | Reservado; ainda não usado pelo firmware |
 
-Fonte única da pinagem: seção 3 de [`hardware/README.md`](../hardware/README.md). O botão RGB (#308) substitui o LED RGB discreto e o botão M1: contato no GPIO27 e anel nos GPIO21/22/23.
+Fonte única da pinagem: seção 3 de [`hardware/README.md`](../hardware/README.md). O botão RGB (#308) substitui o LED RGB discreto e o botão M1: contato no GPIO27 e anel nos GPIO21/22/23. O anel é de ânodo comum em 12 V, acionado por MOSFETs IRLZ44N no lado baixo (gate = GPIO via 220 Ω, pull-down de 10 kΩ): nível ALTO acende, então o driver segue com `common_anode = false`. O DHT11 está no GPIO33. O GPIO19 da placa de desenvolvimento em uso está com defeito e o projeto não o usa.
 
 ## Estados do LED RGB (Spec §5.3)
 
@@ -77,9 +77,17 @@ firmware/
 
 ## Driver do LED RGB (`cafey::drivers::RgbLed`) — Spec §5.3
 
-- **Controle dos 3 Canais (RGB)**: GPIOs 21, 22 e 23, suportando cátodo comum (padrão) e ânodo comum.
+- **Controle dos 3 Canais (RGB)**: GPIOs 21, 22 e 23, suportando cátodo comum (padrão) e ânodo comum. Com os MOSFETs de lado baixo do anel de 12 V o padrão se mantém: o ânodo comum fica no 12 V e a inversão acontece no hardware.
 - **Mapeamento de Padrões**: Solid (fixo), Blink (piscando a 1 Hz), Pulse (pulsando a 2 Hz) e Breathe (respiração lenta a cada 2,4 s).
 - **Integração com o AO Cafeteira**: o método `Cafeteira::on_tick()` aciona `RgbLed::tick()` a cada 10 ms para manter a animação suave e em sincronia com o estado operacional e de rede da cafeteira.
+
+## Driver do DHT11 (`cafey::drivers::Dht11`) e AO Ambiente
+
+- **Leitura por fio único** no GPIO33 (dreno aberto + pull-up): pedido de 20 ms, resposta de 40 bits medidos em microssegundos, com a janela de bits (~4 ms) em seção crítica.
+- **Decodificação pura e testada** (`pulses_to_frame`, `decode_frame`): soma de verificação, faixas (−40..80 °C, 0..100 %), temperatura negativa e a variante com casa decimal. Temperatura em décimos de grau (`240` = 24,0 °C).
+- **`app::Ambiente`** lê a cada 5 s e reporta só quando o valor muda ou a cada 1 min. Após 3 falhas seguidas reporta "indisponível" uma vez e para de afirmar o último valor.
+- **Telemetria:** a `Conectividade` põe `temperaturaC` e `umidade` na `saude` (`{"online":true,"temperaturaC":24.5,"umidade":55}`). Sem leitura válida o payload sai sem esses campos e o backend apaga o valor. O backend persiste em `dispositivos` (V17) e o diagnóstico do app mostra temperatura, umidade e a idade da leitura.
+- Exatidão do DHT11: ±2 °C e resolução de 1 °C. É uma medição do ar interno da carcaça, não do dissipador.
 
 ## Módulo Wi-Fi (`cafey::core::WifiManager`) — UC-04
 

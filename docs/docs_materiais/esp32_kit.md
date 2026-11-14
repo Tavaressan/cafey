@@ -299,7 +299,7 @@ Registradas para não serem tratadas como verdade em decisões de projeto:
 - **LED RGB de status**: 2 unidades cátodo comum por kit, com 30 resistores de 220 Ω disponíveis — cobre com folga os nets `LED_R/G/B`.
 - **Botão físico local**: 6 chaves tácteis por kit para o net `BOTAO`. **Sem o resistor de pull-up** — ver §2.1 A1.
 - **Bancada redundante**: o segundo kit permite manter uma montagem de referência íntegra enquanto a primeira é modificada, e é reserva imediata caso um ESP32 seja danificado nos testes com rede elétrica.
-- **Instrumentação opcional**: DHT11 disponível se o projeto vier a monitorar temperatura ambiente ou da base da cafeteira — não previsto na arquitetura atual (conclusão de preparo é por temporizador, sem sensores).
+- **DHT11 em uso (13/11/2026)**: exigência da prova. Mede o ar interno da carcaça no GPIO33 e vai na `saude` do dispositivo (`hardware/README.md`, seção 3.2). A conclusão de preparo continua por temporizador.
 
 ### 8.2 O que os kits **não** cobrem
 

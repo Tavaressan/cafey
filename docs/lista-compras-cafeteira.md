@@ -40,8 +40,13 @@ registro da revisão A.
 | B3 | Fonte 5 V (PS1) | Apple **A1385**, 100–240 V AC → 5 V / 1 A, saída USB-A. Corpo ~38 × 25 × 25 mm (1,5 × 1 × 1 pol.), sem os pinos | Adquirida; modelo confirmado; testada pelo responsável (220 V → 5 V). Foto da etiqueta **a registrar** | #306 |
 | B4 | Cabo USB-A → micro-USB | — | Comprimento, percurso e alívio de tração **a definir**. Precisa sair do DevKit sem forçar o conector da placa | #306, #309 |
 | B5 | Chave disjuntora 10 A (CB1) | **ST-001**, 10 A, 125/250 V AC, reset/off, LED vermelho, 3 terminais (o 3º é da lâmpada, ao N), 29 × 14 × 25 mm, 9 g. Fixação em painel (tampo), não DIN | Adquirida. Recorte de painel, espessura máxima de painel e marcação dos terminais **a medir**. Capacidade de interrupção não informada pelo vendedor | #307 |
-| B6 | Botão momentâneo com anel de LED RGB (SW1) | Anti-vandalismo, aço inox, IP65, rosca 16 mm, frente 18 mm, comprimento 35 mm, 11 g, com chicote. Contato 1NA, até 250 V / 5 A (fios amarelo e branco). Anel RGB de **cátodo comum** (preto = negativo; vermelho, verde, azul = anodos), **LED de 12–24 V DC** | Adquirido. **O anel não é compatível com 3,3 V direto do GPIO:** acionamento a definir por teste de bancada (`hardware/README.md`, seção 3.1). Nome comercial **a registrar** | #308 |
+| B6 | Botão momentâneo com anel de LED RGB (SW1) | Anti-vandalismo, aço inox, IP65, rosca 16 mm, frente 18 mm, comprimento 35 mm, 11 g, com chicote. Contato 1NA, até 250 V / 5 A (fios amarelo e branco). Anel RGB de **ânodo comum** (`C+` em 12 V; `R`, `G`, `B` são os cátodos), **LED de 12–24 V DC** | Adquirido. Acionado por MOSFETs no lado baixo e 12 V do boost (`hardware/README.md`, seção 3.1); confirmar polaridade e corrente com multímetro. Nome comercial **a registrar** | #308 |
 | B7 | Buzzer | Do kit LAFVIN: 1 ativo + 1 passivo por kit (2 kits). O manual não traz tensão nem corrente | Em estoque. Escolher o tipo e medir a corrente para definir se o GPIO aciona direto ou por transistor | #311 |
+| B8 | MOSFET canal N de nível lógico (Q2–Q4) | **IRLZ44N** (ou IRLIZ44N), TO-220. 3 em uso + 1 reserva | **A comprar** (não está no kit). Não usar 2N7000: limiar de até 3 V e 200 mA | #308 |
+| B9 | Módulo boost 5 → 12 V (U3) | **MT3608** (ou XL6009), com trimpot. ~36,5 × 17 × 14 mm | **A comprar** (1 + 1 reserva: erro no trimpot queima) | #308 |
+| B10 | Resistores do driver RGB | 3 × 220 Ω (gate), 3 × 10 kΩ (pull-down) | Em estoque (220 Ω no kit; 10 kΩ fora do kit) | #308 |
+| B11 | Capacitor 100 µF / 25 V (C4) | Eletrolítico | A confirmar em estoque | #308 |
+| B12 | Módulo DHT11 (U4) | Do kit LAFVIN (item 6 do inventário): 3 pinos, pull-up de 10 kΩ no módulo | Em estoque (2 unidades). Testar na bancada antes da montagem | #323 |
 | B8 | Componentes do acionamento do anel RGB | Chaves high-side por cor; talvez um conversor 5 → 12 V | **Condicional:** só se o teste de bancada do anel mostrar que 3,3 V não basta. Ver `hardware/README.md`, seção 3.1 | #308 |
 
 ### Itens fora de uso na revisão B
@@ -245,7 +250,9 @@ O restante pode ir em compra única.
 - [ ] B2 dissipador: dimensões externas, aletas e furação (#305 → #302)
 - [ ] B3 A1385: etiqueta (#306)
 - [ ] B5 ST-001: recorte de painel, espessura máxima de painel, marcação dos 3 terminais e foto da etiqueta (#307)
-- [ ] B6 botão RGB: nome comercial e **teste do anel a 3,3 V e a 5 V** (brilho e corrente por cor), sem rede (#308)
+- [ ] B6 botão RGB: nome comercial; **polaridade do anel (modo diodo: preto é ânodo?)** e corrente por cor a 12 V, sem rede (#308)
+- [ ] B9 boost: ajustar a saída a 12,0 V com multímetro, sem carga, antes de ligar ao botão (#308)
+- [ ] B12 DHT11: leitura de bancada comparada com um termômetro de referência (#323)
 - [ ] B7 buzzer: qual dos dois do kit (ativo ou passivo) e corrente medida (#311)
 
 ## Pendências para o profissional habilitado (marco de 02/10)
