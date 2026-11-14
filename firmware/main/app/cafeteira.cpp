@@ -216,6 +216,11 @@ void Cafeteira::on_tick() {
         finish_brew();
     }
 
+    // Reta final: LED pulsa mais rapido nos ultimos kFinalStretchS segundos.
+    led_.set_urgent(state_ == State::On && brew_ticks_left_ > 0 &&
+                    brew_ticks_total_ >= kFinalStretchMinDurationS * kTicksPerSecond &&
+                    brew_seconds_left() <= kFinalStretchS);
+
     const int level = gpio_get_level(button_pin_);
     if (level != btn_reading_) {
         btn_reading_ = level;

@@ -248,6 +248,45 @@ int test_common_anode_inverts_levels() {
     return 0;
 }
 
+int test_urgent_pulse_is_faster_and_resets_on_update() {
+    MockGpio::reset();
+    MockLedc::reset();
+    RgbLed led;
+    led.init();
+    led.update(CoffeeVisualState::Brewing, true); // verde pulsando (normal, 50 ticks)
+    TEST_ASSERT(!led.urgent(), "update comeca em ritmo normal");
+
+    led.set_urgent(true);
+    TEST_ASSERT(led.urgent(), "set_urgent liga o modo");
+    for (int i = 0; i < 11; ++i) led.tick(); // ticks 1..11
+    TEST_ASSERT(pins_are(0, 1, 0), "urgente: aceso ate o tick 11");
+    led.tick(); // tick 12
+    TEST_ASSERT(pins_are(0, 0, 0), "urgente: apaga no tick 12 (ciclo de 24)");
+    for (int i = 0; i < 11; ++i) led.tick();
+    TEST_ASSERT(pins_are(0, 0, 0), "urgente: apagado ate o tick 23");
+    led.tick(); // tick 24
+    TEST_ASSERT(pins_are(0, 1, 0), "urgente: reacende no tick 24");
+
+    // Um novo estado recomeca em ritmo normal.
+    led.update(CoffeeVisualState::Brewing, true);
+    TEST_ASSERT(!led.urgent(), "update desliga o modo urgente");
+    std::cout << "[PASS] test_urgent_pulse_is_faster_and_resets_on_update" << std::endl;
+    return 0;
+}
+
+int test_urgent_does_not_change_other_patterns() {
+    MockGpio::reset();
+    MockLedc::reset();
+    RgbLed led;
+    led.init();
+    led.update(CoffeeVisualState::Ready, true); // branco fixo
+    led.set_urgent(true);
+    for (int i = 0; i < 60; ++i) led.tick();
+    TEST_ASSERT(pins_are(1, 1, 1), "branco fixo nao muda com urgente");
+    std::cout << "[PASS] test_urgent_does_not_change_other_patterns" << std::endl;
+    return 0;
+}
+
 int main() {
     std::cout << "Running Cafey RgbLed Driver Unit Tests (Spec §5.3)..." << std::endl;
     if (test_init_configures_pins_and_starts_off()) return 1;
@@ -258,6 +297,8 @@ int main() {
     if (test_tick_animation_timing()) return 1;
     if (test_breathe_ramps_smoothly_without_flicker()) return 1;
     if (test_common_anode_inverts_levels()) return 1;
+    if (test_urgent_pulse_is_faster_and_resets_on_update()) return 1;
+    if (test_urgent_does_not_change_other_patterns()) return 1;
     std::cout << "All RgbLed driver tests PASSED!" << std::endl;
     return 0;
 }
