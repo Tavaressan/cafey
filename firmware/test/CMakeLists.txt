@@ -41,6 +41,11 @@ add_executable(test_ambiente
 )
 add_test(NAME AmbienteTest COMMAND test_ambiente)
 
+add_executable(test_wifi_round_tracker
+    test_wifi_round_tracker.cpp
+)
+add_test(NAME WifiRoundTrackerTest COMMAND test_wifi_round_tracker)
+
 add_executable(test_active_object
     test_active_object.cpp
     ../main/core/active_object.cpp
