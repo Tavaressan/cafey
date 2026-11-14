@@ -12,6 +12,10 @@ CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
 
 # FreeRTOS Configuration
 CONFIG_FREERTOS_HZ=1000
+# Move funções não-ISR do FreeRTOS para flash para liberar IRAM (issue #320).
+# Ganho medido em ESP-IDF v5.3 (esp32): ~9,5 KiB de IRAM; custo: latência maior
+# nessas chamadas fora de ISR (aceitável; o projeto não usa ISRs em IRAM no app).
+CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH=y
 
 # ESP32 System Configuration
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y

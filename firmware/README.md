@@ -125,3 +125,40 @@ idf.py set-target esp32
 idf.py build
 idf.py -p <porta> flash monitor
 ```
+
+## Orçamento de memória (IRAM) — #320
+
+Medição em ESP-IDF v5.3, target `esp32`, `idf.py size` / `idf.py size-components`:
+
+| Métrica | Antes | Depois | Delta |
+|---|---:|---:|---:|
+| IRAM total | 129.426 B (98,74%, 1.646 B livres) | 119.662 B (91,29%, 11.410 B livres) | **-9.764 B** |
+| IRAM `.text` | 128.399 B | 118.635 B | -9.764 B |
+| DRAM total | 52.344 B | 52.344 B | 0 B |
+| Flash `.text` | 864.790 B | 875.710 B | +10.920 B |
+| Flash `.rodata` | 165.220 B | 165.220 B | 0 B |
+| Binário (`cafey_firmware.bin`) | 0x121220 B | 0x1216a0 B | +0x480 B |
+
+Maior contribuinte antes: `libfreertos.a` com 15.967 B em IRAM; depois: 6.102 B (-9.865 B), consistente com a opção aplicada.
+
+### Opção aplicada
+
+- `CONFIG_FREERTOS_PLACE_FUNCTIONS_INTO_FLASH=y` (`sdkconfig.defaults`): move funções não-ISR do FreeRTOS para flash. Ganho medido ~9,5 KiB de IRAM, atingindo o objetivo com uma única alteração de baixo escopo. **Custo:** maior latência nessas chamadas (acesso via cache de flash) fora de ISR; aceitável para o perfil do firmware. **Segurança:** compatível com Flash Encryption e Secure Boot (código executado a partir da flash de forma normal). O projeto não define `IRAM_ATTR`/ISRs próprios em `firmware/main`, e as rotinas que precisam permanecer em IRAM continuam sob controle do ESP-IDF.
+
+### Opções avaliadas (não aplicadas)
+
+- `CONFIG_HEAP_PLACE_FUNCTION_INTO_FLASH=y`: ~7,6 KiB de IRAM, mas insuficiente isoladamente para a meta de 8 KiB e com impacto em operações de heap (seguro sem ISRs de heap em IRAM quando o cache está indisponível; não necessário junto à opção escolhida).
+- `CONFIG_COMPILER_OPTIMIZATION_SIZE=y` (substituindo `DEBUG/-Og`): ~7,4 KiB de IRAM, insuficiente isoladamente e com impacto global de desempenho/geração de código (custo maior que a alternativa pontual).
+- `CONFIG_RINGBUF_PLACE_FUNCTIONS_INTO_FLASH=y`: ~0,8 KiB de IRAM; segura, mas desnecessária para atingir a meta.
+- `CONFIG_ESP_WIFI_IRAM_OPT=n` / `CONFIG_ESP_WIFI_RX_IRAM_OPT=n`: não aplicáveis de forma efetiva nesta configuração (permaneceram ativas no Kconfig do ESP-IDF v5.3 com BT habilitado e sem PSRAM) e trariam custo relevante de desempenho/latência de Wi-Fi; rejeitadas.
+- `CONFIG_ESP_EVENT_POST_FROM_IRAM_ISR=n`: sem ganho de IRAM observado (API de evento já sem ocupação relevante em IRAM nesta imagem) e com potencial impacto se algum driver postar evento a partir de ISR em IRAM.
+
+### Como medir
+
+```sh
+source ~/.espressif/v5.3/esp-idf/export.sh
+cd firmware
+idf.py build
+idf.py size
+idf.py size-components
+```
