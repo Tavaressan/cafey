@@ -34,7 +34,7 @@ O **Cafey** é um ecossistema IoT (Internet das Coisas) composto por um módulo 
 ### O que a aplicação faz
 A solução transforma qualquer cafeteira comum de chave mecânica ("cafeteira convencional/burra") em uma cafeteira conectada e inteligente, **sem exigir nenhuma intervenção ou modificação nos circuitos internos do eletrodoméstico**, preservando integralmente a integridade física e a segurança do aparelho original. 
 
-A cafeteira é conectada à tomada de saída da base Cafey e mantida com seu interruptor físico ligado; o módulo Cafey controla a passagem de alimentação através de um relé interno acionado por um microcontrolador ESP32.
+A cafeteira é conectada à tomada de saída da base Cafey e mantida com seu interruptor físico ligado; o módulo Cafey controla a passagem de alimentação através de um relé de estado sólido (SSR) interno acionado por um microcontrolador ESP32.
 
 ### Problemas que resolve e melhorias proporcionadas
 1. **Modernização Sustentável sem Descarte (Retrofit):** Permite usufruir de conveniências de automação e agendamento sem a necessidade de descartar aparelhos funcionais ou adquirir eletrodomésticos inteligentes proprietários de alto custo.
@@ -204,7 +204,8 @@ cd apps
 
 ## Hardware e Segurança Elétrica
 
-- **Aviso de Segurança Elétrica:** O módulo de hardware atua diretamente sobre a tensão de rede alternada (127 V). A montagem e operação devem respeitar as diretrizes de isolamento galvânico entre alta e baixa tensão e aterramento da carcaça metálica.
-- **Esquemático KiCad:** O projeto eletrônico está disponível na pasta `hardware/` e requer o **KiCad 10.0.5** (ou versão 10.0.x compatível). Abra o arquivo `hardware/pi_dsm_26_2.kicad_pro`. Todas as bibliotecas de símbolos e footprints foram configuradas com caminhos relativos ao repositório.
+- **Aviso de Segurança Elétrica:** O módulo de hardware atua diretamente sobre a tensão de rede alternada. A Britânia CP30 é 127 V e o módulo não converte tensão: ele só comuta a rede para a tomada. A montagem e a operação exigem isolamento entre rede e baixa tensão, PE passa-através até a tomada (a carcaça é de PETG) e validação por profissional habilitado antes do uso com carga real. Pendências em [`hardware/README.md`](hardware/README.md#5-segurança-elétrica--pendências).
+- **Revisão B (09/11/2026):** SSR Fotek SSR-40DA, fonte Apple A1385 (5 V pelo USB do ESP32), disjuntor de 10 A no tampo, botão RGB e buzzer. Componentes, pinagem e diagramas em [`hardware/README.md`](hardware/README.md).
+- **Esquemático KiCad:** O projeto eletrônico está disponível na pasta `hardware/` e requer o **KiCad 10.0.x**. Abra o arquivo `hardware/pi_dsm_26_2.kicad_pro`. Todas as bibliotecas de símbolos e footprints foram configuradas com caminhos relativos ao repositório.
 
 Para consultar o cronograma histórico de desenvolvimento, marcos de aceitação e ordem de prioridades, veja o documento de [Planejamento do Projeto](docs/planejamento.md).

@@ -2,6 +2,14 @@
 
 Data: 31/08/2026. Fase 1 do cronograma (24/08 a 04/09).
 
+> **Atualização 09/11/2026 — revisão B do esquemático (#304):** SSR Fotek
+> SSR-40DA no lugar do HL-52S (R1 vira pull-down), fonte Apple A1385 pelo USB
+> no lugar do HLK-PM01, disjuntor de 10 A no lugar do F1, botão RGB no lugar do
+> LED D1 e do botão M1, e rabicho do buzzer em GPIO25. ERC: 0 erros. A fonte
+> única de componentes, pinagem, diagramas e pendências de segurança passa a
+> ser [`hardware/README.md`](hardware/README.md). As seções abaixo sobre
+> HL-52S, HLK-PM01, F1 e D1 descrevem a revisão A e ficam como histórico.
+
 Esquemático revisado: netlist conferida nó a nó com `kicad-cli`, ERC limpo
 (salvo avisos esperados de GPIO livre e duas exclusões documentadas). Início da
 prototipação embarcada no Wokwi — ver `firmware/`.
@@ -14,6 +22,9 @@ prototipação embarcada no Wokwi — ver `firmware/`.
 > Ver "Revisão de compras e correções (08/09/2026)".
 
 ## Decisões fechadas
+
+> As linhas de alimentação 5 V, módulo de relé, LED e proteção foram superadas
+> pela revisão B (09/11/2026). Ver [`hardware/README.md`](hardware/README.md).
 
 | Item | Decisão |
 |---|---|
@@ -39,24 +50,29 @@ prototipação embarcada no Wokwi — ver `firmware/`.
 | Alimentação | VIN | 1 | +5V |
 | Terra | GND | 2 | GND |
 | Referência 3,3 V | 3.3v | 16 | +3V3 |
-| Sinal do relé | GPIO26 | 7 | R1 10 kΩ **pull-up para +3V3** (módulo active-low) |
-| Botão | GPIO27 | 6 | R2 10 kΩ pull-up, C3 100 nF |
-| LED vermelho | GPIO21 | 26 | R3 220 Ω |
-| LED verde | GPIO22 | 29 | R4 100 Ω |
-| LED azul | GPIO23 | 30 | R5 100 Ω |
+| Entrada do SSR (+) | GPIO26 | 7 | R1 10 kΩ **pull-down para GND** (SSR-40DA, nível ALTO liga) |
+| Botão (SW1 A) | GPIO27 | 6 | R2 10 kΩ pull-up, C3 100 nF |
+| Anel RGB — R (SW1 B) | GPIO21 | 26 | R3 220 Ω (confirmar, #308) |
+| Anel RGB — G (SW1 B) | GPIO22 | 29 | R4 100 Ω (confirmar, #308) |
+| Anel RGB — B (SW1 B) | GPIO23 | 30 | R5 100 Ω (confirmar, #308) |
+| Buzzer (J5) | GPIO25 | 8 | Estágio de acionamento a definir (#311) |
+| Sensor de temperatura do SSR (opcional) | GPIO33 | 9 | Reservado, fora do esquemático (#323) |
 
-R1 é pull-up para +3V3 porque o módulo é active-low (LOW = relé ligado):
-com o GPIO em alta impedância no boot, R1 mantém a entrada IN em nível ALTO
-= relé desligado. Repouso e falha passam a ser o mesmo estado seguro. O
-firmware reforça isso forçando o pino em ALTO antes de configurar o GPIO
-(`firmware/drivers/relay.cpp`).
+Pinagem da revisão B (09/11/2026). Fonte única: seção 3 de
+[`hardware/README.md`](hardware/README.md).
+
+R1 é pull-down para GND porque o SSR-40DA liga em nível ALTO: com o GPIO em
+alta impedância (boot, reset, gravação), R1 mantém a entrada em nível BAIXO =
+carga desligada. O firmware reforça isso forçando o pino em BAIXO antes e
+depois de configurar o GPIO (`firmware/main/drivers/relay.cpp`, #305). Na
+revisão A, com o HL-52S active-low, R1 era pull-up para +3V3.
 
 GPIO12 foi evitado (nível alto no boot impede a partida); GPIO2, 5 e 15 foram
 evitados (strapping); GPIO34, 35, 36 e 39 são somente entrada.
 
 - **Pino 16 do ESP32_30Pin:** corrigido para `power_out` tanto na biblioteca local (`esp32_30pin.kicad_sym`) quanto no esquemático incorporado, e o `PWR_FLAG` artificial da rede `+3V3` foi removido (PR #237, Issues #20 e #131). A rede `+3V3` é agora dirigida nativamente pelo regulador de bordo do ESP32 DevKit V1.
 
-## Esquemático — referências (mudaram após reanotação)
+## Esquemático — referências (revisão A, histórico)
 
 | Ref | Componente |
 |---|---|
@@ -72,7 +88,7 @@ evitados (strapping); GPIO34, 35, 36 e 39 são somente entrada.
 | R3/R4/R5 | Resistores dos anodos do LED RGB (220 Ω / 100 Ω / 100 Ω) |
 | C1/C2/C3 | Capacitores de desacoplamento e debouncing (C1 470 µF, C2/C3 100 nF) |
 
-## Esquemático — o que está pronto
+## Esquemático — o que estava pronto (revisão A, histórico)
 
 - Bloco de potência: P1 (cabo macho) → F1 → COM/NO de K3 → J1 (tomada fêmea).
   Neutro e terra passam diretos.

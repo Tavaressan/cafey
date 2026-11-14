@@ -62,7 +62,7 @@ int test_cafeteira_button_toggles_relay_and_led() {
     caf.process_pending();
     TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::On, "liga apos clique");
     TEST_ASSERT(caf.relay_on(), "rele fecha");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "GPIO rele LOW (active-low ligado)");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "GPIO SSR HIGH (active-high ligado)");
     TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Brewing, "visual state Brewing");
     TEST_ASSERT(caf.led().color() == LedColor::Green, "LED verde durante preparo");
     TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_22).level == 1, "LED G aceso");
@@ -73,7 +73,7 @@ int test_cafeteira_button_toggles_relay_and_led() {
     caf.process_pending();
     TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "desliga apos 2o clique");
     TEST_ASSERT(!caf.relay_on(), "rele reabre");
-    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 1, "GPIO rele HIGH (active-low desligado)");
+    TEST_ASSERT(MockGpio::get_pin(GPIO_NUM_26).level == 0, "GPIO SSR LOW (active-high desligado)");
     TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Idle, "retorna para Idle");
     TEST_ASSERT(caf.led().color() == LedColor::Blue, "LED volta a ser Azul");
 
@@ -215,7 +215,7 @@ int test_cafeteira_enqueues_event_on_brew_finish() {
     cafey::storage::EventIdGenerator id_gen;
     TEST_ASSERT(id_gen.init(0x12345678) == ESP_OK, "id_gen.init");
 
-    cafey::core::ManualClock manual_clock(1000);
+    ManualClock manual_clock(1000);
 
     TestableCafeteira caf;
     caf.attach_event_queue(&queue, &id_gen, &manual_clock);
@@ -255,7 +255,7 @@ int test_cafeteira_enqueues_event_on_brew_cancel() {
     cafey::storage::EventIdGenerator id_gen;
     TEST_ASSERT(id_gen.init(0xabcdef01) == ESP_OK, "id_gen.init");
 
-    cafey::core::ManualClock manual_clock(2000);
+    ManualClock manual_clock(2000);
 
     TestableCafeteira caf;
     caf.attach_event_queue(&queue, &id_gen, &manual_clock);

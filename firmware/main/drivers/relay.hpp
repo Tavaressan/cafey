@@ -18,21 +18,31 @@ namespace cafey::drivers {
  *
  * Hardware design specification:
  * - Signal pin: GPIO 26 (default)
- * - Trigger: Active LOW (LOW = Relay energised / Coffee maker ON, HIGH = Relay open / Coffee maker OFF).
- *   Module in use: HL-52S.
- * - External R1 10k pull-up: keeps GPIO at 3V3 during high-impedance (boot).
- *   To guarantee zero spurious pulses at power-on / boot, the driver explicitly forces
- *   the GPIO level to HIGH before and upon configuring the output direction.
+ * - Trigger polarity is configurable (HW-27, issue #305):
+ *   - ActiveLevel::High (default): Fotek SSR-40DA. HIGH = load ON, LOW = load OFF.
+ *     External R1 10k **pull-down** keeps the SSR input LOW while the GPIO is
+ *     high-impedance (power-on, reset, flashing).
+ *   - ActiveLevel::Low: legacy HL-52S relay module. LOW = load ON, HIGH = load OFF.
+ *     External R1 10k **pull-up** keeps the input HIGH while the GPIO floats.
+ *   The external resistor must match the polarity: an active-high firmware on an
+ *   active-low module (or vice versa) switches the load ON at init().
+ * - To guarantee zero spurious pulses at power-on / boot, the driver explicitly forces
+ *   the GPIO to the idle (OFF) level before and upon configuring the output direction.
  * - RAII: Safely turns off the relay on object destruction.
  */
 class Relay {
 public:
+    /// Logic level on the signal pin that switches the load ON.
+    enum class ActiveLevel : uint8_t { High, Low };
+
     /**
      * @brief Construct a new Relay instance.
      * @param pin GPIO pin number (defaults to GPIO_NUM_26).
      * @param auto_init If true, automatically calls init() in the constructor.
+     * @param active_level Level that turns the load ON (defaults to High, SSR-40DA).
      */
-    explicit Relay(gpio_num_t pin = GPIO_NUM_26, bool auto_init = false);
+    explicit Relay(gpio_num_t pin = GPIO_NUM_26, bool auto_init = false,
+                   ActiveLevel active_level = ActiveLevel::High);
 
     /**
      * @brief Destructor. Ensures relay is safely deactivated on destruction.
@@ -49,7 +59,7 @@ public:
 
     /**
      * @brief Initialize the relay GPIO.
-     * Forces HIGH (active-low OFF) before output configuration to prevent any boot pulse glitch.
+     * Forces the idle (OFF) level before output configuration to prevent any boot pulse glitch.
      * @return ESP_OK on success, or ESP-IDF error code.
      */
     esp_err_t init();
@@ -97,8 +107,16 @@ public:
      */
     [[nodiscard]] gpio_num_t get_pin() const noexcept;
 
+    /**
+     * @brief Get configured trigger polarity.
+     */
+    [[nodiscard]] ActiveLevel active_level() const noexcept;
+
 private:
+    [[nodiscard]] uint32_t level_for(bool on) const noexcept;
+
     gpio_num_t pin_;
+    ActiveLevel active_level_;
     bool is_on_;
     bool is_initialized_;
 };

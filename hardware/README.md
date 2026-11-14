@@ -1,110 +1,213 @@
 # Módulo de Hardware — Cafey
 
-Documentação técnica do esquemático elétrico, dimensionamento e arquitetura física do módulo IoT para a cafeteira Britânia CP30.
+Documentação técnica do esquemático elétrico, da pinagem e da arquitetura elétrica do módulo IoT para a cafeteira Britânia CP30.
+
+> **Revisão B (09/11/2026, #304).** Componentes da montagem de 10/11/2026: SSR Fotek SSR-40DA (#305), fonte Apple A1385 (#306), disjuntor de 10 A (#307), botão RGB (#308) e rabicho do buzzer (#311). A revisão A (HL-52S, HLK-PM01, fusível, LED RGB discreto) está resumida na seção 7.
+>
+> **Este documento é projeto, não instrução de ligação à rede.** Nenhuma montagem em tensão de rede antes das validações de #305, #306 e #307 e da validação por profissional habilitado (#19). Ver a seção 5.
 
 ---
 
-## 1. Arquitetura e Visão Geral
+## 1. Arquitetura e visão geral
 
-O módulo intercala a alimentação da cafeteira (127 Vac / 60 Hz), oferecendo controle liga/desliga automatizado, sensoriamento de status via LED RGB e interface física por botão metálico de painel.
+O módulo intercala a alimentação da cafeteira e controla a passagem de energia para a tomada por um relé de estado sólido (SSR) comandado pelo ESP32. A interface física é um único botão com anel de LED RGB.
 
+### Diagrama de blocos
+
+```mermaid
+flowchart LR
+    P1["P1<br/>Plugue NBR 14136"] -->|L_REDE| CB1["CB1<br/>Disjuntor 10 A<br/>(no tampo)"]
+    CB1 -->|L_FONTE| SSR1["SSR1<br/>Fotek SSR-40DA<br/>+ dissipador"]
+    CB1 -->|L_FONTE| PS1["PS1<br/>Apple A1385<br/>5 V / 1 A"]
+    SSR1 -->|L_SAIDA| J1["J1<br/>Tomada NBR 14136<br/>(Britânia CP30)"]
+    P1 -->|"N e PE (passa-através)"| J1
+    PS1 -->|"cabo USB-A → micro-USB"| U1["U1<br/>ESP32 DevKit V1"]
+    U1 -->|"GPIO26 (RELE_IN)"| SSR1
+    SW1["SW1<br/>Botão RGB"] -->|"GPIO27 (BOTAO)"| U1
+    U1 -->|"GPIO21/22/23 (LED_R/G/B)"| SW1
+    U1 -->|"GPIO25 (BUZZER)"| J5["J5<br/>Rabicho do buzzer"]
 ```
-       [Rede 127 Vac] (P1 - Cabo NBR 14136)
-             │
-             ├── Fase (L) ──> [Fusível F1: 10 A T] ──┬──> [Relé K3: HL-52S (COM/NO)] ──> [Tomada J1: Cafeteira]
-             │                                       │
-             │                                       └──> [Fonte AC/DC U2: HLK-PM01]
-             │                                                  │
-             │                                                  ├── +5V (VCC do Relé)
-             │                                                  └── GND
-             │                                                       │
-             ├── Neutro (N) ─────────────────────────────────────────┴──> [Tomada J1: Cafeteira]
-             │
-             └── Terra (PE) ──> [Borne DIN / WAGO 221 (J3)] ────────────> [Tomada J1: Cafeteira]
+
+### Diagrama de alimentação
+
+```mermaid
+flowchart TB
+    Rede["Rede AC (L, N, PE)"] --> CB1["CB1 — disjuntor 10 A"]
+    CB1 -->|"L_FONTE (L1 no esboço)"| SSR1["SSR1 — terminais 1 → 2"]
+    SSR1 -->|L_SAIDA| Tomada["J1 — tomada da cafeteira"]
+    Rede -->|"N, PE direto"| Tomada
+    CB1 -->|"L_FONTE + N, direto nos pinos"| PS1["PS1 — Apple A1385<br/>100–240 V AC → 5 V / 1 A"]
+    PS1 -->|"USB-A → cabo → micro-USB"| USB["DevKit: VBUS → diodo → barramento 5V/VIN"]
+    USB --> LDO["Regulador da placa → +3V3"]
+    LDO --> Logica["ESP32, R2 (pull-up do botão)"]
+    USB --> LED["Anel RGB do botão (via GPIO e R3–R5)"]
 ```
 
-### Características Elétricas
-- **Tensão de entrada:** 127 Vac nominal (compatível com 220 Vac).
-- **Consumo do módulo (standby/conectado):** < 1 W (< 200 mA em 5 V).
-- **Proteção primária:** Fusível retardado $F_1 = 10\text{ A T / 250 V}$ (dimensione entre a cafeteira $\approx 6{,}3\text{ A}$ e o contato do relé $10\text{ A}$).
-- **Conversão AC/DC:** Módulo Hi-Link HLK-PM01 (100–240 Vac $\to$ 5 Vdc / 600 mA isolado).
-- **Isolamento de terra:** Gabinete termoplástico (PETG FDM). Condutor de Proteção (PE) interligado por borne passa-através direto para o pino terra da cafeteira.
-- **Relé:** Módulo 2 canais LAFVIN (HL-52S com optoacoplador, active-LOW), canal 1 em uso.
-- **Microcontrolador:** ESP32 DevKit V1 (30 pinos), alimentado em 5 V (pino VIN) com LDO interno gerando o barramento $3{,}3\text{ V}$.
+- A proteção (CB1) fica **antes** do SSR e da derivação da fonte, a mesma filosofia do F1 da revisão A.
+- O PE é passa-através do plugue até a tomada (borne J3). A carcaça é de PETG, sem massa metálica a aterrar.
+- **Alimentação única:** o ESP32 é alimentado só pelo cabo USB. No esquemático, `+5V` representa o barramento 5V/VIN da placa, que recebe o VBUS do USB pelo diodo do DevKit. **Nada externo é ligado ao pino VIN**, e VIN e USB nunca alimentam a placa ao mesmo tempo (#306).
+- **Tensão:** a CP30 é 127 V. O módulo só comuta a rede para a tomada, não converte tensão: um módulo bivolt não torna a cafeteira bivolt. Operação bivolt do conjunto só será declarada depois da validação elétrica (#19).
+
+### Diagrama de conexões (fio a fio)
+
+**Pendente.** Bitolas, emendas e bornes só serão desenhados depois de validar #305, #306 e #307, como pede a #304.
 
 ---
 
 ## 2. Esquemático KiCad (`hardware/`)
 
-O projeto elétrico foi desenhado no **KiCad 10.0.5**:
-- Projeto: `hardware/pi_dsm_26_2.kicad_pro`
-- Esquemático: `hardware/pi_dsm_26_2.kicad_sch`
+- Projeto: `hardware/pi_dsm_26_2.kicad_pro` (KiCad 10.0.x; última exportação com 10.0.7)
+- Esquemático: `hardware/pi_dsm_26_2.kicad_sch` (revisão B, 09/11/2026)
 - PDF vetorial: `hardware/pi_dsm_26_2.pdf`
-- Biblioteca local de símbolos: `hardware/libraries/`
+- Bibliotecas locais: `hardware/libraries/` — `cafey.kicad_sym` traz os símbolos da revisão B (`SSR_DC_AC`, `Apple_A1385`, `Circuit_Breaker_1P`, `Botao_RGB`). `relay_module.kicad_sym` fica como histórico da revisão A.
 
-### Referências dos Componentes
+### Referências dos componentes
 
-| Ref | Descrição | Modelo / Especificação |
-|---|---|---|
-| **U1** | Microcontrolador IoT | ESP32 DevKit V1 (30 pinos, Wi-Fi 802.11 b/g/n + BLE 4.2) |
-| **U2** | Fonte chaveada AC/DC isolada | Hi-Link HLK-PM01 (Entrada 100-240 Vac, Saída 5 Vdc / 3 W) |
-| **K3** | Módulo de acionamento de potência | Módulo Relé 5 V 2 canais HL-52S (Gatilho nível baixo / Active-LOW) |
-| **F1** | Proteção contra sobrecorrente | Fusível cerâmico/vidro 10 A T (retardado) 5×20 mm em porta-fusível in-line F-103C |
-| **P1** | Entrada de energia | Cabo de força tripolar NBR 14136 macho 3G1,0 mm² (10 A) |
-| **J1** | Saída para a cafeteira | Tomada fêmea NBR 14136 3 pinos (10 A) de painel |
-| **J3** | Ponto de junção do condutor PE | Borne de aterramento DIN verde-amarelo / Conector WAGO 221-412 |
-| **SW1** | Botão físico de comando | Botão metálico momentâneo NA 16 mm com LED anel |
-| **D1** | Sinalização de estado do sistema | LED RGB 5 mm difuso, cátodo comum |
-| **R1** | Pull-up do comando do relé | 10 kΩ, 1/4 W (mantém nível alto e relé desligado durante boot/alta impedância) |
-| **R2** | Pull-up do botão físico | 10 kΩ, 1/4 W |
-| **R3** | Resistor limitador LED Vermelho | 220 Ω, 1/4 W |
-| **R4** | Resistor limitador LED Verde | 100 Ω, 1/4 W |
-| **R5** | Resistor limitador LED Azul | 100 Ω, 1/4 W |
-| **C1** | Filtro do barramento 5 V | Eletrolítico 470 µF / 16 V (reduz ondulação e sustenta picos de Wi-Fi) |
-| **C2** | Desacoplamento de alta frequência | Cerâmico 100 nF no barramento 5 V |
-| **C3** | Debounce analógico do botão | Cerâmico 100 nF em paralelo com SW1 |
-
----
-
-## 3. Pinagem do ESP32 DevKit V1
-
-| Pino DevKit | GPIO | Função no Cafey | Observações |
+| Ref | Função | Modelo / especificação | Situação |
 |---|---|---|---|
-| Pin 1 | VIN | Entrada de alimentação 5 Vdc | Alimentado pelo HLK-PM01 (+5V) |
-| Pin 2 | GND | Referência comum DC | Ligado ao negativo da fonte e periféricos |
-| Pin 6 | GPIO27 | Entrada digital do botão (SW1) | Pull-up R2 (10 kΩ) + capacitor C3 (100 nF) |
-| Pin 7 | GPIO26 | Saída digital de controle do relé (K3.IN) | Pull-up R1 (10 kΩ) para +3V3; nível LOW liga o relé |
-| Pin 8 | GPIO25 | Saída PWM canal Azul do LED RGB | Limitador R5 (100 Ω) |
-| Pin 9 | GPIO33 | Saída PWM canal Verde do LED RGB | Limitador R4 (100 Ω) |
-| Pin 10 | GPIO32 | Saída PWM canal Vermelho do LED RGB | Limitador R3 (220 Ω) |
-| Pin 16 | 3.3V | Saída regulada $3{,}3\text{ V}$ (`power_out`) | Alimenta os resistores de pull-up R1 e R2 |
+| **U1** | Microcontrolador | ESP32 DevKit V1 (30 pinos), removível (#309) | Em uso |
+| **PS1** | Fonte 5 V | Apple A1385, 100–240 V AC → 5 V / 1 A, saída USB-A. Corpo ~38 × 25 × 25 mm (1,5 × 1 × 1 pol., informado em 09/11/2026), sem contar os pinos. Rede ligada direto nos pinos (decisão do responsável) | Em uso; verificações em #306 |
+| **SSR1** | Acionamento da carga | Fotek SSR-40DA: entrada 3–32 V DC (3 = +, 4 = −), saída 24–380 V AC (1, 2), com dissipador aletado. Corpo **63 × 45 × 23 mm** (medido em 09/11/2026) | Em uso; dissipador, capacidade, fuga e ensaio térmico em #305 |
+| **CB1** | Proteção contra sobrecorrente e liga/desliga geral | **Chave disjuntora ST-001**, 10 A, 125/250 V AC, reset/off, com LED vermelho, **3 terminais**, 29 × 14 × 25 mm (C × L × A), 9 g. Acesso pelo tampo | Pino 3 (lâmpada) ligado ao N no esquemático: **confirmar a marcação dos terminais na peça**. Recorte de painel e espessura máxima de painel a medir (#302). Capacidade de interrupção não informada (#307) |
+| **SW1** | Interface física | Botão anti-vandalismo de aço inox, IP65, rosca 16 mm, frente 18 mm, 35 mm de comprimento, com chicote. **Contato 1NA** (fios amarelo e branco) → unidade A, GPIO27. **Anel RGB de cátodo comum** (preto = negativo comum; vermelho, verde e azul = anodos) → unidade B, GPIO21/22/23. **LED especificado para 12–24 V DC** | Acionamento do anel a definir (seção 3.1, #308) |
+| **J5** | Rabicho do buzzer | Conector destacável 2 vias (JST-XH): 1 = BUZZER (GPIO25), 2 = GND | O kit LAFVIN traz um buzzer ativo e um passivo (sem especificação elétrica no manual). Escolha e estágio de acionamento em #311 |
+| **P1** | Entrada de energia | Cabo macho NBR 14136, 3G1,0 mm² (10 A) | Em uso |
+| **J1** | Saída para a cafeteira | Tomada fêmea NBR 14136 de painel (10 A) | Em uso |
+| **J3** | Junção do PE | Borne de aterramento DIN verde-amarelo / WAGO 221-412 | Em uso |
+| **R1** | Pull-down da entrada do SSR | 10 kΩ, 1/4 W, de `RELE_IN` para GND: GPIO em alta impedância = SSR desligado | Em uso (era pull-up na rev. A) |
+| **R2** | Pull-up do botão | 10 kΩ, 1/4 W | Em uso |
+| **R3 / R4 / R5** | Limitadores do anel RGB (R/G/B) | 220 Ω / 100 Ω / 100 Ω, 1/4 W | Valores da rev. A. Um LED de 12–24 V costuma ter resistor interno; com ele, R3–R5 provavelmente saem. Depende da seção 3.1 (#308) |
+| **C1** | Reserva do barramento 5 V | Eletrolítico 470 µF / 16 V | Mantido da rev. A |
+| **C2** | Desacoplamento do barramento 5 V | Cerâmico 100 nF | Mantido da rev. A |
+| **C3** | Debounce do botão | Cerâmico 100 nF | Em uso |
 
-> [!NOTE]
-> Pinos com restrições de inicialização (strapping pins: GPIO0, GPIO2, GPIO12, GPIO15) e pinos apenas de entrada (GPIO34–39) foram intencionalmente evitados no projeto para garantir boot seguro e sem acionamento espúrio da carga.
+Saíram do esquemático: **U2** (HLK-PM01, substituído por PS1), **F1** (fusível, substituído por CB1), **K3** (módulo relé HL-52S, substituído por SSR1) e **D1** (LED RGB discreto, agora unidade B de SW1). O conector USB de painel (M8) foi descartado (#309).
 
 ---
 
-## 4. Validação Elétrica e Relatório ERC (KiCad)
+## 3. Pinagem (fonte única)
 
-A integridade do esquemático é verificada via `kicad-cli sch erc`.
+Esta tabela é a referência para o esquemático, o firmware e a documentação. A pinagem antiga deste arquivo (LED em GPIO32/33/25) estava errada: o esquemático e o firmware sempre usaram GPIO21/22/23.
 
-### Resultados do ERC
-- **Erros:** 0
-- **Advertências esperadas / Documentadas (HW-09 / #11):**
-  1. `21 × pin_not_connected`: Pinos livres do DevKit V1 (GPIOs não utilizados).
-  2. `1 × pin_to_pin`: Conexão entre U1.GND (`Bidirectional`) e U2.-Vout (`Power output`). Comportamento padrão em fontes AC/DC encapsuladas para estabelecer a referência zero do circuito DC.
-- **Conexão de alimentação (HW-18 / #20):** O pino 16 do `ESP32_30Pin` está tipado como `power_out`, eliminando a necessidade de `PWR_FLAG` artificial no barramento $3{,}3\text{ V}$.
-- **Netlist:** Exportada e auditada nó a nó via `kicad-cli sch export netlist`.
+| Sinal | GPIO | Pino DevKit | Direção | Polarização / componente | Firmware |
+|---|---|---|---|---|---|
+| `RELE_IN` (SSR1 +) | GPIO26 | 7 | Saída | R1 10 kΩ **pull-down**; nível ALTO liga a carga | `Relay`, `Cafeteira::kRelayActiveLevel = High` |
+| `BOTAO` (SW1 A) | GPIO27 | 6 | Entrada | R2 10 kΩ pull-up + C3 100 nF; solto = 1, pressionado = 0 | `Cafeteira` (botão) |
+| `LED_R` (SW1 B) | GPIO21 | 26 | Saída (LEDC) | R3 | `RgbLed` |
+| `LED_G` (SW1 B) | GPIO22 | 29 | Saída (LEDC) | R4 | `RgbLed` |
+| `LED_B` (SW1 B) | GPIO23 | 30 | Saída (LEDC) | R5 | `RgbLed` |
+| `BUZZER` (J5.1) | GPIO25 | 8 | Saída (LEDC, se passivo) | Estágio a definir (#311) | Ainda não usado |
+| Sensor de temperatura do SSR (opcional) | GPIO33 | 9 | Entrada | Reservado, fora do esquemático (#323) | Ainda não usado |
+| `+5V` (barramento 5V/VIN) | VIN | 1 | Alimentação | Vem do USB (PS1). Nada externo neste pino | — |
+| `+3V3` | 3V3 | 16 | Alimentação (`power_out`) | Regulador da placa; alimenta R2 | — |
+| `GND` | GND | 2, 17 | — | Comum DC, SSR1 −, J5.2 | — |
 
-### Comandos de Inspeção Headless
+### 3.1 Anel RGB do botão: tensão do LED (pendente, #308)
 
-```powershell
-# Executar ERC
+O anel do botão é especificado para **12–24 V DC**. Um LED vendido para essa
+faixa normalmente traz um resistor interno dimensionado para 12 V. Com o GPIO
+entregando 3,3 V, a corrente prevista é muito baixa:
+
+- o vermelho (queda de ~2 V) deve acender fraco;
+- o verde e o azul (queda de ~3 V) devem ficar praticamente apagados. O azul é
+  a cor de "ocioso conectado" (spec §5.3).
+
+É uma **previsão**, não uma medida: o valor do resistor interno não é conhecido.
+Antes de fixar o circuito, medir na bancada, **sem rede**, com o preto no GND:
+
+| Teste | Como | O que registrar |
+|---|---|---|
+| 1. A 3,3 V | Cada cor no pino 3V3 do DevKit | Brilho a ~1 m, com luz ambiente |
+| 2. A 5 V | Cada cor no pino VIN/5V do DevKit, com multímetro em série | Corrente e brilho |
+
+Saídas possíveis, da mais simples para a mais complexa:
+
+| Resultado | Circuito | Mudança no firmware |
+|---|---|---|
+| 3,3 V basta para as três cores | GPIO direto no anodo, sem R3–R5 | Nenhuma |
+| Só 5 V basta | Chave do lado positivo (high-side) por cor, a partir do +5V (cátodo comum exige comutar o anodo) | Polaridade do PWM, se a chave inverter |
+| Nem 5 V basta | Conversor 5 → 12 V e chave high-side por cor, por exemplo um driver high-side de 8 canais como o TBD62783 (entrada compatível com 3,3 V) | Idem |
+
+Os componentes da segunda e da terceira linha **não estão na lista de
+compras**. Se o teste apontar para elas, é compra antes da montagem.
+
+**Por que GPIO25 para o buzzer:** não é pino de strapping (0, 2, 5, 12, 15), não é somente entrada (34–39), não é a UART0 de gravação (1, 3) e não emite sinal no boot (como o GPIO14). Fica no mesmo lado do DevKit que GPIO26 e GPIO27, o que agrupa a fiação.
+
+**Por que GPIO33 para o sensor (opcional):** é canal do ADC1, que continua disponível com o Wi-Fi ativo (o ADC2 não). Serve tanto para um NTC analógico quanto para um sensor 1-Wire (DS18B20). A escolha do sensor é do spike #323.
+
+**Pinos evitados:** GPIO0, 2, 5, 12 e 15 (strapping; GPIO12 alto no boot impede a partida), GPIO1 e 3 (UART0), GPIO6–11 (flash), GPIO14 (sinal no boot) e GPIO34–39 (somente entrada).
+
+---
+
+## 4. Validação elétrica e relatório ERC
+
+Verificação com `kicad-cli sch erc` (KiCad 10.0.7, 09/11/2026): **0 erros, 54 avisos**, todos esperados.
+
+| Avisos | Tipo | Motivo |
+|---|---|---|
+| 20 | `pin_not_connected` | GPIOs livres do DevKit (eram 21; o GPIO25 passou a ser usado pelo buzzer) |
+| 1 | `pin_to_pin` | U1.GND (bidirecional) × PS1.GND (saída de alimentação). Mesmo caso da rev. A com U2.−Vout: a fonte define a referência zero |
+| 1 | `same_local_global_label` | Rótulo local `Earth_Protective` × símbolo de alimentação de mesmo nome. Herdado da rev. A, intencional (nó do PE) |
+| 32 | `lib_symbol_issues` | Só em máquina sem as bibliotecas padrão do KiCad configuradas (`power`, `Device`, `Connector`, `Connector_Generic`). Os símbolos estão embutidos no esquemático; com as bibliotecas instaladas, o aviso some |
+
+Netlist conferida nó a nó (`kicad-cli sch export netlist`):
+
+| Rede | Nós |
+|---|---|
+| `L_REDE` | P1.L, CB1.1 |
+| `L_FONTE` | CB1.2, PS1.AC/L, SSR1.1 (T1) |
+| `L_SAIDA` | SSR1.2 (T2), J1.L |
+| `N` | P1.N, PS1.AC/N, J1.N, CB1.3 (lâmpada) |
+| `Earth_Protective` | P1.PE, J1.PE, J3 |
+| `RELE_IN` | U1.GPIO26, SSR1.3 (+), R1 |
+| `GND` | U1.GND (2, 17), PS1.GND, SSR1.4 (−), R1, SW1.2, SW1.K, C1, C2, C3, J5.2 |
+| `+5V` | U1.VIN, PS1.VBUS, C1, C2 |
+| `+3V3` | U1.3V3, R2 |
+| `BOTAO` | U1.GPIO27, SW1.1, R2, C3 |
+| `LED_R/G/B` | U1.GPIO21/22/23 → R3/R4/R5 → SW1.RA/GA/BA |
+| `BUZZER` | U1.GPIO25, J5.1 |
+
+### Comandos
+
+```sh
 kicad-cli sch erc hardware/pi_dsm_26_2.kicad_sch
-
-# Exportar PDF atualizado do esquemático
 kicad-cli sch export pdf -o hardware/pi_dsm_26_2.pdf hardware/pi_dsm_26_2.kicad_sch
-
-# Exportar Netlist
 kicad-cli sch export netlist -o hardware/pi_dsm_26_2.net hardware/pi_dsm_26_2.kicad_sch
 ```
+
+---
+
+## 5. Segurança elétrica — pendências
+
+O esboço manuscrito do responsável (08/11/2026) foi o ponto de partida, **não** um esquemático validado. Status de cada verificação da #304:
+
+| Verificação | Status | Onde |
+|---|---|---|
+| Autenticidade do SSR | Confirmada pelo responsável (08/11/2026) | #305 |
+| Especificações da unidade SSR registradas (etiqueta) | Pendente | #305 |
+| Capacidade do SSR para a carga real (~6,3 A em 127 V), com curva de redução | Pendente | #305 |
+| Dissipação térmica e dissipador (estimativa ~8–10 W durante o preparo) | Pendente — ensaio térmico de 10/11/2026 | #305 |
+| Corrente de fuga do SSR desligado e modo de falha (curto) | Pendente. Desligar pelo app **não** secciona a rede | #305 |
+| Acionamento direto pelo GPIO (3,3 V contra mínimo de 3 V) | Pendente — medir na bancada | #305 |
+| Dimensionamento do disjuntor e dos condutores | ST-001 10 A para a carga de ~6,3 A: margem adequada em regime. Condutores de 1,0 mm² (cabo) e 1,5 mm² (interno) compatíveis com 10 A. Falta a curva de disparo | #307 |
+| Proteção contra sobrecorrente (breaker protege a fiação num curto do SSR) | **Pendente, com ressalva.** O ST-001 é uma chave disjuntora compacta, provavelmente térmica (bimetal), e o anúncio não informa a capacidade de interrupção. Ela protege contra sobrecarga; contra curto-circuito, a proteção principal passa a ser o disjuntor da instalação. Levar ao profissional (#19) | #307, #19 |
+| Isolamento entre baixa tensão e rede | Pendente — separação física na carcaça | #302 |
+| Distâncias de isolamento e de escoamento | Pendente | #302, #19 |
+| Aterramento (PE passa-através) e carcaça plástica | Projetado (J3); verificar na montagem | #19 |
+| Isolamento físico da entrada de alimentação | Pendente | #302 |
+| Integração do A1385 com ligação direta nos pinos | Decisão do responsável; verificações pendentes | #306 |
+| Operação bivolt | Não declarada. Só depois da validação do conjunto | #19 |
+
+A classificação de 40 A do SSR não significa que seja necessário ou seguro usar essa corrente.
+
+---
+
+## 6. Firmware
+
+O firmware segue a pinagem da seção 3. A polaridade do SSR está em `Cafeteira::kRelayActiveLevel` (`firmware/main/app/cafeteira.hpp`). **O firmware atual não pode rodar com o módulo HL-52S ligado ao GPIO26:** o repouso do active-high (nível BAIXO) liga o HL-52S.
+
+---
+
+## 7. Revisão A (histórico)
+
+Até 08/11/2026, o caminho da carga era `P1 → F1 (fusível 10 A T) → K3 (HL-52S, COM/NO, active-low) → J1`, com U2 (HLK-PM01) alimentando o VIN, R1 como pull-up para +3V3, LED RGB discreto D1 e botão M1. O esquemático, o PDF e este README dessa revisão estão no histórico do Git (commit `f5c82fb`).
