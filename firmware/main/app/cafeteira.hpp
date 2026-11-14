@@ -33,6 +33,11 @@ public:
     // Default de `duracaoS` quando o comando nao informa (spec-backend P9).
     static constexpr uint32_t kDefaultDurationS = 300;
 
+    // Reta final do preparo (#376): nos ultimos 60 s o LED pulsa mais rapido. So vale
+    // para preparos de pelo menos 2 min, para nao deixar um preparo curto todo "urgente".
+    static constexpr uint32_t kFinalStretchS = 60;
+    static constexpr uint32_t kFinalStretchMinDurationS = 120;
+
     // Teto de seguranca para `duracaoS`, independente do backend: cobre o
     // fallback BLE (spec §6.4), que pode comandar a base sem passar pelo
     // `@Max(900)` de `ComandoRequest` (BE-27, PR #142). Ver issue #143.

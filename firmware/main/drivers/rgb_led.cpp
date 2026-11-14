@@ -18,6 +18,11 @@ constexpr uint16_t kBreatheHalf = 120;
 // Wrap do contador de ticks: minimo multiplo comum de 100 (blink), 50 (pulse)
 // e 240 (breathe). Mantem todos os padroes continuos ao dar a volta.
 constexpr uint16_t kCounterWrap = 1200;
+
+// Pulse: ciclo de 50 ticks (2 Hz) no normal e de 25 ticks (4 Hz) no urgente. Os dois
+// dividem kCounterWrap, entao o padrao continua sem emenda ao dar a volta.
+constexpr uint16_t kPulseTicks = 50;
+constexpr uint16_t kPulseTicksUrgent = 24; // 4 Hz aproximado; 1200 / 24 = 50 ciclos exatos
 } // namespace
 
 RgbLed::RgbLed(gpio_num_t pin_r, gpio_num_t pin_g, gpio_num_t pin_b,
@@ -123,6 +128,7 @@ void RgbLed::update(CoffeeVisualState state, bool network_ok) {
     color_ = color_for(state, network_ok);
     pattern_ = pattern_for(state, network_ok);
     lit_ = true;
+    urgent_ = false;
     tick_counter_ = 0;
     write(color_);
     if (pattern_ == LedPattern::Breathe) {
@@ -155,8 +161,10 @@ void RgbLed::tick() {
             break;
         }
         case LedPattern::Pulse: {
-            // Verde pulsando (2 Hz: 250 ms aceso, 250 ms apagado = 25 ticks)
-            const bool should_be_lit = (tick_counter_ % 50) < 25;
+            // Verde pulsando (2 Hz: 250 ms aceso, 250 ms apagado = 25 ticks); nos
+            // ultimos 60 s do preparo pulsa mais rapido (urgente, ~4 Hz).
+            const uint16_t period = urgent_ ? kPulseTicksUrgent : kPulseTicks;
+            const bool should_be_lit = (tick_counter_ % period) < (period / 2);
             if (lit_ != should_be_lit) {
                 lit_ = should_be_lit;
                 write(lit_ ? color_ : LedColor::Off);

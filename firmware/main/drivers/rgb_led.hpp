@@ -85,6 +85,14 @@ public:
      */
     void refresh();
 
+    /**
+     * @brief Modo "ja quase" do padrao Pulse (so afeta Pulse): o verde pulsa mais
+     * rapido (4 Hz em vez de 2 Hz). A Cafeteira liga nos ultimos 60 s do preparo.
+     * `update()` desliga: cada mudanca de estado recomeca em ritmo normal.
+     */
+    void set_urgent(bool urgent) noexcept { urgent_ = urgent; }
+    [[nodiscard]] bool urgent() const noexcept { return urgent_; }
+
     [[nodiscard]] LedColor color() const noexcept { return color_; }
     [[nodiscard]] LedPattern pattern() const noexcept { return pattern_; }
     [[nodiscard]] bool blinking() const noexcept { return pattern_ == LedPattern::Blink; }
@@ -114,6 +122,7 @@ private:
     LedColor color_ = LedColor::Off;
     LedPattern pattern_ = LedPattern::Solid;
     bool lit_ = true;
+    bool urgent_ = false;
 
     uint16_t tick_counter_ = 0;
 };

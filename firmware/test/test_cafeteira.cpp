@@ -450,6 +450,50 @@ int test_skeleton_active_objects() {
     return 0;
 }
 
+// Reta final do preparo (#376): nos ultimos 60 s o LED pulsa mais rapido.
+int test_cafeteira_led_urgent_in_final_stretch() {
+    MockGpio::reset();
+    TestableCafeteira caf;
+    caf.boot();
+
+    caf.post(Message{MessageType::StartBrew, 130}); // >= 2 min: reta final vale
+    caf.process_pending();
+    TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Brewing, "preparando");
+
+    // Deixa o debounce do botao estabilizar e corre ate faltarem 61 s (9 s = 900 ticks).
+    for (int i = 0; i < 20; ++i) caf.tick();
+    TEST_ASSERT(!caf.led().urgent(), "inicio do preparo: ritmo normal");
+    for (int i = 0; i < 880; ++i) caf.tick();
+    TEST_ASSERT(caf.brew_seconds_left() > 60, "ainda fora da reta final");
+    TEST_ASSERT(!caf.led().urgent(), "faltam > 60 s: normal");
+    while (caf.brew_seconds_left() > 60) caf.tick();
+    caf.tick();
+    TEST_ASSERT(caf.brew_seconds_left() <= 60, "dentro da reta final");
+    TEST_ASSERT(caf.led().urgent(), "faltam <= 60 s: pulso urgente");
+
+    // Ao cancelar, o proximo estado volta ao normal.
+    caf.post(Message{MessageType::StopBrew, 0});
+    caf.process_pending();
+    caf.tick();
+    TEST_ASSERT(!caf.led().urgent(), "cancelado: normal");
+    std::cout << "[PASS] test_cafeteira_led_urgent_in_final_stretch" << std::endl;
+    return 0;
+}
+
+int test_cafeteira_short_brew_is_never_urgent() {
+    MockGpio::reset();
+    TestableCafeteira caf;
+    caf.boot();
+    caf.post(Message{MessageType::StartBrew, 90}); // < 2 min
+    caf.process_pending();
+    for (int i = 0; i < 20; ++i) caf.tick();
+    TEST_ASSERT(!caf.led().urgent(), "preparo curto nao e urgente desde o comeco");
+    for (int i = 0; i < 4000; ++i) caf.tick();
+    TEST_ASSERT(!caf.led().urgent(), "preparo curto nunca fica urgente");
+    std::cout << "[PASS] test_cafeteira_short_brew_is_never_urgent" << std::endl;
+    return 0;
+}
+
 int main() {
     std::cout << "Running Cafey Cafeteira AO Unit Tests (Spec §5.3)..." << std::endl;
     if (test_cafeteira_button_toggles_relay_and_led()) return 1;
@@ -465,6 +509,8 @@ int main() {
     if (test_cafeteira_long_press_opens_bind_window()) return 1;
     if (test_cafeteira_bind_window_expires()) return 1;
     if (test_cafeteira_short_press_still_toggles_brew_with_window_open()) return 1;
+    if (test_cafeteira_led_urgent_in_final_stretch()) return 1;
+    if (test_cafeteira_short_brew_is_never_urgent()) return 1;
     if (test_skeleton_active_objects()) return 1;
     std::cout << "All Cafeteira AO tests PASSED!" << std::endl;
     return 0;

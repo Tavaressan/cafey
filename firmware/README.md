@@ -29,7 +29,7 @@ Fonte única da pinagem: seção 3 de [`hardware/README.md`](../hardware/README.
 | **Azul respirando (lento)** | Conectado e ocioso | `Idle` + `network_ok = true` |
 | **Verde fixo** | Agendamento armado | `ScheduleArmed` + `network_ok = true` |
 | **Âmbar fixo** | Desconectado, com agendamento armado | `ScheduleArmed` + `network_ok = false` |
-| **Verde pulsando** | Preparando café agora | `Brewing` |
+| **Verde pulsando** | Preparando café agora. Nos **últimos 60 s** (preparos de ≥ 2 min) pulsa mais rápido (4 Hz em vez de 2 Hz), para indicar que está acabando | `Brewing` |
 | **Branco fixo (alguns minutos)** | Café pronto | `Ready` (recém-concluído) |
 | **Amarelo piscando** | Sem Wi-Fi, ocioso (operando offline) | `Idle` + `network_ok = false` |
 | **Vermelho fixo** | Erro ou falha | `Error` |
