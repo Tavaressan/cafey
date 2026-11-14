@@ -47,6 +47,11 @@ enum class LedPattern : uint8_t {
  * *piscar* indica problema de rede. LED de catodo comum por padrao (HW-01):
  * nivel alto acende o canal. Para anodo comum, `common_anode = true` inverte.
  *
+ * Na montagem atual (anel de anodo comum em 12 V) cada canal e chaveado por um
+ * MOSFET N no lado baixo: o gate segue o GPIO, entao nivel alto acende e o padrao
+ * `common_anode = false` esta certo. `true` so vale para anodo comum ligado
+ * direto ao GPIO.
+ *
  * O canal azul e controlado por PWM de hardware (LEDC) para que o padrao
  * "respirando" tenha brilho suave, sem flicker. Os canais R e G usam GPIO
  * simples (on/off).
