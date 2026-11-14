@@ -377,6 +377,82 @@ int test_cafeteira_long_press_opens_bind_window() {
     return 0;
 }
 
+int test_cafeteira_long_press_closes_open_bind_window() {
+    MockGpio::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    TestableCafeteira caf;
+    int aberturas = 0;
+    int fechamentos = 0;
+    bool codigo_abertura_valido = false;
+    bool codigo_fechamento_vazio = false;
+    caf.set_on_bind_window_change([&](bool aberta, const std::string& codigo) {
+        if (aberta) {
+            ++aberturas;
+            codigo_abertura_valido = six_digits(codigo);
+        } else {
+            ++fechamentos;
+            codigo_fechamento_vazio = codigo.empty();
+        }
+    });
+    caf.boot();
+
+    // 1o toque longo: abre.
+    long_press(caf);
+    TEST_ASSERT(caf.bind_window_open(), "janela abre com 5 s");
+    TEST_ASSERT(aberturas == 1, "uma abertura");
+    TEST_ASSERT(codigo_abertura_valido, "abertura publica codigo de 6 digitos");
+
+    // Solta para encerrar o toque (nao fecha a janela).
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    for (int i = 0; i < 5; ++i) caf.tick();
+    TEST_ASSERT(caf.pending_count() == 0, "soltura nao gera toque curto");
+    caf.process_pending();
+    TEST_ASSERT(caf.bind_window_open(), "janela continua aberta apos soltar");
+
+    // 2o toque longo: fecha na hora.
+    long_press(caf);
+    TEST_ASSERT(!caf.bind_window_open(), "toque longo com janela aberta fecha na hora");
+    TEST_ASSERT(caf.bind_code().empty(), "codigo descartado no fechamento manual");
+    TEST_ASSERT(fechamentos == 1, "callback de fechamento chamado uma vez");
+    TEST_ASSERT(codigo_fechamento_vazio, "fechamento publica codigo vazio");
+    TEST_ASSERT(caf.state() == cafey::app::Cafeteira::State::Off, "nao inicia preparo");
+    TEST_ASSERT(!caf.relay_on(), "rele permanece aberto");
+    TEST_ASSERT(caf.visual_state() == CoffeeVisualState::Idle, "LED volta ao estado anterior");
+
+    // Solta apos o 2o toque longo: sem toque curto.
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    for (int i = 0; i < 5; ++i) caf.tick();
+    TEST_ASSERT(caf.pending_count() == 0, "soltura apos fechar nao liga o preparo");
+
+    std::cout << "[PASS] test_cafeteira_long_press_closes_open_bind_window" << std::endl;
+    return 0;
+}
+
+int test_cafeteira_hold_10s_does_single_toggle() {
+    MockGpio::reset();
+    MockGpio::get_pin(GPIO_NUM_27).level = 1;
+    TestableCafeteira caf;
+    int aberturas = 0;
+    int fechamentos = 0;
+    caf.set_on_bind_window_change([&](bool aberta, const std::string&) {
+        if (aberta) ++aberturas; else ++fechamentos;
+    });
+    caf.boot();
+
+    // Segura por 10 s sem soltar: decide aos 5 s e nao alterna de novo.
+    MockGpio::get_pin(GPIO_NUM_27).level = 0;
+    const uint32_t dez_segundos = 1000; // 10 s * 100 ticks/s
+    for (uint32_t i = 0; i < dez_segundos; ++i) caf.tick();
+
+    TEST_ASSERT(caf.bind_window_open(), "janela aberta apos segurar 10 s");
+    TEST_ASSERT(aberturas == 1, "apenas uma abertura");
+    TEST_ASSERT(fechamentos == 0, "nenhum fechamento durante o mesmo toque");
+    TEST_ASSERT(caf.pending_count() == 0, "nenhum toque curto enfileirado");
+
+    std::cout << "[PASS] test_cafeteira_hold_10s_does_single_toggle" << std::endl;
+    return 0;
+}
+
 int test_cafeteira_bind_window_expires() {
     MockGpio::reset();
     MockGpio::get_pin(GPIO_NUM_27).level = 1;
@@ -462,6 +538,8 @@ int main() {
     if (test_cafeteira_enqueues_event_on_brew_cancel()) return 1;
     if (test_cafeteira_led_schedule_armed_states()) return 1;
     if (test_cafeteira_long_press_opens_bind_window()) return 1;
+    if (test_cafeteira_long_press_closes_open_bind_window()) return 1;
+    if (test_cafeteira_hold_10s_does_single_toggle()) return 1;
     if (test_cafeteira_bind_window_expires()) return 1;
     if (test_cafeteira_short_press_still_toggles_brew_with_window_open()) return 1;
     if (test_skeleton_active_objects()) return 1;

@@ -58,6 +58,19 @@ static void test_vinculo_published_without_retain() {
     std::cout << "OK: test_vinculo_published_without_retain\n";
 }
 
+static void test_vinculo_close_publishes_invalidacao() {
+    FakeMqttClient client;
+    MqttTopics topics("cafey-001");
+    UplinkPublisher pub(client, topics);
+
+    assert(pub.publish_vinculo("", /*aberta=*/false));
+    assert(client.publishes[0].topic == "dispositivos/cafey-001/vinculo");
+    assert(client.publishes[0].payload == "{\"aberta\":false,\"codigo\":null}");
+    assert(client.publishes[0].qos == 1);
+    assert(client.publishes[0].retain == false);
+    std::cout << "OK: test_vinculo_close_publishes_invalidacao\n";
+}
+
 static void test_last_will_is_retained_offline_on_saude() {
     MqttTopics topics("cafey-001");
     MqttConfig config;
@@ -74,6 +87,7 @@ int main() {
     test_eventos_published_without_retain();
     test_saude_published_without_retain();
     test_vinculo_published_without_retain();
+    test_vinculo_close_publishes_invalidacao();
     test_last_will_is_retained_offline_on_saude();
     std::cout << "Todos os testes de UplinkPublisher passaram.\n";
     return 0;

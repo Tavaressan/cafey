@@ -87,23 +87,35 @@ class MqttIngestionService(
     }
 
     /**
-     * Guarda o código de uso único publicado pela placa na janela de vínculo (FW-24, #275).
+     * Guarda ou invalida o código de uso único da janela de vínculo da placa (FW-24, #275; FW-29).
      *
-     * O prazo é calculado no recebimento (e não pelo relógio da placa, que pode não ter NTP),
-     * usando a mesma duração da janela do firmware. Uma nova publicação sobrescreve o código
-     * anterior, o que cobre reabrir a janela antes de a antiga expirar.
+     * Abertura (`{"codigo":"123456"}`): o prazo é calculado no recebimento (e não pelo relógio da
+     * placa, que pode não ter NTP), usando a mesma duração da janela do firmware. Uma nova
+     * publicação sobrescreve o código anterior, o que cobre reabrir a janela antes de expirar.
+     *
+     * Fechamento/invalidação (`{"aberta":false,"codigo":null}`), manual ou por tempo: limpa o
+     * código e a expiração para que o backend recuse o código antigo mesmo antes do prazo.
      */
     @Transactional
     fun processarVinculo(dispositivoId: UUID, payload: VinculoPayload) {
         val dispositivo = dispositivoRepository.findById(dispositivoId).orElse(null)
         if (dispositivo == null) {
-            logger.warn("Recebido código de vínculo para dispositivo inexistente: {}", dispositivoId)
+            logger.warn("Recebida mensagem de vínculo para dispositivo inexistente: {}", dispositivoId)
             return
         }
 
         val agora = Instant.now()
-        val codigo = payload.codigo?.trim()
-        if (codigo.isNullOrEmpty()) {
+        if (payload.aberta == false || payload.codigo == null) {
+            dispositivo.codigoVinculo = null
+            dispositivo.codigoVinculoExpiraEm = null
+            dispositivo.atualizadoEm = agora
+            dispositivoRepository.save(dispositivo)
+            logger.info("Código de vínculo do dispositivo {} invalidado (janela fechada)", dispositivoId)
+            return
+        }
+
+        val codigo = payload.codigo.trim()
+        if (codigo.isEmpty()) {
             logger.warn("Recebido código de vínculo vazio para dispositivo {}", dispositivoId)
             return
         }

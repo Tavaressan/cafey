@@ -34,13 +34,17 @@ public:
     }
 
     /**
-     * @brief Codigo de uso unico da janela de vinculo (FW-24, #275).
+     * @brief Janela de vinculo (FW-24, #275; FW-29): abertura publica o codigo de
+     * uso unico; fechamento publica invalidacao para o backend descartar o codigo.
      *
-     * Sem retain: o codigo vale apenas enquanto a janela estiver aberta e nao
-     * deve ser reentregue numa reconexao futura.
+     * Sem retain: vale apenas no momento. Formatos (retrocompativeis com o
+     * consumidor do PR #299, que le `codigo`): abertura `{"codigo":"123456"}`;
+     * fechamento `{"aberta":false,"codigo":null}`.
      */
-    bool publish_vinculo(const std::string& codigo) {
-        return client_.publish(topics_.vinculo, "{\"codigo\":\"" + codigo + "\"}",
+    bool publish_vinculo(const std::string& codigo, bool aberta = true) {
+        const std::string payload = aberta ? "{\"codigo\":\"" + codigo + "\"}"
+                                           : "{\"aberta\":false,\"codigo\":null}";
+        return client_.publish(topics_.vinculo, payload,
                                cafey::core::kMqttQos1, /*retain=*/false);
     }
 

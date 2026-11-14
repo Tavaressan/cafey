@@ -348,19 +348,24 @@ extern "C" void app_main(void) {
         return json;
     };
 
-    // Janela de vinculo pelo toque longo (FW-24, #275): o mesmo codigo de uso
-    // unico sai por BLE (lido pelo app) e por MQTT (validado pelo backend).
+    // Janela de vinculo pelo toque longo (FW-24/FW-29): o mesmo codigo de uso
+    // unico sai por BLE (lido pelo app) e por MQTT (validado pelo backend). No
+    // fechamento (manual ou por tempo) o firmware invalida o codigo por MQTT para
+    // o backend rejeita-lo antes de expirar. Mesmo topico/policy AWS IoT.
     g_cafeteira.set_on_bind_window_change([has_mqtt_config](bool aberta, const std::string& codigo) {
         if (g_ble_service != nullptr) {
             g_ble_service->publish_vinculo(aberta ? codigo : std::string());
         }
-        if (!aberta) return;
         if (!has_mqtt_config || !mqtt_client.is_connected()) {
-            ESP_LOGW(TAG, "janela de vinculo sem MQTT: o codigo nao chegara ao backend");
+            if (aberta) {
+                ESP_LOGW(TAG, "janela de vinculo sem MQTT: o codigo nao chegara ao backend");
+            } else {
+                ESP_LOGW(TAG, "fechamento de vinculo sem MQTT: invalidacao nao chegou ao backend");
+            }
             return;
         }
         const cafey::core::MqttTopics topics(mqtt_config.client_id);
-        cafey::app::UplinkPublisher(mqtt_client, topics).publish_vinculo(codigo);
+        cafey::app::UplinkPublisher(mqtt_client, topics).publish_vinculo(codigo, aberta);
     });
 
     // Servico BLE (FW-17, spec §6.4, UC-04 #249): comando/estado/agendamentos delegam para

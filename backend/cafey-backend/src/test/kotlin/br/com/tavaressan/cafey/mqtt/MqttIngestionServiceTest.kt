@@ -224,6 +224,62 @@ class MqttIngestionServiceTest {
     }
 
     @Test
+    fun `should clear vinculo code when window is closed with null codigo`() {
+        val disp = Dispositivo(
+            id = dispositivoId,
+            nome = "Cafeteira",
+            codigoVinculo = "123456",
+            codigoVinculoExpiraEm = Instant.now().plusSeconds(90)
+        )
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarVinculo(dispositivoId, VinculoPayload(codigo = null))
+
+        assertNull(disp.codigoVinculo)
+        assertNull(disp.codigoVinculoExpiraEm)
+        verify(dispositivoRepository).save(disp)
+    }
+
+    @Test
+    fun `should clear vinculo code when payload signals window closed`() {
+        val disp = Dispositivo(
+            id = dispositivoId,
+            nome = "Cafeteira",
+            codigoVinculo = "123456",
+            codigoVinculoExpiraEm = Instant.now().plusSeconds(90)
+        )
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        ingestionService.processarVinculo(dispositivoId, VinculoPayload(aberta = false, codigo = null))
+
+        assertNull(disp.codigoVinculo)
+        assertNull(disp.codigoVinculoExpiraEm)
+        verify(dispositivoRepository).save(disp)
+    }
+
+    @Test
+    fun `should parse vinculo close payload and clear stored code`() {
+        val disp = Dispositivo(
+            id = dispositivoId,
+            nome = "Cafeteira",
+            codigoVinculo = "654321",
+            codigoVinculoExpiraEm = Instant.now().plusSeconds(90)
+        )
+        `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))
+        `when`(dispositivoRepository.save(any(Dispositivo::class.java))).thenAnswer { it.getArgument(0) }
+
+        clientService.handleIncomingMessage(
+            "dispositivos/$dispositivoId/vinculo",
+            """{"aberta":false,"codigo":null}"""
+        )
+
+        assertNull(disp.codigoVinculo)
+        assertNull(disp.codigoVinculoExpiraEm)
+    }
+
+    @Test
     fun `should parse incoming vinculo topic and route to ingestion`() {
         val disp = Dispositivo(id = dispositivoId, nome = "Cafeteira")
         `when`(dispositivoRepository.findById(dispositivoId)).thenReturn(Optional.of(disp))

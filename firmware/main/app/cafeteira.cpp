@@ -235,12 +235,19 @@ void Cafeteira::on_tick() {
         }
     }
 
-    // Toque longo: abre a janela ainda com o botao pressionado.
+    // Toque longo: alterna a janela de vinculo ainda com o botao pressionado
+    // (FW-29): abre se fechada, fecha na hora se aberta. Uma unica alternancia
+    // por toque, decidida aos 5 s (long_press_consumed_ evita abrir/fechar em
+    // sequencia ao segurar alem do limiar).
     if (btn_same_count_ >= kDebounceSamples && btn_stable_ == 0) {
         if (btn_press_ticks_ < kLongPressTicks) ++btn_press_ticks_;
         if (!long_press_consumed_ && btn_press_ticks_ >= kLongPressTicks) {
             long_press_consumed_ = true;
-            open_bind_window();
+            if (bind_window_open()) {
+                close_bind_window();
+            } else {
+                open_bind_window();
+            }
         }
     }
 }
