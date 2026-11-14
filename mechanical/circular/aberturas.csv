@@ -8,3 +8,4 @@ tomada_j1,rede,ret,90,-36,23,45.5,25,47,41,tomada 2P+T NBR 14136 10 A de painel 
 disjuntor,rede,ret,60,-36,13,28,16,31,33,chave disjuntora ST-001 29x14x25 + terminais; recorte PROVISORIO ate medir (#307)
 buzzer,baixa,furos,-45,-25,10,10,14,14,14,buzzer do kit (~12 x 9.5) encostado na parede; 7 furos de 2.5 mm para o som sair (#311)
 prensa_cabo,rede,circ,120,-45,15.5,15.5,22,22,22,prensa-cabo PG9 (E10) + porca
+dht11,baixa,furos,-140,-36,10,10,26,16,14,modulo DHT11 do kit (~24 x 14 x 12) colado por dentro atras de grade de furos de 2.5 mm; mede o ar interno da carcaca (esq. rev B+)
