@@ -152,7 +152,7 @@ para medir o dissipador do SSR (queda de projeto: o #323 trata disso com outro
 sensor); aqui mede **o ar dentro da carcaça**, que sobe com o SSR e é o dado
 que o diagnóstico mostra.
 
-- **Ligação:** VCC em `+3V3`, DATA no GPIO33, GND no comum. Em 3,3 V a linha de
+- **Ligação:** VCC em `+3V3`, DATA no GPIO33, GND no comum. **Ordem dos pinos do módulo do kit, da esquerda para a direita (confirmada na bancada em 13/11/2026): `S` (sinal) → GPIO33, `+` → 3V3, `-` → GND.** O meio é o VCC, não o dado: ligar na ordem do símbolo (VCC, DATA, GND) inverte a alimentação. Em 3,3 V a linha de
   dado nunca passa de 3,3 V, então não precisa de conversor de nível. O módulo do
   kit traz o pull-up de 10 kΩ; com o sensor solto de 4 pinos, acrescentar 10 kΩ
   entre DATA e `+3V3`.

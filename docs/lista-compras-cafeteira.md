@@ -46,7 +46,7 @@ registro da revisão A.
 | B9 | Módulo boost 5 → 12 V (U3) | **MT3608** (ou XL6009), com trimpot. ~36,5 × 17 × 14 mm | **A comprar** (1 + 1 reserva: erro no trimpot queima) | #308 |
 | B10 | Resistores do driver RGB | 3 × 220 Ω (gate), 3 × 10 kΩ (pull-down) | Em estoque (220 Ω no kit; 10 kΩ fora do kit) | #308 |
 | B11 | Capacitor 100 µF / 25 V (C4) | Eletrolítico | A confirmar em estoque | #308 |
-| B12 | Módulo DHT11 (U4) | Do kit LAFVIN (item 6 do inventário): 3 pinos, pull-up de 10 kΩ no módulo | Em estoque (2 unidades). Testar na bancada antes da montagem | #323 |
+| B12 | Módulo DHT11 (U4) | Do kit LAFVIN (item 6 do inventário): 3 pinos, da esquerda para a direita `S`, `+`, `-` (sinal, 3V3, GND), pull-up de 10 kΩ no módulo | Em estoque (2 unidades). Testar na bancada antes da montagem | #323 |
 | B8 | Componentes do acionamento do anel RGB | Chaves high-side por cor; talvez um conversor 5 → 12 V | **Condicional:** só se o teste de bancada do anel mostrar que 3,3 V não basta. Ver `hardware/README.md`, seção 3.1 | #308 |
 
 ### Itens fora de uso na revisão B
