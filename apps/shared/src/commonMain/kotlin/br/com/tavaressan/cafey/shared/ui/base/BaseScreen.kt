@@ -279,6 +279,14 @@ private fun DiagnosticoCard(diagnostico: DiagnosticoDispositivoResponse?, restri
         DiagnosticoItem("Estado do relé", textoEstadoRele(diagnostico.estadoRele))
         DiagnosticoItem("Versão do firmware", diagnostico.firmware ?: "Indisponível")
         DiagnosticoItem("Tempo ligado (uptime)", diagnostico.uptimeS?.let { "${it}s" } ?: "Indisponível")
+        DiagnosticoItem("Temperatura do módulo", textoTemperatura(diagnostico.temperaturaC))
+        DiagnosticoItem("Umidade do módulo", textoUmidade(diagnostico.umidade))
+        if (diagnostico.temperaturaC != null || diagnostico.umidade != null) {
+            DiagnosticoItem(
+                "Leitura do sensor",
+                textoUltimaComunicacao(diagnostico.ambienteAtualizadoEm, agoraMs, fuso),
+            )
+        }
         diagnostico.ultimoReset?.let {
             DiagnosticoItem("Último reinício", textoUltimoReinicio(it))
         }

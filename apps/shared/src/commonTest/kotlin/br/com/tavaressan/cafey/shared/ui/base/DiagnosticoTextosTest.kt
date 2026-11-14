@@ -38,4 +38,19 @@ class DiagnosticoTextosTest {
         assertEquals("Desligado", textoEstadoRele("DESLIGADO"))
         assertEquals("Indisponível", textoEstadoRele(null))
     }
+
+    @Test
+    fun formataTemperaturaComVirgulaEUmaCasa() {
+        assertEquals("24,5 °C", textoTemperatura(24.5))
+        assertEquals("24,0 °C", textoTemperatura(24.0))
+        assertEquals("-5,3 °C", textoTemperatura(-5.3))
+        assertEquals("0,0 °C", textoTemperatura(-0.04))
+        assertEquals("Indisponível", textoTemperatura(null))
+    }
+
+    @Test
+    fun formataUmidadeEmPorcento() {
+        assertEquals("55 %", textoUmidade(55))
+        assertEquals("Indisponível", textoUmidade(null))
+    }
 }

@@ -6,6 +6,7 @@ import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
+import kotlin.math.roundToInt
 
 /**
  * Texto da "última comunicação" do módulo em linguagem natural ("há 2 min", "hoje às 14:32",
@@ -48,3 +49,14 @@ internal fun textoEstadoRele(codigo: String?): String = when (codigo?.trim()?.up
     null, "" -> "Indisponível"
     else -> codigo
 }
+
+/** "24,5 °C" (vírgula decimal, uma casa), ou [semDado] quando o sensor não reportou. */
+internal fun textoTemperatura(temperaturaC: Double?, semDado: String = "Indisponível"): String {
+    if (temperaturaC == null) return semDado
+    val decimos = (kotlin.math.abs(temperaturaC) * 10).roundToInt()
+    val sinal = if (temperaturaC < 0 && decimos != 0) "-" else ""
+    return "$sinal${decimos / 10},${decimos % 10} °C"
+}
+
+internal fun textoUmidade(umidade: Int?, semDado: String = "Indisponível"): String =
+    umidade?.let { "$it %" } ?: semDado

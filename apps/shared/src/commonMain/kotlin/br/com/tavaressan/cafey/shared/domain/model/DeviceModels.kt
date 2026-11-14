@@ -87,6 +87,10 @@ data class DiagnosticoDispositivoResponse(
     val estadoRele: String? = null,
     val ultimoReset: String? = null,
     val resetsAnormais: Int? = null,
+    /** DHT11 da placa: °C e %UR. `null` com o sensor indisponível ou antes da 1ª leitura. */
+    val temperaturaC: Double? = null,
+    val umidade: Int? = null,
+    val ambienteAtualizadoEm: String? = null,
     val errosRecentes: List<ErroRecenteDiagnosticoResponse> = emptyList(),
     val atualizadoEm: String,
 )
