@@ -21,6 +21,7 @@
 #include "esp_random.h"
 #include "core/esp_mqtt_client.hpp"
 #include "core/mqtt_config_store.hpp"
+#include "drivers/dht11.hpp"
 #include "core/mqtt_topics.hpp"
 #include "core/ntp_sync.hpp"
 #include "core/wifi_manager.hpp"
@@ -29,6 +30,7 @@
 #include "storage/event_queue_store.hpp"
 
 #include "app/agendador.hpp"
+#include "app/ambiente.hpp"
 #include "app/ble_event_proxy.hpp"
 #include "app/ble_service.hpp"
 #include "app/cafeteira.hpp"
@@ -47,6 +49,7 @@ const char* TAG = "cafey";
 cafey::app::Cafeteira g_cafeteira;
 cafey::app::Conectividade g_conectividade;
 cafey::app::Agendador g_agendador;
+cafey::app::Ambiente g_ambiente;
 
 extern "C" void app_main(void) {
     using cafey::core::Message;
@@ -62,6 +65,7 @@ extern "C" void app_main(void) {
     g_conectividade.init();
     g_cafeteira.init();
     g_agendador.init();
+    g_ambiente.init();
 
     // Carrega agendamentos e fila de eventos persistidos em NVS (spec §5.4):
     // sobrevivem a reboot e queda de energia. Consumidos futuramente pelos
@@ -411,9 +415,27 @@ extern "C" void app_main(void) {
         ESP_LOGE(TAG, "falha ao iniciar o servico BLE");
     }
 
+    // DHT11 (GPIO33). Sem sensor ou com o fio solto o firmware segue normal: a
+    // saude so omite temperatura e umidade (Ambiente reporta "indisponivel").
+    static cafey::drivers::Dht11 dht11(GPIO_NUM_33);
+    if (dht11.init() == ESP_OK) {
+        g_ambiente.attach_sensor(&dht11);
+        g_ambiente.set_on_report([](const cafey::app::Ambiente::Sample& s) {
+            if (s.valid) {
+                g_conectividade.post(Message{MessageType::AmbienteLido, s.temperature_dc,
+                                             static_cast<int32_t>(s.humidity_pct)});
+            } else {
+                g_conectividade.post(Message{MessageType::AmbienteIndisponivel, 0});
+            }
+        });
+    } else {
+        ESP_LOGE(TAG, "falha ao configurar o DHT11 no GPIO33");
+    }
+
     g_conectividade.start();
     g_cafeteira.start();
     g_agendador.start();
+    g_ambiente.start();
     ntp_sync.start();
 
     ESP_LOGI(TAG, "pronto - AOs Cafeteira/Conectividade/Agendador iniciados");

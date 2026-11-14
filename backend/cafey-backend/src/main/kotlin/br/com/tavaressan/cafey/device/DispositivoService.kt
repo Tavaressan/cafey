@@ -245,6 +245,9 @@ class DispositivoService(
             estadoRele = estadoReleDerivado(dispositivo.estado),
             ultimoReset = dispositivo.ultimoReset,
             resetsAnormais = dispositivo.resetsAnormais,
+            temperaturaC = dispositivo.temperaturaC,
+            umidade = dispositivo.umidade,
+            ambienteAtualizadoEm = dispositivo.ambienteAtualizadoEm,
             errosRecentes = erros,
             atualizadoEm = dispositivo.atualizadoEm
         )

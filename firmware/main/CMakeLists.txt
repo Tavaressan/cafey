@@ -3,6 +3,7 @@ idf_component_register(
         "main.cpp"
         "drivers/relay.cpp"
         "drivers/rgb_led.cpp"
+        "drivers/dht11.cpp"
         "core/active_object.cpp"
         "core/mutex_lock.cpp"
         "core/reconnect_policy.cpp"
@@ -18,6 +19,7 @@ idf_component_register(
         "storage/event_queue_store.cpp"
         "storage/event_id_generator.cpp"
         "app/cafeteira.cpp"
+        "app/ambiente.cpp"
         "app/conectividade.cpp"
         "app/agendador.cpp"
         "app/coffee_command.cpp"
@@ -37,6 +39,7 @@ idf_component_register(
         esp_common
         esp_event
         esp_hw_support
+        esp_rom
         esp_netif
         esp_timer
         esp_wifi

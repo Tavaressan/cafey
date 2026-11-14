@@ -121,6 +121,10 @@ data class DiagnosticoDispositivoResponse(
     val estadoRele: String?,
     val ultimoReset: String?,
     val resetsAnormais: Int?,
+    /** DHT11 (°C e %UR); `null` sem leitura. `ambienteAtualizadoEm` mostra a idade do dado. */
+    val temperaturaC: Double?,
+    val umidade: Int?,
+    val ambienteAtualizadoEm: Instant?,
     val errosRecentes: List<ErroRecenteDiagnosticoResponse>,
     val atualizadoEm: Instant
 )

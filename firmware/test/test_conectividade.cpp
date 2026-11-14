@@ -215,6 +215,80 @@ int test_event_queued_stays_queued_when_offline() {
     return 0;
 }
 
+int send2(Conectividade& con, MessageType type, int32_t arg, int32_t arg2) {
+    con.post(Message{type, arg, arg2});
+    con.process_pending();
+    return 0;
+}
+
+int test_saude_carries_ambiente_when_connected() {
+    FakeMqttClient mqtt;
+    Conectividade con;
+    con.attach_mqtt(&mqtt, &kTopics, [] { return true; });
+    con.init();
+
+    send2(con, MessageType::AmbienteLido, 245, 55);
+    TEST_ASSERT(mqtt.publishes.size() == 1, "leitura nova publica saude");
+    TEST_ASSERT(mqtt.publishes[0].topic == kTopics.saude, "no topico saude");
+    TEST_ASSERT(mqtt.publishes[0].payload ==
+                    "{\"online\":true,\"temperaturaC\":24.5,\"umidade\":55}",
+                "temperatura com uma casa e umidade");
+    TEST_ASSERT(!mqtt.publishes[0].retain, "saude sem retain");
+
+    send2(con, MessageType::AmbienteLido, -53, 40);
+    TEST_ASSERT(mqtt.publishes.back().payload ==
+                    "{\"online\":true,\"temperaturaC\":-5.3,\"umidade\":40}",
+                "temperatura negativa mantem o sinal");
+
+    send2(con, MessageType::AmbienteLido, -5, 40);
+    TEST_ASSERT(mqtt.publishes.back().payload ==
+                    "{\"online\":true,\"temperaturaC\":-0.5,\"umidade\":40}",
+                "-0,5 C nao perde o sinal");
+
+    std::cout << "[PASS] test_saude_carries_ambiente_when_connected" << std::endl;
+    return 0;
+}
+
+int test_saude_drops_ambiente_when_sensor_unavailable() {
+    FakeMqttClient mqtt;
+    Conectividade con;
+    con.attach_mqtt(&mqtt, &kTopics, [] { return true; });
+    con.init();
+
+    send2(con, MessageType::AmbienteLido, 240, 50);
+    send(con, MessageType::AmbienteIndisponivel);
+    TEST_ASSERT(mqtt.publishes.back().payload == "{\"online\":true}",
+                "sem sensor a saude nao afirma valor velho");
+
+    send(con, MessageType::MqttConnected);
+    TEST_ASSERT(mqtt.publishes[mqtt.publishes.size() - 2].payload == "{\"online\":true}",
+                "o CONNECT seguinte tambem sai sem ambiente");
+
+    std::cout << "[PASS] test_saude_drops_ambiente_when_sensor_unavailable" << std::endl;
+    return 0;
+}
+
+int test_ambiente_while_offline_goes_out_on_connect() {
+    FakeMqttClient mqtt;
+    mqtt.connected = false;
+    Conectividade con;
+    con.attach_mqtt(&mqtt, &kTopics, [] { return true; });
+    con.init();
+
+    send2(con, MessageType::AmbienteLido, 231, 62);
+    TEST_ASSERT(mqtt.publishes.empty(), "offline nao publica");
+
+    mqtt.connected = true;
+    send(con, MessageType::MqttConnected);
+    TEST_ASSERT(mqtt.publishes[0].topic == kTopics.saude, "saude no CONNECT");
+    TEST_ASSERT(mqtt.publishes[0].payload ==
+                    "{\"online\":true,\"temperaturaC\":23.1,\"umidade\":62}",
+                "com a leitura guardada durante a queda");
+
+    std::cout << "[PASS] test_ambiente_while_offline_goes_out_on_connect" << std::endl;
+    return 0;
+}
+
 int main() {
     std::cout << "Running Cafey Conectividade (FW-21/FW-22) Unit Tests..." << std::endl;
 
@@ -226,6 +300,9 @@ int main() {
     if (test_mqtt_connected_drains_events()) return 1;
     if (test_event_queued_drains_immediately_when_connected()) return 1;
     if (test_event_queued_stays_queued_when_offline()) return 1;
+    if (test_saude_carries_ambiente_when_connected()) return 1;
+    if (test_saude_drops_ambiente_when_sensor_unavailable()) return 1;
+    if (test_ambiente_while_offline_goes_out_on_connect()) return 1;
 
     std::cout << "All Conectividade tests PASSED!" << std::endl;
     return 0;

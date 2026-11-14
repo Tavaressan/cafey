@@ -50,7 +50,10 @@ class DispositivoDiagnosticoControllerTest @Autowired constructor(
                 versaoAgendamentos = 3,
                 ultimoVisto = Instant.parse("2026-11-09T12:00:00Z"),
                 ultimoReset = "RESET_WATCHDOG",
-                resetsAnormais = 2
+                resetsAnormais = 2,
+                temperaturaC = 24.5,
+                umidade = 55,
+                ambienteAtualizadoEm = Instant.parse("2026-11-09T11:58:00Z")
             )
         )
         vincular(proprietario, dispositivo, PapelDispositivo.PROPRIETARIO)
@@ -94,6 +97,9 @@ class DispositivoDiagnosticoControllerTest @Autowired constructor(
             .andExpect(jsonPath("$.estadoRele").value("LIGADO"))
             .andExpect(jsonPath("$.ultimoReset").value("RESET_WATCHDOG"))
             .andExpect(jsonPath("$.resetsAnormais").value(2))
+            .andExpect(jsonPath("$.temperaturaC").value(24.5))
+            .andExpect(jsonPath("$.umidade").value(55))
+            .andExpect(jsonPath("$.ambienteAtualizadoEm").value("2026-11-09T11:58:00Z"))
             .andExpect(jsonPath("$.errosRecentes[0].eventoId").value("evt-erro-diag"))
             .andExpect(jsonPath("$.errosRecentes[0].detalheErro").value("falha no aquecimento"))
     }

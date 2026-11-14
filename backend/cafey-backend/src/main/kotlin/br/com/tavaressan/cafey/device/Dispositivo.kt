@@ -59,6 +59,18 @@ class Dispositivo(
     @Column(name = "resets_anormais")
     var resetsAnormais: Int? = null,
 
+    /** Temperatura do DHT11 (°C), última reportada com o sensor funcionando. */
+    @Column(name = "temperatura_c")
+    var temperaturaC: Double? = null,
+
+    /** Umidade relativa do DHT11 (%). */
+    @Column(name = "umidade")
+    var umidade: Int? = null,
+
+    /** Quando a placa reportou a leitura acima; `null` se nunca reportou ou o sensor falhou. */
+    @Column(name = "ambiente_atualizado_em")
+    var ambienteAtualizadoEm: Instant? = null,
+
     /** Código de uso único publicado pela placa na janela de vínculo (FW-24, #275). */
     @Column(name = "codigo_vinculo", length = 16)
     var codigoVinculo: String? = null,

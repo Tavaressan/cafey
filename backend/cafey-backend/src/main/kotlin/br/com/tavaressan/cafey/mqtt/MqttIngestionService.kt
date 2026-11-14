@@ -72,6 +72,15 @@ class MqttIngestionService(
         payload.uptimeS?.let { dispositivo.uptimeS = it }
         payload.ultimoReset?.let { dispositivo.ultimoReset = it.take(50) } // coluna VARCHAR(50); vem da placa
         payload.resetsAnormais?.let { dispositivo.resetsAnormais = it }
+        if (payload.online) {
+            // Toda `saude` online do firmware diz se há leitura do DHT11: a ausência
+            // significa sensor indisponível e apaga o valor, para o app não mostrar um
+            // número velho como se fosse atual. O Last Will (online=false) não passa aqui.
+            dispositivo.temperaturaC = payload.temperaturaC?.takeIf { it in -40.0..80.0 }
+            dispositivo.umidade = payload.umidade?.takeIf { it in 0..100 }
+            dispositivo.ambienteAtualizadoEm =
+                if (dispositivo.temperaturaC != null || dispositivo.umidade != null) Instant.now() else null
+        }
         dispositivo.atualizadoEm = Instant.now()
         dispositivoRepository.save(dispositivo)
         logger.info("Saúde do dispositivo {} atualizada: online={}", dispositivoId, payload.online)
