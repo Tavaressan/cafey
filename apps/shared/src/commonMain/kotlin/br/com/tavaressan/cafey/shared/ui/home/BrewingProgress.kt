@@ -20,7 +20,13 @@ sealed interface BrewingProgress {
     data object Indeterminate : BrewingProgress
 
     /** Preparo em andamento com progresso conhecido, de 0f a 1f. */
-    data class Determinate(val fraction: Float) : BrewingProgress
+    data class Determinate(
+        val fraction: Float,
+        /** Segundos que faltam (0..duração), arredondados para cima. */
+        val restanteS: Long = 0,
+        /** Instante previsto de conclusão (início + duração), em epoch ms. */
+        val terminaEmMs: Long = 0,
+    ) : BrewingProgress
 }
 
 @OptIn(ExperimentalTime::class)
@@ -39,5 +45,8 @@ fun calcularProgressoPreparo(
     }
     val elapsedMs = (nowEpochMs - inicioMs).coerceAtLeast(0L)
     val fraction = (elapsedMs.toFloat() / (duracaoPreparoS * 1000f)).coerceIn(0f, 1f)
-    return BrewingProgress.Determinate(fraction)
+    val duracaoMs = duracaoPreparoS * 1000L
+    // Arredonda para cima: com 59,2 s faltando o texto mostra 59 s, nunca 0 antes da hora.
+    val restanteS = ((duracaoMs - elapsedMs).coerceAtLeast(0L) + 999L) / 1000L
+    return BrewingProgress.Determinate(fraction, restanteS, inicioMs + duracaoMs)
 }

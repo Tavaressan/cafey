@@ -60,3 +60,44 @@ internal fun textoTemperatura(temperaturaC: Double?, semDado: String = "Indispon
 
 internal fun textoUmidade(umidade: Int?, semDado: String = "Indisponível"): String =
     umidade?.let { "$it %" } ?: semDado
+
+/** Limiares do alarme de temperatura interna (°C). O DHT11 só garante 0..50 °C (±2 °C). */
+internal const val TEMPERATURA_ATENCAO_C = 45.0
+internal const val TEMPERATURA_ALTA_C = 55.0
+
+/** Idade máxima da leitura para o alarme valer: dado velho não pode alarmar nem tranquilizar. */
+internal const val LEITURA_RECENTE_MAX_MIN = 5L
+
+internal enum class NivelTemperatura { Normal, Atencao, Alta }
+
+internal fun nivelTemperatura(temperaturaC: Double?): NivelTemperatura = when {
+    temperaturaC == null -> NivelTemperatura.Normal
+    temperaturaC >= TEMPERATURA_ALTA_C -> NivelTemperatura.Alta
+    temperaturaC >= TEMPERATURA_ATENCAO_C -> NivelTemperatura.Atencao
+    else -> NivelTemperatura.Normal
+}
+
+/** `true` quando a leitura do sensor tem no máximo [LEITURA_RECENTE_MAX_MIN] minutos. */
+@OptIn(ExperimentalTime::class)
+internal fun leituraRecente(iso: String?, agoraMs: Long): Boolean {
+    val instante = try {
+        Instant.parse(iso ?: return false)
+    } catch (_: Exception) {
+        return false
+    }
+    val idadeMin = (agoraMs - instante.toEpochMilliseconds()) / 60_000
+    return idadeMin <= LEITURA_RECENTE_MAX_MIN
+}
+
+/** Mensagem do alarme, ou `null` quando está tudo normal (ou a leitura é antiga/ausente). */
+internal fun textoAlarmeTemperatura(temperaturaC: Double?, atualizadoEmIso: String?, agoraMs: Long): String? {
+    if (!leituraRecente(atualizadoEmIso, agoraMs)) return null
+    val temp = textoTemperatura(temperaturaC)
+    return when (nivelTemperatura(temperaturaC)) {
+        NivelTemperatura.Normal -> null
+        NivelTemperatura.Atencao ->
+            "O interior do módulo está quente ($temp). Verifique a ventilação e evite cobrir as aberturas."
+        NivelTemperatura.Alta ->
+            "Interior do módulo muito quente ($temp). Desligue o módulo da tomada e deixe esfriar antes de usar de novo."
+    }
+}
